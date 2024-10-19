@@ -23,14 +23,14 @@ from core.views import GroupViewSet, PermissionViewSet
 
 
 router = DefaultRouter()
-router.register(r'auth/groups', GroupViewSet, basename='group')
-router.register(r'auth/permissions', PermissionViewSet, basename='permission')
+router.register(r'api/v1/auth/groups', GroupViewSet, basename='group')
+router.register(r'api/v1/auth/permissions', PermissionViewSet, basename='permission')
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('admin/', admin.site.urls),
-    path('core/', include('core.urls')),
-    path('auth/', include('djoser.urls')),
-    path('auth/', include('djoser.urls.jwt')),
+    path('api/v1/admin/', admin.site.urls),
+    path('api/v1/core/', include('core.urls')),
+    path('api/v1/auth/', include('djoser.urls')),
+    path('api/v1/auth/', include('djoser.urls.jwt')),
     path('__debug__/', include(debug_toolbar.urls)),
 ]
