@@ -1,0 +1,23 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+django = "*"
+django-debug-toolbar = "*"
+mysqlclient = "*"
+pylint-django = "*"
+djangorestframework = "*"
+drf-nested-routers = "*"
+django-filter = "*"
+djoser = "*"
+djangorestframework-simplejwt = "*"
+python-dotenv = "*"
+dj-database-url = "*"
+psycopg2 = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.12"
