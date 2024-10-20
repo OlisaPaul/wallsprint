@@ -15,7 +15,7 @@ class GroupViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAdminUser]
 
     def get_serializer_class(self):
-        if self.request.method == "post":
+        if self.request.method == "POST":
             return CreateGroupSerializer
         return GroupSerializer
 
