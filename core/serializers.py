@@ -31,8 +31,13 @@ class GroupSerializer(ModelSerializer):
         model = Group
         fields = ['id', 'name', 'permissions']
 
+class CreateGroupSerializer(ModelSerializer):
+    class Meta:
+        model = Group
+        fields = ['id', 'name', 'permissions']
 
-class AddGroupSerializer(ModelSerializer):
+
+class AddUserToGroupSerializer(ModelSerializer):
     user_id = serializers.IntegerField()
 
     class Meta:

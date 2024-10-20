@@ -3,7 +3,7 @@ from django.shortcuts import render
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from .serializers import GroupSerializer, PermissionSerializer, AddGroupSerializer
+from .serializers import GroupSerializer, PermissionSerializer, AddUserToGroupSerializer, CreateGroupSerializer
 from cuser.models import CUser
 
 # Create your views here.
@@ -11,15 +11,21 @@ from cuser.models import CUser
 
 class GroupViewSet(viewsets.ModelViewSet):
     queryset = Group.objects.all()
-    serializer_class = GroupSerializer
+    
     permission_classes = [permissions.IsAdminUser]
 
-    @action(detail=True, methods=['post'], serializer_class=AddGroupSerializer)
+    def get_serializer_class(self):
+        if self.request.method == "post":
+            return CreateGroupSerializer
+        return GroupSerializer
+
+
+    @action(detail=True, methods=['post'], serializer_class=AddUserToGroupSerializer)
     def add_user(self, request, pk=None):
         """Add a user to a group."""
         group = self.get_object()
         user_id = request.data.get('user_id')
-        
+
         try:
             user = CUser.objects.get(id=user_id)
             group.user_set.add(user)
