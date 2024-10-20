@@ -28,12 +28,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-c5^8!(f&y@&8p=%gxedebx@bd**d+d6)r6yr_=j%w1ir7c%uga'
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['wallsprint.onrender.com']
+ALLOWED_HOSTS = ['wallsprint.onrender.com', '127.0.0.1']
 
 
 # Application definition
@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "django_filters",
     'rest_framework',
     'djoser',
+    'cuser',
     'debug_toolbar',
     'core',
 ]
@@ -103,7 +104,6 @@ WORK_ENV = os.getenv('WORK_ENV')
 
 if WORK_ENV != 'develop':
     DATABASES['default'] = dj_database_url.parse(DATABASE_URL)
-print(WORK_ENV)
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
@@ -147,7 +147,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, "static")
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-AUTH_USER_MODEL = "core.User"
+AUTH_USER_MODEL = "cuser.CUser"
 
 REST_FRAMEWORK = {
     'COERCE_DECIMAL_TO_STRING': False,
@@ -161,10 +161,13 @@ DJOSER = {
         "user_create": 'core.serializers.UserCreateSerializer',
         "current_user": 'core.serializers.UserSerializer',
         "user": 'core.serializers.UserSerializer',
+        'token_create': 'core.serializers.CustomTokenCreateSerializer'
     },
     'PASSWORD_RESET_CONFIRM_URL': 'password/reset/confirm/{uid}/{token}',
-    'SEND_ACTIVATION_EMAIL': True,  # Optional, if you also want to send activation emails
+    'SEND_ACTIVATION_EMAIL': True,
+    'ACTIVATION_URL': 'password/reset/confirm/{uid}/{token}',
     'SEND_CONFIRMATION_EMAIL': True,
+    'LOGIN_FIELD': 'email',
 }
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -176,5 +179,9 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
-    'AUTH_HEADER_TYPES': ('JWT',)
+    'AUTH_HEADER_TYPES': ('Bearer',)
 }
+
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend',
+)

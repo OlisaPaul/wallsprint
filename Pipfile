@@ -18,6 +18,7 @@ dj-database-url = "*"
 psycopg2 = "*"
 gunicorn = "*"
 whitenoise = "*"
+django-username-email = "*"
 
 [dev-packages]
 

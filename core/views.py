@@ -4,7 +4,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from .serializers import GroupSerializer, PermissionSerializer, AddGroupSerializer
-from .models import User
+from cuser.models import CUser
 
 # Create your views here.
 
@@ -21,10 +21,10 @@ class GroupViewSet(viewsets.ModelViewSet):
         user_id = request.data.get('user_id')
         
         try:
-            user = User.objects.get(id=user_id)
+            user = CUser.objects.get(id=user_id)
             group.user_set.add(user)
             return Response({"message": f"User {user.username} added to group {group.name}."}, status=status.HTTP_200_OK)
-        except User.DoesNotExist:
+        except CUser.DoesNotExist:
             return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=True, methods=['post'], url_path='remove-user')
