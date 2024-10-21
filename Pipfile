@@ -19,6 +19,8 @@ psycopg2 = "*"
 gunicorn = "*"
 whitenoise = "*"
 django-username-email = "*"
+cloudinary = "*"
+django-cloudinary-storage = "*"
 
 [dev-packages]
 
