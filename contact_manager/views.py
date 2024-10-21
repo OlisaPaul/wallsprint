@@ -1,15 +1,23 @@
 from django.shortcuts import render
+from rest_framework.permissions import IsAdminUser, AllowAny
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
-from rest_framework import status
-from rest_framework.response import Response
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin
 from .models import ContactInquiry, QuoteRequest, Image
 from .serializers import ContactInquirySerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, ImageSerializer
 
 
+
+
 class ContactInquiryViewSet(ListModelMixin, RetrieveModelMixin, CreateModelMixin, GenericViewSet):
     queryset = ContactInquiry.objects.all()
     serializer_class = ContactInquirySerializer
+
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [AllowAny()]
+        return [IsAdminUser()]
+
+
 
 
 class ImageViewSet(ListModelMixin, GenericViewSet):
@@ -24,3 +32,8 @@ class QuoteRequestViewSet(ModelViewSet, GenericViewSet):
         if self.request.method == "POST":
             return CreateQuoteRequestSerializer
         return QuoteRequestSerializer
+
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [AllowAny()]
+        return [IsAdminUser()]
