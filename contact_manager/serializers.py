@@ -1,38 +1,68 @@
+import os
+from django.db import transaction
 from rest_framework import serializers
-from .models import ContactInquiry, ProjectQuoteRequest, Image
-import cloudinary.uploader
+from .models import ContactInquiry, QuoteRequest, Image
+from dotenv import load_dotenv
+load_dotenv()
+
+image_fields = [
+    'id', 'name', 'email_address', 'phone_number', 'address', 'fax_number',
+    'company', 'city_state_zip', 'country', 'preferred_mode_of_response',
+    'artwork_provided', 'project_name', 'project_due_date', 'additional_details',
+    'images'
+]
+
 
 class ContactInquirySerializer(serializers.ModelSerializer):
     class Meta:
         model = ContactInquiry
         fields = '__all__'
 
+
 class ImageSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField(method_name='get_url')
+
     class Meta:
         model = Image
-        fields = ['id', 'image_url', 'upload_date']
+        fields = ['path', 'url']
 
-class ProjectQuoteRequestSerializer(serializers.ModelSerializer):
+    def get_url(self, image: Image):
+        cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
+        path = image.path
+        return f"https://res.cloudinary.com/{cloud_name}/{path}"
+
+
+class QuoteRequestSerializer(serializers.ModelSerializer):
     images = ImageSerializer(many=True, read_only=True)
-    uploaded_files = serializers.ListField(
-        child=serializers.FileField(max_length=100000, allow_empty_file=False, use_url=False),
+
+    class Meta:
+        model = QuoteRequest
+        fields = image_fields
+        read_only_fields = ['created_at']
+
+
+class CreateQuoteRequestSerializer(serializers.ModelSerializer):
+    images = serializers.ListField(
+        child=serializers.ImageField(),
         write_only=True,
         required=False
     )
 
     class Meta:
-        model = ProjectQuoteRequest
-        fields = ['name', 'email', 'phone_number', 'company', 'city_state_zip', 'country', 
-                  'preferred_mode_of_response', 'artwork_provided', 'project_name', 
-                  'additional_details', 'uploaded_files', 'images']
+        model = QuoteRequest
+        fields = image_fields
+        read_only_fields = ['created_at']
 
     def create(self, validated_data):
-        uploaded_files = validated_data.pop('uploaded_files', [])
-        project_quote_request = ProjectQuoteRequest.objects.create(**validated_data)
+        # Extract images from validated data
+        images_data = validated_data.pop('images', [])
+        with transaction.atomic():
+            project_quote_request = QuoteRequest.objects.create(
+                **validated_data)
 
-        # Upload files to Cloudinary and create Image instances
-        for file in uploaded_files:
-            result = cloudinary.uploader.upload(file)
-            Image.objects.create(project=project_quote_request, image_url=result['url'])
+            # Create Image objects for each uploaded file
+            for image_data in images_data:
+                Image.objects.create(
+                    project=project_quote_request, path=image_data)
 
-        return project_quote_request
+            return project_quote_request

@@ -4,9 +4,12 @@ from . import views
 
 
 router = routers.DefaultRouter()
-# router.register('project-quote-request',
-#                 views.ProjectQuoteRequest, basename='project-quote-request'),
-router.register('contact-us', views.ContactInquiryViewSet, basename='contact-us'),
+router.register('quote-request',
+                views.QuoteRequestViewSet, basename='quote-request'),
+router.register('images',
+                views.ImageViewSet, basename='images'),
+router.register('contact-us', views.ContactInquiryViewSet,
+                basename='contact-us'),
 
 
 # URLConf

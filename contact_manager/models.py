@@ -1,5 +1,6 @@
 from django.db import models
 from cloudinary.models import CloudinaryField
+import datetime
 
 # Create your models here.
 
@@ -29,7 +30,8 @@ class ContactInquiry(models.Model):
     def __str__(self):
         return f"{self.name} - Inquiry"
 
-class ProjectQuoteRequest(models.Model):
+
+class QuoteRequest(models.Model):
     name = models.CharField(max_length=255)
     email_address = models.EmailField()
     phone_number = models.CharField(max_length=20)
@@ -59,16 +61,18 @@ class ProjectQuoteRequest(models.Model):
         blank=True
     )
     project_name = models.CharField(max_length=255)
+    project_due_date = models.DateField(default=datetime.date.today)
     additional_details = models.TextField(blank=True)
-    uploaded_files = CloudinaryField('image', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.name} - {self.project_name}"
 
+
 class Image(models.Model):
-    project = models.ForeignKey(ProjectQuoteRequest, related_name='images', on_delete=models.CASCADE)
-    image_url = models.URLField(max_length=500)
+    project = models.ForeignKey(
+        QuoteRequest, related_name='images', on_delete=models.CASCADE)
+    path = CloudinaryField('image', blank=True, null=True)
     upload_date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

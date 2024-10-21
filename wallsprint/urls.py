@@ -25,10 +25,12 @@ from core.views import GroupViewSet, PermissionViewSet
 
 router = DefaultRouter()
 router.register(r'api/v1/auth/groups', GroupViewSet, basename='group')
-router.register(r'api/v1/auth/permissions', PermissionViewSet, basename='permission')
+router.register(r'api/v1/auth/permissions',
+                PermissionViewSet, basename='permission')
 
 urlpatterns = [
-    re_path(r'^accounts/login/$', LoginView.as_view(authentication_form=AuthenticationForm), name='login'),
+    re_path(r'^accounts/login/$',
+            LoginView.as_view(authentication_form=AuthenticationForm), name='login'),
     re_path(r'^accounts/', include('django.contrib.auth.urls')),
     path('', include(router.urls)),
     path('api/v1/admin/', admin.site.urls),

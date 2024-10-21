@@ -21,6 +21,7 @@ whitenoise = "*"
 django-username-email = "*"
 cloudinary = "*"
 django-cloudinary-storage = "*"
+pillow = "*"
 
 [dev-packages]
 
