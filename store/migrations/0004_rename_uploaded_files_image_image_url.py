@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('contact_manager', '0003_remove_image_image_url_and_more'),
+        ('store', '0003_remove_image_image_url_and_more'),
     ]
 
     operations = [

@@ -7,7 +7,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('contact_manager', '0002_projectquoterequest_project_due_date'),
+        ('store', '0002_projectquoterequest_project_due_date'),
     ]
 
     operations = [

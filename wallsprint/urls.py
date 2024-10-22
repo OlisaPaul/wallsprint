@@ -35,7 +35,7 @@ urlpatterns = [
     path('', include(router.urls)),
     path('api/v1/admin/', admin.site.urls),
     path('api/v1/core/', include('core.urls')),
-    path('api/v1/store/', include('contact_manager.urls')),
+    path('api/v1/store/', include('store.urls')),
     path('api/v1/auth/', include('djoser.urls')),
     path('api/v1/auth/', include('djoser.urls.jwt')),
     path('__debug__/', include(debug_toolbar.urls)),

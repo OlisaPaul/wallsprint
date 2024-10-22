@@ -54,7 +54,7 @@ INSTALLED_APPS = [
     'cuser',
     'debug_toolbar',
     'core',
-    'contact_manager'
+    'store'
 ]
 
 MIDDLEWARE = [

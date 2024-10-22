@@ -57,7 +57,7 @@ class Migration(migrations.Migration):
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('image_url', models.URLField(max_length=500)),
                 ('upload_date', models.DateTimeField(auto_now_add=True)),
-                ('project', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='images', to='contact_manager.projectquoterequest')),
+                ('project', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='images', to='store.projectquoterequest')),
             ],
         ),
     ]
