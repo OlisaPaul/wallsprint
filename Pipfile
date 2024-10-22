@@ -22,6 +22,7 @@ django-username-email = "*"
 cloudinary = "*"
 django-cloudinary-storage = "*"
 pillow = "*"
+django-cors-headers = "*"
 
 [dev-packages]
 

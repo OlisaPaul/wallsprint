@@ -1,9 +1,10 @@
 from django.shortcuts import render
-from rest_framework.permissions import IsAdminUser, AllowAny
+from rest_framework.permissions import IsAdminUser, AllowAny, DjangoModelPermissions
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
-from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin
+from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, DestroyModelMixin
 from .models import ContactInquiry, QuoteRequest, Image, Customer, Request
 from .serializers import ContactInquirySerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, ImageSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer
+from .permissions import FullDjangoModelPermissions
 
 
 class ContactInquiryViewSet(ListModelMixin, RetrieveModelMixin, CreateModelMixin, GenericViewSet):
@@ -13,7 +14,7 @@ class ContactInquiryViewSet(ListModelMixin, RetrieveModelMixin, CreateModelMixin
     def get_permissions(self):
         if self.request.method == "POST":
             return [AllowAny()]
-        return [IsAdminUser()]
+        return [FullDjangoModelPermissions()]
 
 
 class ImageViewSet(ListModelMixin, GenericViewSet):
@@ -32,10 +33,10 @@ class QuoteRequestViewSet(ModelViewSet):
     def get_permissions(self):
         if self.request.method == "POST":
             return [AllowAny()]
-        return [IsAdminUser()]
+        return [FullDjangoModelPermissions()]
 
 
-class RequestViewSet(ModelViewSet):
+class RequestViewSet(GenericViewSet, DestroyModelMixin, CreateModelMixin, ListModelMixin):
     queryset = Request.objects.all()
 
     def get_serializer_class(self):
@@ -46,11 +47,12 @@ class RequestViewSet(ModelViewSet):
     def get_permissions(self):
         if self.request.method == "POST":
             return [AllowAny()]
-        return [IsAdminUser()]
+        return [FullDjangoModelPermissions()]
 
 
 class CustomerViewSet(ModelViewSet):
     queryset = Customer.objects.select_related('user').all()
+    permission_classes = [FullDjangoModelPermissions]
 
     def get_serializer_class(self):
         if self.request.method == "GET":

@@ -1,3 +1,4 @@
+from uuid import uuid4
 from django.conf import settings
 from django.db import models
 from cloudinary.models import CloudinaryField
@@ -6,7 +7,7 @@ import datetime
 # Create your models here.
 
 
-class CommonInquiryFields(models.Model):
+class CommonFields(models.Model):
     name = models.CharField(max_length=255)
     email_address = models.EmailField()
     phone_number = models.CharField(max_length=20)
@@ -30,7 +31,7 @@ class CommonInquiryFields(models.Model):
         abstract = True
 
 
-class ContactInquiry(CommonInquiryFields):
+class ContactInquiry(CommonFields):
     questions = models.TextField()
     comments = models.TextField(blank=True)
 
@@ -38,7 +39,7 @@ class ContactInquiry(CommonInquiryFields):
         return f"{self.name} - Inquiry"
 
 
-class QuoteRequest(CommonInquiryFields):
+class QuoteRequest(CommonFields):
     artwork_provided = models.CharField(
         max_length=50,
         choices=[
@@ -59,7 +60,22 @@ class QuoteRequest(CommonInquiryFields):
         return f"{self.name} - {self.project_name}"
 
 
-class Request(QuoteRequest):
+class Request(CommonFields):
+    artwork_provided = models.CharField(
+        max_length=50,
+        choices=[
+            ('None', 'None'),
+            ('Online file transfer', 'Online file transfer'),
+            ('On disk', 'On disk'),
+            ('Hard copy', 'Hard copy'),
+            ('Film provided', 'Film provided'),
+            ('Please estimate for design', 'Please estimate for design')
+        ],
+        blank=True
+    )
+    project_name = models.CharField(max_length=255)
+    project_due_date = models.DateField(default=datetime.date.today)
+    additional_details = models.TextField(blank=True)
     you_are_a = models.CharField(
         max_length=50,
         choices=[
