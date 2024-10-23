@@ -44,7 +44,7 @@ class ContactInquiry(CommonFields):
 
 
 class QuoteRequest(CommonFields):
-    images = GenericRelation("Image", related_query_name='quote_requests')
+    images = GenericRelation("Image", related_query_name='quote_requests', null=True)
     artwork_provided = models.CharField(
         max_length=50,
         choices=[
@@ -55,9 +55,10 @@ class QuoteRequest(CommonFields):
             ('Film provided', 'Film provided'),
             ('Please estimate for design', 'Please estimate for design')
         ],
-        blank=True
+        blank=True,
+        null=True
     )
-    project_name = models.CharField(max_length=255)
+    project_name = models.CharField(max_length=255, null=True)
     project_due_date = models.DateField(default=datetime.date.today)
     additional_details = models.TextField(blank=True, null=True)
 
