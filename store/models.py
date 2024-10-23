@@ -1,4 +1,7 @@
 from uuid import uuid4
+from django.contrib.contenttypes.fields import GenericRelation
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes.fields import GenericForeignKey
 from django.conf import settings
 from django.db import models
 from cloudinary.models import CloudinaryField
@@ -11,11 +14,11 @@ class CommonFields(models.Model):
     name = models.CharField(max_length=255)
     email_address = models.EmailField()
     phone_number = models.CharField(max_length=20)
-    address = models.CharField(max_length=255, blank=True)
+    address = models.CharField(max_length=255, blank=True, null=True)
     fax_number = models.CharField(max_length=20, blank=True, null=True)
-    company = models.CharField(max_length=255, blank=True)
-    city_state_zip = models.CharField(max_length=255)
-    country = models.CharField(max_length=255)
+    company = models.CharField(max_length=255, blank=True, null=True)
+    city_state_zip = models.CharField(max_length=255, null=True)
+    country = models.CharField(max_length=255, null=True)
     preferred_mode_of_response = models.CharField(
         max_length=50,
         choices=[
@@ -23,7 +26,8 @@ class CommonFields(models.Model):
             ('Phone', 'Phone'),
             ('Fax', 'Fax')
         ],
-        blank=True
+        blank=True,
+        null=True
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -40,6 +44,7 @@ class ContactInquiry(CommonFields):
 
 
 class QuoteRequest(CommonFields):
+    images = GenericRelation("Image", related_query_name='quote_requests')
     artwork_provided = models.CharField(
         max_length=50,
         choices=[
@@ -54,7 +59,7 @@ class QuoteRequest(CommonFields):
     )
     project_name = models.CharField(max_length=255)
     project_due_date = models.DateField(default=datetime.date.today)
-    additional_details = models.TextField(blank=True)
+    additional_details = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.name} - {self.project_name}"
@@ -94,10 +99,14 @@ class Request(CommonFields):
 
 
 class Image(models.Model):
-    project = models.ForeignKey(
-        QuoteRequest, related_name='images', on_delete=models.CASCADE)
     path = CloudinaryField('image', blank=True, null=True)
     upload_date = models.DateTimeField(auto_now_add=True)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey('content_type', 'object_id')
+
+    def __str__(self):
+        return f"Image related to {self.content_object}"
 
     def __str__(self):
         return f"Image for {self.project.project_name}"

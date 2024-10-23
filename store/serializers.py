@@ -1,10 +1,12 @@
 import os
 from django.db import transaction
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
+from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.validators import ValidationError
 from .models import ContactInquiry, QuoteRequest, Image, Customer, Request
-from dotenv import load_dotenv
+from .utils import create_instance_with_images
 
 User = get_user_model()
 
@@ -62,18 +64,7 @@ class CreateQuoteRequestSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at']
 
     def create(self, validated_data):
-        # Extract images from validated data
-        images_data = validated_data.pop('images', [])
-        with transaction.atomic():
-            project_quote_request = QuoteRequest.objects.create(
-                **validated_data)
-
-            # Create Image objects for each uploaded file
-            for image_data in images_data:
-                Image.objects.create(
-                    project=project_quote_request, path=image_data)
-
-            return project_quote_request
+        return create_instance_with_images(QuoteRequest, validated_data)
 
 
 class RequestSerializer(serializers.ModelSerializer):

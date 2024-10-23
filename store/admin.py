@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib.contenttypes.admin import GenericTabularInline
 from .models import ContactInquiry, QuoteRequest, Image
 
 
@@ -10,10 +11,10 @@ class ContactInquiryAdmin(admin.ModelAdmin):
 
 @admin.register(Image)
 class ImageAdmin(admin.ModelAdmin):
-    list_display = ['path', 'project', 'project']
+    list_display = ['path', "upload_date"]
 
 
-class ImageInline(admin.TabularInline):
+class ImageInline(GenericTabularInline):
     model = Image
     min_num = 1
     max_num = 10

@@ -1,11 +1,11 @@
+from cloudinary.models import CloudinaryField
 from django.db import models
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
 
-
 class Image(models.Model):
     # Fields for storing image data
-    image_url = models.URLField(max_length=500)
+    path = CloudinaryField('image', blank=True, null=True)
     upload_date = models.DateTimeField(auto_now_add=True)
 
     # Generic Foreign Key fields
