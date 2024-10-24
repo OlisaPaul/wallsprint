@@ -28,7 +28,7 @@ class ImageViewSet(ListModelMixin, GenericViewSet):
 class QuoteRequestViewSet(ModelViewSet, HandleImagesMixin):
     def get_queryset(self):
         content_type = ContentType.objects.get_for_model(QuoteRequest)
-        
+
         return QuoteRequest.objects.prefetch_related(
             models.Prefetch(
                 'images',

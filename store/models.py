@@ -44,7 +44,8 @@ class ContactInquiry(CommonFields):
 
 
 class QuoteRequest(CommonFields):
-    images = GenericRelation("Image", related_query_name='quote_requests', null=True)
+    images = GenericRelation(
+        "Image", related_query_name='quote_requests', null=True)
     artwork_provided = models.CharField(
         max_length=50,
         choices=[
@@ -128,3 +129,35 @@ class Customer(models.Model):
         max_digits=9, decimal_places=2, default=0)
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+
+
+class FileTransfer(CommonFields):
+    additional_details = models.TextField(blank=True)
+    file_type = models.CharField(
+        max_length=50,
+        choices=[
+            ('PC', 'PC'),
+            ('MACINTOSH', 'MACINTOSH'),
+        ],
+    )
+    application_type = models.CharField(
+        max_length=255,
+        choices=[
+            ('MULTIPLE', 'MULTIPLE (COMPRESSED)'),
+            ('ACROBAT', 'ACROBAT (PDF)'),
+            ('CORELDRAW', 'CORELDRAW'),
+            ('EXCEL', 'EXCEL'),
+            ('FONTS', 'FONTS'),
+            ('FREEHAND', 'FREEHAND'),
+            ('ILLUSTRATOR', 'ILLUSTRATOR'),
+            ('INDESIGN', 'INDESIGN'),
+            ('PAGEMAKER', 'PAGEMAKER'),
+            ('PHOTOSHOP', 'PHOTOSHOP'),
+            ('POWERPOINT', 'POWERPOINT'),
+            ('PUBLISHER', 'PUBLISHER'),
+            ('WORD', 'WORD'),
+            ('QUARKXPRESS', 'QUARKXPRESS'),
+            ('OTHER', 'OTHER'),
+        ],
+    )
+    other_application_type = models.CharField(max_length=255)

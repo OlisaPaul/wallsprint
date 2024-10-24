@@ -164,14 +164,21 @@ REST_FRAMEWORK = {
 
 DJOSER = {
     "SERIALIZERS": {
+        # 'password_reset': 'core.serializers.CustomPasswordResetSerializer',
         "user_create": 'core.serializers.UserCreateSerializer',
         "current_user": 'core.serializers.UserSerializer',
         "user": 'core.serializers.UserSerializer',
         'token_create': 'core.serializers.CustomTokenCreateSerializer'
     },
-    'PASSWORD_RESET_CONFIRM_URL': 'password/reset/confirm/{uid}/{token}',
+    'EMAIL': {
+        'password_reset': 'core.email.CustomPasswordResetEmail',
+    },
+    'DOMAIN': 'wallsprint.netlify.app',
+    'SITE_NAME': 'Wallsprint',
+    'PASSWORD_RESET_CONFIRM_URL': 'reset-password/{uid}/{token}',
+    'PASSWORD_RESET_SHOW_EMAIL_NOT_FOUND': True,
     'SEND_ACTIVATION_EMAIL': True,
-    'ACTIVATION_URL': 'password/reset/confirm/{uid}/{token}',
+    'ACTIVATION_URL': 'reset-password/{uid}/{token}',
     'SEND_CONFIRMATION_EMAIL': True,
     'LOGIN_FIELD': 'email',
 }
@@ -202,3 +209,19 @@ CLOUDINARY_STORAGE = {
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 CORS_ALLOW_ALL_ORIGINS = True
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django.core.mail': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
+    },
+}
