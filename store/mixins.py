@@ -1,7 +1,7 @@
 from django.db import transaction
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Image
+from .models import File
 
 
 class HandleImagesMixin:
@@ -16,7 +16,7 @@ class HandleImagesMixin:
             if images_data:
                 for image_data in images_data:
 
-                    Image.objects.create(
+                    File.objects.create(
                         file=image_data,
                         content_object=instance
                     )

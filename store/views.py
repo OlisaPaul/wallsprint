@@ -4,14 +4,14 @@ from django.contrib.contenttypes.models import ContentType
 from rest_framework.permissions import IsAdminUser, AllowAny, DjangoModelPermissions
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, DestroyModelMixin
-from .models import ContactInquiry, QuoteRequest, Image, Customer, Request
-from .serializers import ContactInquirySerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, ImageSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer
+from .models import ContactInquiry, QuoteRequest, File, Customer, Request
+from .serializers import ContactInquirySerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer
 from .permissions import FullDjangoModelPermissions
 from .mixins import HandleImagesMixin
 
 
 class ContactInquiryViewSet(ListModelMixin, RetrieveModelMixin, CreateModelMixin, GenericViewSet):
-    queryset = ContactInquiry.objects.prefetch_related('images').all()
+    queryset = ContactInquiry.objects.prefetch_related('files').all()
     serializer_class = ContactInquirySerializer
 
     def get_permissions(self):
@@ -21,8 +21,8 @@ class ContactInquiryViewSet(ListModelMixin, RetrieveModelMixin, CreateModelMixin
 
 
 class ImageViewSet(ListModelMixin, GenericViewSet):
-    queryset = Image.objects.all()
-    serializer_class = ImageSerializer
+    queryset = File.objects.all()
+    serializer_class = FileSerializer
 
 
 class QuoteRequestViewSet(ModelViewSet, HandleImagesMixin):
@@ -31,8 +31,8 @@ class QuoteRequestViewSet(ModelViewSet, HandleImagesMixin):
 
         return QuoteRequest.objects.prefetch_related(
             models.Prefetch(
-                'images',
-                queryset=Image.objects.filter(content_type=content_type)
+                'files',
+                queryset=File.objects.filter(content_type=content_type)
             )
         )
 

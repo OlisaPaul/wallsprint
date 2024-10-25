@@ -177,8 +177,8 @@ DJOSER = {
     'SITE_NAME': 'Wallsprint',
     'PASSWORD_RESET_CONFIRM_URL': 'reset-password/{uid}/{token}',
     'PASSWORD_RESET_SHOW_EMAIL_NOT_FOUND': True,
-    'SEND_ACTIVATION_EMAIL': True,
-    'ACTIVATION_URL': 'reset-password/{uid}/{token}',
+    # 'SEND_ACTIVATION_EMAIL': True,
+    # 'ACTIVATION_URL': 'reset-password/{uid}/{token}',
     'SEND_CONFIRMATION_EMAIL': True,
     'LOGIN_FIELD': 'email',
 }

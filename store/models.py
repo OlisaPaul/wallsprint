@@ -5,6 +5,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.conf import settings
 from django.db import models
 from cloudinary.models import CloudinaryField
+from cloudinary.uploader import upload
 import datetime
 
 # Create your models here.
@@ -44,8 +45,8 @@ class ContactInquiry(CommonFields):
 
 
 class QuoteRequest(CommonFields):
-    images = GenericRelation(
-        "Image", related_query_name='quote_requests', null=True)
+    files = GenericRelation(
+        "File", related_query_name='quote_requests', null=True)
     artwork_provided = models.CharField(
         max_length=50,
         choices=[
@@ -62,6 +63,15 @@ class QuoteRequest(CommonFields):
     project_name = models.CharField(max_length=255, null=True)
     project_due_date = models.DateField(default=datetime.date.today)
     additional_details = models.TextField(blank=True, null=True)
+    this_is_an = models.CharField(
+        max_length=50,
+        choices=[
+            ('Order Request', 'Order Request'),
+            ('Quote Request', 'Quote Request'),
+        ],
+        blank=True,
+        null=True
+    )
 
     def __str__(self):
         return f"{self.name} - {self.project_name}"
@@ -90,7 +100,8 @@ class Request(CommonFields):
             ('Current Customer', 'Current Customer'),
         ],
     )
-
+    files = GenericRelation(
+        "File", related_query_name='quote_requests', null=True)
     this_is_an = models.CharField(
         max_length=50,
         choices=[
@@ -100,18 +111,15 @@ class Request(CommonFields):
     )
 
 
-class Image(models.Model):
-    path = CloudinaryField('image', blank=True, null=True)
+class File(models.Model):
+    path = CloudinaryField("auto", blank=True, null=True)
     upload_date = models.DateTimeField(auto_now_add=True)
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey('content_type', 'object_id')
 
     def __str__(self):
-        return f"Image related to {self.content_object}"
-
-    def __str__(self):
-        return f"Image for {self.project.project_name}"
+        return f"File related to {self.content_object}"
 
 
 class Customer(models.Model):
