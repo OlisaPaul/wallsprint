@@ -9,12 +9,12 @@ from rest_framework.serializers import ModelSerializer
 
 class UserCreateSerializer(BaseUserCreateSerializer):
     class Meta(BaseUserCreateSerializer.Meta):
-        fields = ['id', 'email', 'password', 'first_name', 'last_name']
+        fields = ['id', 'email', 'password', 'username', "name"]
 
 
 class UserSerializer(BaseUserSerializer):
     class Meta(BaseUserSerializer.Meta):
-        fields = ['id', 'email', 'first_name', 'last_name']
+        fields = ['id', 'email', 'name', 'last_name']
         read_only_fields = (settings.LOGIN_FIELD, 'email')
 
 
@@ -30,6 +30,7 @@ class GroupSerializer(ModelSerializer):
     class Meta:
         model = Group
         fields = ['id', 'name', 'permissions']
+
 
 class CreateGroupSerializer(ModelSerializer):
     class Meta:

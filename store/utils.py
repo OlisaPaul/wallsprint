@@ -1,3 +1,4 @@
+from django.db import models
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from .models import File
@@ -29,3 +30,14 @@ def create_instance_with_images(model_class, validated_data):
             instance.quote_requests.set(reverse_relationship_data)  # Adjust field name accordingly
 
     return instance
+
+def get_queryset_for_models_with_files(model_class):
+   
+    content_type = ContentType.objects.get_for_model(model_class)
+
+    return model_class.objects.prefetch_related(
+        models.Prefetch(
+            'files',
+            queryset=File.objects.filter(content_type=content_type)
+        )
+    )

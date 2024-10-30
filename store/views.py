@@ -4,10 +4,11 @@ from django.contrib.contenttypes.models import ContentType
 from rest_framework.permissions import IsAdminUser, AllowAny, DjangoModelPermissions
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, DestroyModelMixin
-from .models import ContactInquiry, QuoteRequest, File, Customer, Request
-from .serializers import ContactInquirySerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer
+from .models import ContactInquiry, QuoteRequest, File, Customer, Request, FileTransfer
+from .serializers import ContactInquirySerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer
 from .permissions import FullDjangoModelPermissions
 from .mixins import HandleImagesMixin
+from .utils import get_queryset_for_models_with_files
 
 
 class ContactInquiryViewSet(ListModelMixin, RetrieveModelMixin, CreateModelMixin, GenericViewSet):
@@ -26,15 +27,7 @@ class ImageViewSet(ListModelMixin, GenericViewSet):
 
 
 class QuoteRequestViewSet(ModelViewSet, HandleImagesMixin):
-    def get_queryset(self):
-        content_type = ContentType.objects.get_for_model(QuoteRequest)
-
-        return QuoteRequest.objects.prefetch_related(
-            models.Prefetch(
-                'files',
-                queryset=File.objects.filter(content_type=content_type)
-            )
-        )
+    queryset = get_queryset_for_models_with_files(QuoteRequest)
 
     def get_serializer_class(self):
         if self.request.method == "POST":
@@ -48,12 +41,26 @@ class QuoteRequestViewSet(ModelViewSet, HandleImagesMixin):
 
 
 class RequestViewSet(GenericViewSet, DestroyModelMixin, CreateModelMixin, ListModelMixin):
-    queryset = Request.objects.all()
+    queryset = get_queryset_for_models_with_files(Request)
 
     def get_serializer_class(self):
         if self.request.method == "POST":
             return CreateRequestSerializer
         return RequestSerializer
+
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [AllowAny()]
+        return [FullDjangoModelPermissions()]
+
+
+class FileTransferViewSet(GenericViewSet, DestroyModelMixin, CreateModelMixin, ListModelMixin):
+    queryset = get_queryset_for_models_with_files(FileTransfer)
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return CreateFileTransferSerializer
+        return FileTransferSerializer
 
     def get_permissions(self):
         if self.request.method == "POST":

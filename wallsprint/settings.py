@@ -51,7 +51,6 @@ INSTALLED_APPS = [
     "django_filters",
     'rest_framework',
     'djoser',
-    'cuser',
     'debug_toolbar',
     'core',
     'store',
@@ -153,7 +152,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, "static")
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-AUTH_USER_MODEL = "cuser.CUser"
+AUTH_USER_MODEL = "core.User"
 
 REST_FRAMEWORK = {
     'COERCE_DECIMAL_TO_STRING': False,
@@ -225,3 +224,6 @@ LOGGING = {
         },
     },
 }
+
+DOMAIN = 'wallsprint.netlify.app'
+SITE_NAME = 'Wallsprint'

@@ -5,19 +5,22 @@ from django.contrib.contenttypes.models import ContentType
 from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.validators import ValidationError
-from .models import ContactInquiry, QuoteRequest, File, Customer, Request
+from .models import ContactInquiry, QuoteRequest, File, Customer, Request, FileTransfer
 from .utils import create_instance_with_images
 
 User = get_user_model()
 
 load_dotenv()
 
-image_fields = [
+general_fields = [
     'id', 'name', 'email_address', 'phone_number', 'address', 'fax_number',
-    'company', 'city_state_zip', 'country', 'preferred_mode_of_response',
-    'artwork_provided', 'project_name', 'project_due_date', 'additional_details',
+    'company', 'city_state_zip', 'country', 'additional_details',
     'files'
 ]
+
+image_fields = general_fields + \
+    ['preferred_mode_of_response', 'artwork_provided',
+        'project_name', 'project_due_date']
 
 customer_fields = ['id', 'company', 'address', 'city', 'state', 'zip',
                    'phone_number', 'fax_number', 'pay_tax', 'third_party_identifier', 'name', 'email', 'password']
@@ -85,7 +88,7 @@ class CreateRequestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Request
-        fields = image_fields + ["this_is_an", "you_are_a"]
+        fields = image_fields
         read_only_fields = ['created_at']
 
     def create(self, validated_data):
@@ -101,6 +104,33 @@ class CreateRequestSerializer(serializers.ModelSerializer):
                     project=project_quote_request, path=image_data)
 
             return project_quote_request
+
+
+class FileTransferSerializer(serializers.ModelSerializer):
+    files = FileSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = FileTransfer
+        fields = general_fields + ["file_type",
+                                   "application_type", "other_application_type"]
+        read_only_fields = ['created_at']
+
+
+class CreateFileTransferSerializer(serializers.ModelSerializer):
+    files = serializers.ListField(
+        child=serializers.FileField(),
+        write_only=True,
+        required=False
+    )
+
+    class Meta:
+        model = FileTransfer
+        fields = general_fields + ["file_type",
+                                   "application_type", "other_application_type"]
+        read_only_fields = ['created_at']
+
+    def create(self, validated_data):
+         return create_instance_with_images(FileTransfer, validated_data)
 
 
 class CustomerSerializer(serializers.ModelSerializer):

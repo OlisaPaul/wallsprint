@@ -4,21 +4,20 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from .serializers import GroupSerializer, PermissionSerializer, AddUserToGroupSerializer, CreateGroupSerializer
-from cuser.models import CUser
+from .models import User
 
 # Create your views here.
 
 
 class GroupViewSet(viewsets.ModelViewSet):
     queryset = Group.objects.all()
-    
+
     permission_classes = [permissions.IsAdminUser]
 
     def get_serializer_class(self):
         if self.request.method == "POST":
             return CreateGroupSerializer
         return GroupSerializer
-
 
     @action(detail=True, methods=['post'], serializer_class=AddUserToGroupSerializer)
     def add_user(self, request, pk=None):
@@ -27,10 +26,10 @@ class GroupViewSet(viewsets.ModelViewSet):
         user_id = request.data.get('user_id')
 
         try:
-            user = CUser.objects.get(id=user_id)
+            user = User.objects.get(id=user_id)
             group.user_set.add(user)
             return Response({"message": f"User {user.username} added to group {group.name}."}, status=status.HTTP_200_OK)
-        except CUser.DoesNotExist:
+        except User.DoesNotExist:
             return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=True, methods=['post'], url_path='remove-user')

@@ -148,6 +148,8 @@ class FileTransfer(CommonFields):
             ('MACINTOSH', 'MACINTOSH'),
         ],
     )
+    files = GenericRelation(
+        "File", related_query_name='quote_requests', null=True)
     application_type = models.CharField(
         max_length=255,
         choices=[
