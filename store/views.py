@@ -6,9 +6,11 @@ from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, DestroyModelMixin
 from .models import ContactInquiry, QuoteRequest, File, Customer, Request, FileTransfer
 from .serializers import ContactInquirySerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer
-from .permissions import FullDjangoModelPermissions
+from .permissions import FullDjangoModelPermissions, create_permission_class
 from .mixins import HandleImagesMixin
 from .utils import get_queryset_for_models_with_files
+
+CanTransferFiles = create_permission_class('store.transfer_files')
 
 
 class ContactInquiryViewSet(ListModelMixin, RetrieveModelMixin, CreateModelMixin, GenericViewSet):
@@ -56,7 +58,7 @@ class RequestViewSet(GenericViewSet, DestroyModelMixin, CreateModelMixin, ListMo
 
 class FileTransferViewSet(GenericViewSet, DestroyModelMixin, CreateModelMixin, ListModelMixin):
     queryset = get_queryset_for_models_with_files(FileTransfer)
-
+    
     def get_serializer_class(self):
         if self.request.method == "POST":
             return CreateFileTransferSerializer
@@ -65,7 +67,7 @@ class FileTransferViewSet(GenericViewSet, DestroyModelMixin, CreateModelMixin, L
     def get_permissions(self):
         if self.request.method == "POST":
             return [AllowAny()]
-        return [FullDjangoModelPermissions()]
+        return [CanTransferFiles()]
 
 
 class CustomerViewSet(ModelViewSet):

@@ -16,3 +16,16 @@ class FullDjangoModelPermissions(permissions.DjangoModelPermissions):
 class ViewCustomerHistoryPermission(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user.has_perm('store.view_history')
+    
+def create_permission_class(perm_string):
+    """
+    Function to create a custom permission class based on the permission string.
+    """
+    class DynamicPermission(permissions.BasePermission):
+        """
+        Custom permission to check if the user has the specified permission.
+        """
+        def has_permission(self, request, view):
+            return request.user.has_perm(perm_string)
+
+    return DynamicPermission

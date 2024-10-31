@@ -171,3 +171,8 @@ class FileTransfer(CommonFields):
         ],
     )
     other_application_type = models.CharField(max_length=255)
+
+    class Meta:
+        permissions = [
+            ('transfer_files', "Transfer Files")
+        ]
