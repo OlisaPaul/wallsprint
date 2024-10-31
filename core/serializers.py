@@ -26,10 +26,17 @@ class PermissionSerializer(ModelSerializer):
 
 class GroupSerializer(ModelSerializer):
     permissions = PermissionSerializer(many=True)
+    users = serializers.SerializerMethodField(method_name='get_users')
+
 
     class Meta:
         model = Group
-        fields = ['id', 'name', 'permissions']
+        fields = ['id', 'name', 'permissions', 'users']
+    
+    def get_users(self, obj):
+        # Get all users in the group and serialize them
+        users = obj.user_set.all()
+        return UserSerializer(users, many=True).data
 
 
 class CreateGroupSerializer(ModelSerializer):
@@ -44,6 +51,17 @@ class AddUserToGroupSerializer(ModelSerializer):
     class Meta:
         model = Group
         fields = ['user_id']
+
+class AddUsersToGroupSerializer(ModelSerializer):
+    user_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False
+    )
+
+    class Meta:
+        model = Group
+        fields = ['user_ids']
 
 
 class CustomTokenCreateSerializer(TokenCreateSerializer):
