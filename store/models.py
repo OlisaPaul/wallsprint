@@ -138,6 +138,11 @@ class Customer(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
 
+    class Meta:
+        permissions = [
+            ('customers', "Customer Service")
+        ]
+
 
 class FileTransfer(CommonFields):
     additional_details = models.TextField(blank=True)
@@ -175,4 +180,53 @@ class FileTransfer(CommonFields):
     class Meta:
         permissions = [
             ('transfer_files', "Transfer Files")
+        ]
+
+
+class Portal(models.Model):
+    class Meta:
+        permissions = [
+            ('portals', "Portals")
+        ]
+
+
+class CatalogItem(models.Model):
+    class Meta:
+        permissions = [
+            ('catalog_items', "Catalog Items")
+        ]
+
+
+class Order(models.Model):
+    class Meta:
+        permissions = [
+            ('order', "Order Administration")
+        ]
+
+
+class OnlineProofing(models.Model):
+    class Meta:
+        permissions = [
+            ('online_proofing', "Online Proofing")
+        ]
+
+
+class PrintReadyFiles(models.Model):
+    class Meta:
+        permissions = [
+            ('print_ready_files', "Print-Ready Files")
+        ]
+
+
+class MessageCenter(models.Model):
+    class Meta:
+        permissions = [
+            ('message_center', "Message Center")
+        ]
+
+
+class WebsiteUsers(models.Model):
+    class Meta:
+        permissions = [
+            ('website_users', "Website Users")
         ]

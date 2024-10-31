@@ -47,5 +47,5 @@ class GroupViewSet(viewsets.ModelViewSet):
 
 
 class PermissionViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Permission.objects.all()
+    queryset = Permission.objects.exclude(name__startswith="Can ")
     serializer_class = PermissionSerializer
