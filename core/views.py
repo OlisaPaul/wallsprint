@@ -1,10 +1,12 @@
 from django.contrib.auth.models import Group, Permission
 from django.shortcuts import render
 from rest_framework import viewsets, permissions, status
+from rest_framework import  mixins
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from .serializers import AddUsersToGroupSerializer, GroupSerializer, PermissionSerializer, AddUserToGroupSerializer, CreateGroupSerializer, UserSerializer, UpdateGroupSerializer
+from .serializers import AddUsersToGroupSerializer, GroupSerializer, PermissionSerializer, AddUserToGroupSerializer, CreateGroupSerializer, UserSerializer, UpdateGroupSerializer, UserCreateSerializer, UserSendInvitationSerializer
 from .models import User
+from .permissions import FullDjangoModelPermissions
 
 # Create your views here.
 
@@ -119,3 +121,8 @@ class GroupViewSet(viewsets.ModelViewSet):
 class PermissionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Permission.objects.exclude(name__startswith="Can ")
     serializer_class = PermissionSerializer
+
+class UserSendInvitationViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSendInvitationSerializer
+    permission_classes= [FullDjangoModelPermissions]

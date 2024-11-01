@@ -20,13 +20,15 @@ from django.urls import path, include, re_path
 from django.contrib.auth.views import LoginView
 from rest_framework.routers import DefaultRouter
 import debug_toolbar
-from core.views import GroupViewSet, PermissionViewSet
+from core.views import GroupViewSet, PermissionViewSet, UserSendInvitationViewSet
 
 
 router = DefaultRouter()
 router.register(r'api/v1/auth/groups', GroupViewSet, basename='group')
 router.register(r'api/v1/auth/permissions',
                 PermissionViewSet, basename='permission')
+router.register(r'api/v1/auth/send-invitation',
+                UserSendInvitationViewSet, basename='send-invitation')
 
 urlpatterns = [
     re_path(r'^accounts/login/$',
@@ -38,5 +40,7 @@ urlpatterns = [
     path('api/v1/store/', include('store.urls')),
     path('api/v1/auth/', include('djoser.urls')),
     path('api/v1/auth/', include('djoser.urls.jwt')),
+    path('api/v1/auth/customer/', include('djoser.urls')),
+    path('api/v1/auth/customer/', include('djoser.urls.jwt')),
     path('__debug__/', include(debug_toolbar.urls)),
 ]

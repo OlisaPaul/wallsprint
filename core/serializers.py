@@ -1,4 +1,6 @@
 import os
+import secrets
+import string
 from django.contrib.auth import authenticate
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
@@ -12,8 +14,28 @@ from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 from .models import User
+from django.contrib.auth.hashers import make_password
+import random
 
 load_dotenv()
+
+
+def send_email(user: User, context, subject, template):
+    message = render_to_string(template, context)
+    send_mail(
+        subject,
+        message,
+        os.getenv('EMAIL_HOST_USER'),
+        [user.email],
+        fail_silently=False,
+        html_message=message
+    )
+
+
+def generate_random_password(length=12):
+    characters = string.ascii_letters + string.digits + string.punctuation
+    password = ''.join(secrets.choice(characters) for _ in range(length))
+    return password
 
 
 class CustomUserDeleteSerializer(UserDeleteSerializer):
@@ -36,7 +58,7 @@ class UserSerializer(BaseUserSerializer):
     def validate(self, attrs):
         self.group_ids = attrs.pop('group_ids', [])
         return super().validate(attrs)
-    
+
     @transaction.atomic()
     def update(self, instance, validated_data):
         email_field = get_user_email_field_name(User)
@@ -95,9 +117,18 @@ class UserCreateSerializer(BaseUserCreateSerializer):
     def create(self, validated_data):
         validated_data = {**validated_data, 'is_staff': True}
         user = super().create(validated_data)
+        subject = "Welcome to Walls Printing!"
+        template = "email/welcome_email.html"
         temporary_password = validated_data.get(
-            "password")  # or another method if needed
-        self.send_welcome_email(user, temporary_password)
+            "password")
+        context = {
+            "user": user,
+            "temporary_password": temporary_password,
+            "login_url": "https://example.com/login"
+        }
+
+        send_email(user, temporary_password, context=context,
+                   subject=subject, template=template)
 
         if self.group_ids:
             groups = Group.objects.filter(id__in=self.group_ids)
@@ -105,21 +136,46 @@ class UserCreateSerializer(BaseUserCreateSerializer):
 
         return user
 
-    def send_welcome_email(self, user: User, temporary_password):
-        subject = "Welcome to Walls Printing!"
-        message = render_to_string("email/welcome_email.html", {
+
+class UserSendInvitationSerializer(BaseUserCreateSerializer):
+    group_ids = serializers.ListField(
+        child=serializers.IntegerField(), write_only=True, required=False
+    )
+
+    class Meta(BaseUserCreateSerializer.Meta):
+        fields = ['email', 'group_ids', 'name']
+
+    def validate(self, attrs):
+        temporary_password = generate_random_password()
+        attrs['password'] = temporary_password
+        self.password = temporary_password
+        self.group_ids = attrs.pop('group_ids', [])
+        return super().validate(attrs)
+
+    @transaction.atomic()
+    def create(self, validated_data):
+        username = validated_data.get("email")
+        temporary_password = self.password
+
+        validated_data = {**validated_data,
+                          "username": username}
+        user = super().create(validated_data)
+        subject = "Invitation to Join the Walls Printing Team"
+        context = {
             "user": user,
             "temporary_password": temporary_password,
-            "login_url": "https://example.com/login"
-        })
-        send_mail(
-            subject,
-            message,
-            os.getenv('EMAIL_HOST_USER'),
-            [user.email],
-            fail_silently=False,
-            html_message=message
-        )
+            "invitation_link": "https://example.com/login"
+        }
+        template = 'email/invitation_email.html'
+
+        send_email(user=user, context=context,
+                   subject=subject, template=template)
+
+        if self.group_ids:
+            groups = Group.objects.filter(id__in=self.group_ids)
+            user.groups.add(*groups)
+
+        return user
 
 
 class CreateGroupSerializer(ModelSerializer):
