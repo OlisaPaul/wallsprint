@@ -124,7 +124,7 @@ class UserCreateSerializer(BaseUserCreateSerializer):
         context = {
             "user": user,
             "temporary_password": temporary_password,
-            "login_url": "https://example.com/login"
+            "login_url": os.getenv('STAFF_LOGIN_URL')
         }
 
         send_email(user, temporary_password, context=context,
