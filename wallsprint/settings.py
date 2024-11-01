@@ -167,7 +167,8 @@ DJOSER = {
         "user_create": 'core.serializers.UserCreateSerializer',
         "current_user": 'core.serializers.UserSerializer',
         "user": 'core.serializers.UserSerializer',
-        'token_create': 'core.serializers.CustomTokenCreateSerializer'
+        'token_create': 'core.serializers.CustomTokenCreateSerializer',
+        'user_delete': 'core.serializers.CustomUserDeleteSerializer',
     },
     'EMAIL': {
         'password_reset': 'core.email.CustomPasswordResetEmail',
@@ -178,7 +179,7 @@ DJOSER = {
     'PASSWORD_RESET_SHOW_EMAIL_NOT_FOUND': True,
     # 'SEND_ACTIVATION_EMAIL': True,
     # 'ACTIVATION_URL': 'reset-password/{uid}/{token}',
-    'SEND_CONFIRMATION_EMAIL': True,
+    # 'SEND_CONFIRMATION_EMAIL': True,
     'LOGIN_FIELD': 'email',
 }
 
@@ -188,9 +189,10 @@ EMAIL_PORT = os.getenv('EMAIL_PORT')
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.getenv('EMAIL_HOST_USER')
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=int(os.getenv('ACCESS_TOKEN_LIFETIME'))),
     'AUTH_HEADER_TYPES': ('Bearer',)
 }
 
