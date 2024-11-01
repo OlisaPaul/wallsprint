@@ -1,33 +1,62 @@
 import os
+from django.contrib.auth import authenticate
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
 from django.db import transaction
 from django.contrib.auth.models import Group, Permission
 from djoser.serializers import UserSerializer as BaseUserSerializer, UserCreateSerializer as BaseUserCreateSerializer, UserDeleteSerializer
 from djoser.conf import settings
 from djoser.serializers import TokenCreateSerializer
-from django.contrib.auth import authenticate
+from djoser.compat import get_user_email, get_user_email_field_name
 from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 from .models import User
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
 
 load_dotenv()
 
+
 class CustomUserDeleteSerializer(UserDeleteSerializer):
-    current_password = serializers.CharField(style={"input_type": "password"}, required=False)
+    current_password = serializers.CharField(
+        style={"input_type": "password"}, required=False)
+
 
 class UserSerializer(BaseUserSerializer):
     groups = serializers.SerializerMethodField()
+    group_ids = serializers.ListField(
+        child=serializers.IntegerField(), write_only=True, required=False
+    )
 
     class Meta(BaseUserSerializer.Meta):
         fields = ['id', 'email', 'name', 'username',
-                  'is_staff', 'is_superuser', 'groups']
+                  'is_staff', 'is_superuser', 'groups', "group_ids"]
         read_only_fields = (settings.LOGIN_FIELD, 'email',
                             'is_staff', 'is_superuser', 'groups', 'username')
 
+    def validate(self, attrs):
+        self.group_ids = attrs.pop('group_ids', [])
+        return super().validate(attrs)
+    
+    @transaction.atomic()
+    def update(self, instance, validated_data):
+        email_field = get_user_email_field_name(User)
+        instance.email_changed = False
+        if settings.SEND_ACTIVATION_EMAIL and email_field in validated_data:
+            instance_email = get_user_email(instance)
+            if instance_email != validated_data[email_field]:
+                instance.is_active = False
+                instance.email_changed = True
+                instance.save(update_fields=["is_active"])
+
+        user = super().update(instance, validated_data)
+
+        if hasattr(self, 'group_ids') and not user.is_superuser:
+            groups = Group.objects.filter(id__in=self.group_ids)
+            user.groups.set(groups)
+
+        return user
+
     def get_groups(self, obj):
-        # Return the count of groups the user is in
         return obj.groups.count()
 
 
@@ -46,10 +75,10 @@ class GroupSerializer(ModelSerializer):
         fields = ['id', 'name', 'permissions', 'users']
 
     def get_users(self, obj):
-        # Get all users in the group and serialize them
         users = obj.user_set.all()
         return UserSerializer(users, many=True).data
-    
+
+
 class UserCreateSerializer(BaseUserCreateSerializer):
     group_ids = serializers.ListField(
         child=serializers.IntegerField(), write_only=True, required=False
@@ -66,7 +95,8 @@ class UserCreateSerializer(BaseUserCreateSerializer):
     def create(self, validated_data):
         validated_data = {**validated_data, 'is_staff': True}
         user = super().create(validated_data)
-        temporary_password = validated_data.get("password")  # or another method if needed
+        temporary_password = validated_data.get(
+            "password")  # or another method if needed
         self.send_welcome_email(user, temporary_password)
 
         if self.group_ids:
@@ -74,13 +104,13 @@ class UserCreateSerializer(BaseUserCreateSerializer):
             user.groups.add(*groups)
 
         return user
-    
+
     def send_welcome_email(self, user: User, temporary_password):
         subject = "Welcome to Walls Printing!"
         message = render_to_string("email/welcome_email.html", {
             "user": user,
             "temporary_password": temporary_password,
-            "login_url": "https://example.com/login"  
+            "login_url": "https://example.com/login"
         })
         send_mail(
             subject,
@@ -90,7 +120,6 @@ class UserCreateSerializer(BaseUserCreateSerializer):
             fail_silently=False,
             html_message=message
         )
-
 
 
 class CreateGroupSerializer(ModelSerializer):
