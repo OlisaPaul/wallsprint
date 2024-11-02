@@ -75,7 +75,7 @@ class RequestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Request
-        fields = image_fields
+        fields = image_fields + ['this_is_an']
         read_only_fields = ['created_at']
 
 
@@ -88,7 +88,7 @@ class CreateRequestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Request
-        fields = image_fields
+        fields = image_fields + ["this_is_an"]
         read_only_fields = ['created_at']
 
     def create(self, validated_data):
