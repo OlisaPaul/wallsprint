@@ -130,7 +130,6 @@ class Customer(models.Model):
     zip = models.CharField(max_length=255)
     phone_number = models.CharField(max_length=255)
     fax_number = models.CharField(max_length=255)
-    name = models.CharField(max_length=255)
     pay_tax = models.BooleanField()
     third_party_identifier = models.CharField(max_length=255)
     credit_balance = models.DecimalField(
@@ -175,7 +174,7 @@ class FileTransfer(CommonFields):
             ('OTHER', 'OTHER'),
         ],
     )
-    other_application_type = models.CharField(max_length=255)
+    other_application_type = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
         permissions = [

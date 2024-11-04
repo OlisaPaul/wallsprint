@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAdminUser, AllowAny, DjangoModelPermiss
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, DestroyModelMixin
 from .models import ContactInquiry, QuoteRequest, File, Customer, Request, FileTransfer
-from .serializers import ContactInquirySerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer
+from .serializers import ContactInquirySerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCustomerSerializer
 from .permissions import FullDjangoModelPermissions, create_permission_class
 from .mixins import HandleImagesMixin
 from .utils import get_queryset_for_models_with_files
@@ -75,8 +75,9 @@ class CustomerViewSet(ModelViewSet):
     permission_classes = [FullDjangoModelPermissions]
 
     def get_serializer_class(self):
-        if self.request.method == "GET":
-            return CustomerSerializer
-        return CreateCustomerSerializer
+        if self.request.method == "POST":
+            return CreateCustomerSerializer
+        elif self.request.method in ["PUT", "PATCH"]:
+            return UpdateCustomerSerializer
+        return CustomerSerializer
 
-    serializer_class = CreateCustomerSerializer
