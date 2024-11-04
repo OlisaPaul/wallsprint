@@ -44,6 +44,8 @@ class FileSerializer(serializers.ModelSerializer):
         path = image.path
         return f"https://res.cloudinary.com/{cloud_name}/{path}"
 
+class FileUploadSerializer(serializers.Serializer):
+    file = serializers.FileField()
 
 class QuoteRequestSerializer(serializers.ModelSerializer):
     files = FileSerializer(many=True, read_only=True)
@@ -204,3 +206,20 @@ class CreateCustomerSerializer(serializers.ModelSerializer):
         customer = Customer.objects.create(user=user, **validated_data)
 
         return customer
+
+
+class BulkCreateCustomerSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(max_length=255, write_only=True)
+    email = serializers.EmailField(write_only=True)
+    password = serializers.CharField(
+        write_only=True, style={'input_type': 'password'})
+
+    class Meta:
+        model = Customer
+        fields = [*customer_fields, 'email', 'password']
+
+    def validate_email(self, value):
+        """Ensure email is unique across users"""
+        if User.objects.filter(email=value).exists():
+            raise ValidationError("A user with this email already exists.")
+        return value
