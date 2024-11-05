@@ -142,6 +142,16 @@ class Customer(models.Model):
             ('customers', "Customer Service")
         ]
 
+    def __str__(self):
+        return self.user.name
+
+
+class CustomerGroup(models.Model):
+    title = models.CharField(max_length=255, unique=True)
+    customers = models.ManyToManyField(Customer, related_name='groups')
+
+    def __str__(self):
+        return self.title
 
 class FileTransfer(CommonFields):
     additional_details = models.TextField(blank=True)

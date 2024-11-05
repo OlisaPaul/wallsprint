@@ -5,7 +5,7 @@ from django.contrib.contenttypes.models import ContentType
 from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.validators import ValidationError
-from .models import ContactInquiry, QuoteRequest, File, Customer, Request, FileTransfer
+from .models import ContactInquiry, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup
 from .utils import create_instance_with_images
 
 User = get_user_model()
@@ -44,8 +44,10 @@ class FileSerializer(serializers.ModelSerializer):
         path = image.path
         return f"https://res.cloudinary.com/{cloud_name}/{path}"
 
+
 class FileUploadSerializer(serializers.Serializer):
     file = serializers.FileField()
+
 
 class QuoteRequestSerializer(serializers.ModelSerializer):
     files = FileSerializer(many=True, read_only=True)
@@ -146,12 +148,27 @@ class CustomerSerializer(serializers.ModelSerializer):
 
     def get_email(self, customer: Customer):
         return customer.user.email
-    
+
     def get_username(self, customer: Customer):
         return customer.user.username
 
     def get_name(self, customer: Customer):
         return customer.user.name
+
+
+class SimpleCustomerSerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
+    email = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Customer
+        fields = ['name', 'email', 'company']
+
+    def get_name(self, customer: Customer):
+        return customer.user.name
+
+    def get_email(self, customer: Customer):
+        return customer.user.email
 
 
 class UpdateCustomerSerializer(serializers.ModelSerializer):
@@ -168,7 +185,7 @@ class UpdateCustomerSerializer(serializers.ModelSerializer):
         customer = super().update(instance, validated_data)
 
         if name:
-            user = instance.user 
+            user = instance.user
             user.name = name
             user.save()
 
@@ -206,6 +223,20 @@ class CreateCustomerSerializer(serializers.ModelSerializer):
         customer = Customer.objects.create(user=user, **validated_data)
 
         return customer
+
+
+class CustomerGroupSerializer(serializers.ModelSerializer):
+    customers = SimpleCustomerSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = CustomerGroup
+        fields = ['id', 'title', 'customers']
+
+
+class CreateCustomerGroupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerGroup
+        fields = ['id', 'title', 'customers']
 
 
 class BulkCreateCustomerSerializer(serializers.ModelSerializer):

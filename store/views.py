@@ -9,8 +9,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser, AllowAny, DjangoModelPermissions
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, DestroyModelMixin
-from .models import ContactInquiry, QuoteRequest, File, Customer, Request, FileTransfer
-from .serializers import BulkCreateCustomerSerializer, ContactInquirySerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCustomerSerializer, User, FileUploadSerializer
+from .models import ContactInquiry, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup
+from .serializers import BulkCreateCustomerSerializer, ContactInquirySerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCustomerSerializer, User, FileUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer
 from .permissions import FullDjangoModelPermissions, create_permission_class
 from .mixins import HandleImagesMixin
 from .utils import get_queryset_for_models_with_files
@@ -145,3 +145,12 @@ class CustomerViewSet(ModelViewSet):
             return Response({"errors": errors}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({"success": f"{customer_count} customers created successfully."}, status=status.HTTP_201_CREATED)
+
+class CustomerGroupViewSet(ModelViewSet):
+    queryset = CustomerGroup.objects.prefetch_related('customers').all()
+    permission_classes = [FullDjangoModelPermissions]
+
+    def get_serializer_class(self):
+        if self.request.method == "GET":
+            return CustomerGroupSerializer
+        return CreateCustomerGroupSerializer
