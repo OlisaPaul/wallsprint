@@ -1,11 +1,10 @@
-from uuid import uuid4
+from django.utils import timezone
 from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.conf import settings
 from django.db import models
 from cloudinary.models import CloudinaryField
-from cloudinary.uploader import upload
 import datetime
 
 # Create your models here.
@@ -149,6 +148,7 @@ class Customer(models.Model):
 class CustomerGroup(models.Model):
     title = models.CharField(max_length=255, unique=True)
     customers = models.ManyToManyField(Customer, related_name='groups')
+    date_created = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.title
