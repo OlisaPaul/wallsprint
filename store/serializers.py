@@ -227,10 +227,14 @@ class CreateCustomerSerializer(serializers.ModelSerializer):
 
 class CustomerGroupSerializer(serializers.ModelSerializer):
     customers = SimpleCustomerSerializer(many=True, read_only=True)
+    members = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomerGroup
-        fields = ['id', 'title', 'customers']
+        fields = ['id', 'title', 'customers', "date_created", "members"]
+    
+    def get_members(self, customer_group: CustomerGroup):
+        return customer_group.customers.count()
 
 
 class CreateCustomerGroupSerializer(serializers.ModelSerializer):
