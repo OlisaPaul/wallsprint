@@ -154,7 +154,7 @@ class UserSendInvitationSerializer(BaseUserCreateSerializer):
 
     @transaction.atomic()
     def create(self, validated_data):
-        username = validated_data.get("email")
+        username = "Pending..."
         temporary_password = self.password
 
         validated_data = {**validated_data,
