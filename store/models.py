@@ -16,11 +16,15 @@ def validate_number(value):
     if not re.match(r'^\+?[\d\s\-\(\)]{7,20}$', value):
         raise ValidationError("Enter a valid fax number.")
 
+def validate_phone_number(value):
+    if not re.match(r'^\+?[\d\s\-\(\)]{7,20}$', value):
+        raise ValidationError("Enter a valid phone number.")
+
 
 class CommonFields(models.Model):
     name = models.CharField(max_length=255)
     email_address = models.EmailField()
-    phone_number = PhoneNumberField(region='US', blank=True, null=True)
+    phone_number = models.CharField(max_length=255, blank=True, null=True, validators=[validate_phone_number])
     address = models.CharField(max_length=255, blank=True, null=True)
     fax_number = models.CharField(max_length=255, blank=True, null=True, validators=[validate_number])
     company = models.CharField(max_length=255, blank=True, null=True)
