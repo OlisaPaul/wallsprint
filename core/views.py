@@ -138,17 +138,31 @@ class PermissionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Permission.objects.exclude(name__startswith="Can ")
     serializer_class = PermissionSerializer
 
-class UserSendInvitationViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
+class UserSendInvitationViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
     http_method_names= ['post', 'put', 'get']
-    queryset = User.objects.prefetch_related('groups').all()
+    queryset = User.objects.prefetch_related('groups').filter(is_staff=True)
     serializer_class = UserSendInvitationSerializer
     permission_classes= [FullDjangoModelPermissions]
 
     def get_serializer_class(self):
-        if self.request.method == "POST":
+        if self.action == 'invite_user':
             return UserSendInvitationSerializer
+        elif self.request.method == "POST":
+            return UserCreateSerializer
         return UserSerializer
 
+    @action(detail=False, methods=['post'], url_path='invite-user')
+    def invite_user(self, request):
+        """Endpoint to send an invitation and assign groups to the user."""
+        serializer = UserSendInvitationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+
+        return Response(
+            {"message": f"Invitation sent to {user.email}."},
+            status=status.HTTP_201_CREATED
+        )
+    
     @action(detail=False, methods=['get'], url_path='with-groups')
     def users_with_groups(self, request):
         """Retrieve groups that have at least one user assigned."""

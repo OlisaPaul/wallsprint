@@ -27,8 +27,8 @@ router = DefaultRouter()
 router.register(r'api/v1/auth/groups', GroupViewSet, basename='group')
 router.register(r'api/v1/auth/permissions',
                 PermissionViewSet, basename='permission')
-router.register(r'api/v1/auth/send-invitation',
-                UserSendInvitationViewSet, basename='send-invitation')
+router.register(r'api/v1/auth/staffs',
+                UserSendInvitationViewSet, basename='staffs')
 
 urlpatterns = [
     re_path(r'^accounts/login/$',

@@ -138,18 +138,18 @@ class UserCreateSerializer(BaseUserCreateSerializer):
 
 
 class UserSendInvitationSerializer(BaseUserCreateSerializer):
-    group_ids = serializers.ListField(
-        child=serializers.IntegerField(), write_only=True, required=False
-    )
+    # groups = serializers.ListField(
+    #     child=serializers.IntegerField(), write_only=True, required=False
+    # )
 
     class Meta(BaseUserCreateSerializer.Meta):
-        fields = ['email', 'group_ids', 'name']
+        fields = ['email', 'groups', 'name']
 
     def validate(self, attrs):
         temporary_password = generate_random_password()
         attrs['password'] = temporary_password
         self.password = temporary_password
-        self.group_ids = attrs.pop('group_ids', [])
+        self.groups = attrs.pop('groups', [])
         return super().validate(attrs)
 
     @transaction.atomic()
@@ -168,12 +168,11 @@ class UserSendInvitationSerializer(BaseUserCreateSerializer):
         }
         template = 'email/invitation_email.html'
 
+        if self.groups:
+            user.groups.add(*self.groups)
+
         send_email(user=user, context=context,
                    subject=subject, template=template)
-
-        if self.group_ids:
-            groups = Group.objects.filter(id__in=self.group_ids)
-            user.groups.add(*groups)
 
         return user
 
