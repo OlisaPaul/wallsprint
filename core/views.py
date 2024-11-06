@@ -1,3 +1,4 @@
+from django.db.models import Count
 from django.contrib.auth.models import Group, Permission
 from django.shortcuts import render
 from rest_framework import viewsets, permissions, status
@@ -13,8 +14,23 @@ from .permissions import FullDjangoModelPermissions
 
 class GroupViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'post', 'delete', 'put', 'options']
-    queryset = Group.objects.prefetch_related('permissions').all()
+    queryset = Group.objects.prefetch_related('permissions', 'user_set').all()
     permission_classes = [permissions.IsAdminUser]
+
+    @action(detail=False, methods=['get'], url_path='with-users')
+    def groups_with_users(self, request):
+        """Retrieve groups that have at least one user assigned."""
+        groups = self.queryset.annotate(user_count=Count('user')).filter(user_count__gt=0)
+        serializer = self.get_serializer(groups, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='without-users')
+    def groups_without_users(self, request):
+        """Retrieve groups that have no users assigned."""
+        groups = self.queryset.annotate(user_count=Count('user')).filter(user_count=0)
+        serializer = self.get_serializer(groups, many=True)
+        return Response(serializer.data)
+
 
     def get_serializer_class(self):
         if self.action in ['add_user', 'remove_user']:
