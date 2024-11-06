@@ -23,6 +23,8 @@ cloudinary = "*"
 django-cloudinary-storage = "*"
 pillow = "*"
 django-cors-headers = "*"
+django-phonenumber-field = "*"
+phonenumbers = "*"
 
 [dev-packages]
 

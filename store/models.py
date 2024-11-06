@@ -1,21 +1,28 @@
+import re
 from django.utils import timezone
 from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
+from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.db import models
+from django.utils.translation import gettext_lazy as _
+from phonenumber_field.modelfields import PhoneNumberField
 from cloudinary.models import CloudinaryField
 import datetime
 
-# Create your models here.
+
+def validate_number(value):
+    if not re.match(r'^\+?[\d\s\-\(\)]{7,20}$', value):
+        raise ValidationError("Enter a valid fax number.")
 
 
 class CommonFields(models.Model):
     name = models.CharField(max_length=255)
     email_address = models.EmailField()
-    phone_number = models.CharField(max_length=20)
+    phone_number = PhoneNumberField(region='US', blank=True, null=True)
     address = models.CharField(max_length=255, blank=True, null=True)
-    fax_number = models.CharField(max_length=20, blank=True, null=True)
+    fax_number = models.CharField(max_length=255, blank=True, null=True, validators=[validate_number])
     company = models.CharField(max_length=255, blank=True, null=True)
     city_state_zip = models.CharField(max_length=255, null=True)
     country = models.CharField(max_length=255, null=True)
@@ -91,7 +98,7 @@ class Request(CommonFields):
     )
     project_name = models.CharField(max_length=255)
     project_due_date = models.DateField(default=datetime.date.today)
-    additional_details = models.TextField(blank=True)
+    additional_details = models.TextField(blank=True, null=True)
     you_are_a = models.CharField(
         max_length=50,
         choices=[
@@ -153,8 +160,9 @@ class CustomerGroup(models.Model):
     def __str__(self):
         return self.title
 
+
 class FileTransfer(CommonFields):
-    additional_details = models.TextField(blank=True)
+    additional_details = models.TextField(blank=True, null=True)
     file_type = models.CharField(
         max_length=50,
         choices=[
@@ -184,7 +192,8 @@ class FileTransfer(CommonFields):
             ('OTHER', 'OTHER'),
         ],
     )
-    other_application_type = models.CharField(max_length=255, blank=True, null=True)
+    other_application_type = models.CharField(
+        max_length=255, blank=True, null=True)
 
     class Meta:
         permissions = [
