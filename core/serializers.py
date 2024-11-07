@@ -137,11 +137,7 @@ class UserCreateSerializer(BaseUserCreateSerializer):
         return user
 
 
-class UserSendInvitationSerializer(BaseUserCreateSerializer):
-    # groups = serializers.ListField(
-    #     child=serializers.IntegerField(), write_only=True, required=False
-    # )
-
+class InviteStaffSerializer(BaseUserCreateSerializer):
     class Meta(BaseUserCreateSerializer.Meta):
         fields = ['email', 'groups', 'name']
 
@@ -154,17 +150,15 @@ class UserSendInvitationSerializer(BaseUserCreateSerializer):
 
     @transaction.atomic()
     def create(self, validated_data):
-        username = "Pending..."
         temporary_password = self.password
 
-        validated_data = {**validated_data,
-                          "username": username}
+        validated_data = {**validated_data, 'is_staff': True}
         user = super().create(validated_data)
         subject = "Invitation to Join the Walls Printing Team"
         context = {
             "user": user,
             "temporary_password": temporary_password,
-            "invitation_link": "https://example.com/login"
+            "invitation_link": os.getenv("STAFF_LOGIN_URL")
         }
         template = 'email/invitation_email.html'
 
@@ -173,6 +167,18 @@ class UserSendInvitationSerializer(BaseUserCreateSerializer):
 
         send_email(user=user, context=context,
                    subject=subject, template=template)
+
+        return user
+
+
+class UpdateStaffSerializer(ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['name', 'username']
+
+    def update(self, instance, validated_data):
+        validated_data['is_staff'] = True
+        user = super().update(instance, validated_data)
 
         return user
 

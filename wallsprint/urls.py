@@ -20,7 +20,7 @@ from django.urls import path, include, re_path
 from django.contrib.auth.views import LoginView
 from rest_framework.routers import DefaultRouter
 import debug_toolbar
-from core.views import GroupViewSet, PermissionViewSet, UserSendInvitationViewSet
+from core.views import GroupViewSet, PermissionViewSet, StaffViewSet
 
 
 router = DefaultRouter()
@@ -28,7 +28,7 @@ router.register(r'api/v1/auth/groups', GroupViewSet, basename='group')
 router.register(r'api/v1/auth/permissions',
                 PermissionViewSet, basename='permission')
 router.register(r'api/v1/auth/staffs',
-                UserSendInvitationViewSet, basename='staffs')
+                StaffViewSet, basename='staffs')
 
 urlpatterns = [
     re_path(r'^accounts/login/$',

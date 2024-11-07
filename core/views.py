@@ -2,10 +2,10 @@ from django.db.models import Count
 from django.contrib.auth.models import Group, Permission
 from django.shortcuts import render
 from rest_framework import viewsets, permissions, status
-from rest_framework import  mixins
+from rest_framework import mixins
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from .serializers import AddUsersToGroupSerializer, GroupSerializer, PermissionSerializer, AddUserToGroupSerializer, CreateGroupSerializer, UserSerializer, UpdateGroupSerializer, UserCreateSerializer, UserSendInvitationSerializer
+from .serializers import AddUsersToGroupSerializer, GroupSerializer, PermissionSerializer, AddUserToGroupSerializer, CreateGroupSerializer, UserSerializer, UpdateGroupSerializer, UserCreateSerializer, InviteStaffSerializer, UpdateStaffSerializer
 from .models import User
 from .permissions import FullDjangoModelPermissions
 
@@ -31,17 +31,18 @@ class GroupViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='with-users')
     def groups_with_users(self, request):
         """Retrieve groups that have at least one user assigned."""
-        groups = self.queryset.annotate(user_count=Count('user')).filter(user_count__gt=0)
+        groups = self.queryset.annotate(
+            user_count=Count('user')).filter(user_count__gt=0)
         serializer = self.get_serializer(groups, many=True)
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'], url_path='without-users')
     def groups_without_users(self, request):
         """Retrieve groups that have no users assigned."""
-        groups = self.queryset.annotate(user_count=Count('user')).filter(user_count=0)
+        groups = self.queryset.annotate(
+            user_count=Count('user')).filter(user_count=0)
         serializer = self.get_serializer(groups, many=True)
         return Response(serializer.data)
-
 
     @action(detail=True, methods=['post'])
     def add_user(self, request, pk=None):
@@ -138,23 +139,38 @@ class PermissionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Permission.objects.exclude(name__startswith="Can ")
     serializer_class = PermissionSerializer
 
-class UserSendInvitationViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
-    http_method_names= ['post', 'put', 'get']
+
+class StaffViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
+    http_method_names = ['post', 'put', 'get']
     queryset = User.objects.prefetch_related('groups').filter(is_staff=True)
-    serializer_class = UserSendInvitationSerializer
-    permission_classes= [FullDjangoModelPermissions]
+    serializer_class = InviteStaffSerializer
+    permission_classes = [permissions.IsAdminUser]
 
     def get_serializer_class(self):
         if self.action == 'invite_user':
-            return UserSendInvitationSerializer
-        elif self.request.method == "POST":
+            return InviteStaffSerializer
+        elif self.request.method == 'POST':
             return UserCreateSerializer
+        elif self.request.method == 'PUT':
+            return UpdateStaffSerializer
         return UserSerializer
+
+    @action(detail=False, methods=["GET", "PUT"])
+    def me(self, request):
+        user = User.objects.get(id=request.user.id)
+        if request.method == "GET":
+            serializer = UserSerializer(user)
+            return Response(serializer.data)
+        elif request.method == "PUT":
+            serializer = UpdateStaffSerializer(user, data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
 
     @action(detail=False, methods=['post'], url_path='invite-user')
     def invite_user(self, request):
         """Endpoint to send an invitation and assign groups to the user."""
-        serializer = UserSendInvitationSerializer(data=request.data)
+        serializer = InviteStaffSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
@@ -162,17 +178,19 @@ class UserSendInvitationViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
             {"message": f"Invitation sent to {user.email}."},
             status=status.HTTP_201_CREATED
         )
-    
+
     @action(detail=False, methods=['get'], url_path='with-groups')
     def users_with_groups(self, request):
         """Retrieve groups that have at least one user assigned."""
-        groups = self.queryset.annotate(group_count=Count('groups')).filter(group_count__gt=0)
+        groups = self.queryset.annotate(
+            group_count=Count('groups')).filter(group_count__gt=0)
         serializer = self.get_serializer(groups, many=True)
         return Response(serializer.data)
-    
+
     @action(detail=False, methods=['get'], url_path='without-groups')
     def users_without_groups(self, request):
         """Retrieve groups that have at least one user assigned."""
-        groups = self.queryset.annotate(group_count=Count('groups')).filter(group_count=0)
+        groups = self.queryset.annotate(
+            group_count=Count('groups')).filter(group_count=0)
         serializer = self.get_serializer(groups, many=True)
         return Response(serializer.data)
