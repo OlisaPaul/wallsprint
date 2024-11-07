@@ -41,17 +41,23 @@ def generate_random_password(length=12):
 class CustomUserDeleteSerializer(UserDeleteSerializer):
     current_password = serializers.CharField(
         style={"input_type": "password"}, required=False)
+    
+class SimpleGroupSerializer(ModelSerializer):
+    class Meta:
+        model = Group
+        fields = ['id', 'name']
 
 
 class UserSerializer(BaseUserSerializer):
-    groups = serializers.SerializerMethodField()
+    groups_count = serializers.SerializerMethodField()
     group_ids = serializers.ListField(
         child=serializers.IntegerField(), write_only=True, required=False
     )
+    groups = SimpleGroupSerializer(many=True)
 
     class Meta(BaseUserSerializer.Meta):
         fields = ['id', 'email', 'name', 'username',
-                  'is_staff', 'is_superuser', 'groups', "group_ids"]
+                  'is_staff', 'is_superuser', 'groups', "group_ids", "groups_count"]
         read_only_fields = (settings.LOGIN_FIELD, 'email',
                             'is_staff', 'is_superuser', 'groups', 'username')
 
@@ -78,7 +84,7 @@ class UserSerializer(BaseUserSerializer):
 
         return user
 
-    def get_groups(self, obj):
+    def get_groups_count(self, obj):
         return obj.groups.count()
 
 
