@@ -1,4 +1,5 @@
 import os
+from django.core.validators import FileExtensionValidator
 from django.db import transaction
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
@@ -6,7 +7,7 @@ from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.validators import ValidationError
 from .models import ContactInquiry, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup
-from .utils import create_instance_with_images
+from .utils import create_instance_with_files
 
 User = get_user_model()
 
@@ -24,6 +25,17 @@ image_fields = general_fields + \
 
 customer_fields = ['id', 'company', 'address', 'city', 'state', 'zip',
                    'phone_number', 'fax_number', 'pay_tax', 'third_party_identifier', 'name']
+
+
+def create_file_fields(num_files, allowed_extensions):
+    return {
+        f'file{i+1}': serializers.FileField(
+            validators=[FileExtensionValidator(
+                allowed_extensions=allowed_extensions)],
+            required=False
+        )
+        for i in range(num_files)
+    }
 
 
 class ContactInquirySerializer(serializers.ModelSerializer):
@@ -71,7 +83,7 @@ class CreateQuoteRequestSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at']
 
     def create(self, validated_data):
-        return create_instance_with_images(QuoteRequest, validated_data)
+        return create_instance_with_files(QuoteRequest, validated_data)
 
 
 class RequestSerializer(serializers.ModelSerializer):
@@ -84,8 +96,12 @@ class RequestSerializer(serializers.ModelSerializer):
 
 
 class CreateRequestSerializer(serializers.ModelSerializer):
+    allowed_extensions = ['jpg', 'jpeg', 'png', 'pdf']
     files = serializers.ListField(
-        child=serializers.FileField(),
+        child=serializers.FileField(
+            validators=[FileExtensionValidator(
+                allowed_extensions=allowed_extensions)]
+        ),
         write_only=True,
         required=False
     )
@@ -96,18 +112,7 @@ class CreateRequestSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at']
 
     def create(self, validated_data):
-        # Extract images from validated data
-        images_data = validated_data.pop('images', [])
-        with transaction.atomic():
-            project_quote_request = Request.objects.create(
-                **validated_data)
-
-            # Create Image objects for each uploaded file
-            for image_data in images_data:
-                File.objects.create(
-                    project=project_quote_request, path=image_data)
-
-            return project_quote_request
+        return create_instance_with_files(Request, validated_data)
 
 
 class FileTransferSerializer(serializers.ModelSerializer):
@@ -134,7 +139,7 @@ class CreateFileTransferSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at']
 
     def create(self, validated_data):
-        return create_instance_with_images(FileTransfer, validated_data)
+        return create_instance_with_files(FileTransfer, validated_data)
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -232,7 +237,7 @@ class CustomerGroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomerGroup
         fields = ['id', 'title', 'customers', "date_created", "members"]
-    
+
     def get_members(self, customer_group: CustomerGroup):
         return customer_group.customers.count()
 
