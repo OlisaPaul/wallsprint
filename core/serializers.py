@@ -133,7 +133,7 @@ class UserCreateSerializer(BaseUserCreateSerializer):
             "login_url": os.getenv('STAFF_LOGIN_URL')
         }
 
-        send_email(user, temporary_password, context=context,
+        send_email(user=user, context=context,
                    subject=subject, template=template)
 
         if self.group_ids:
