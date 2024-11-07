@@ -53,7 +53,7 @@ class UserSerializer(BaseUserSerializer):
     group_ids = serializers.ListField(
         child=serializers.IntegerField(), write_only=True, required=False
     )
-    groups = SimpleGroupSerializer(many=True)
+    groups = SimpleGroupSerializer(many=True, read_only=True)
 
     class Meta(BaseUserSerializer.Meta):
         fields = ['id', 'email', 'name', 'username',
