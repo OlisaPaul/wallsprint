@@ -170,6 +170,17 @@ class InviteStaffSerializer(BaseUserCreateSerializer):
 
         return user
 
+class UserListSerializer(serializers.ModelSerializer):
+    is_in_group = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'is_in_group']
+
+    def get_is_in_group(self, obj):
+        group_id = self.context.get('group_id')
+        return obj.groups.filter(id=group_id).exists() if group_id else False
+
 
 class UpdateStaffSerializer(ModelSerializer):
     class Meta:

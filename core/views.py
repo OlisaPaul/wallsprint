@@ -5,7 +5,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework import mixins
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from .serializers import AddUsersToGroupSerializer, GroupSerializer, PermissionSerializer, AddUserToGroupSerializer, CreateGroupSerializer, UserSerializer, UpdateGroupSerializer, UserCreateSerializer, InviteStaffSerializer, UpdateStaffSerializer
+from .serializers import AddUsersToGroupSerializer, GroupSerializer, PermissionSerializer, AddUserToGroupSerializer, CreateGroupSerializer, UserListSerializer, UserSerializer, UpdateGroupSerializer, UserCreateSerializer, InviteStaffSerializer, UpdateStaffSerializer
 from .models import User
 from .permissions import FullDjangoModelPermissions
 
@@ -194,3 +194,14 @@ class StaffViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
             group_count=Count('groups')).filter(group_count=0)
         serializer = self.get_serializer(groups, many=True)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'], url_path='list-with-group-status')
+    def list_with_group_status(self, request):
+        """Endpoint to list users with their membership status for a specific group."""
+        group_id = request.query_params.get('group_id')
+        if not group_id:
+            return Response({"error": "group_id is required as a query parameter."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        
+        serializer = UserListSerializer(self.queryset, many=True, context={'group_id': group_id})
+        return Response(serializer.data, status=status.HTTP_200_OK)
