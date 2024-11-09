@@ -41,7 +41,8 @@ def generate_random_password(length=12):
 class CustomUserDeleteSerializer(UserDeleteSerializer):
     current_password = serializers.CharField(
         style={"input_type": "password"}, required=False)
-    
+
+
 class SimpleGroupSerializer(ModelSerializer):
     class Meta:
         model = Group
@@ -176,6 +177,7 @@ class InviteStaffSerializer(BaseUserCreateSerializer):
 
         return user
 
+
 class UserListSerializer(serializers.ModelSerializer):
     is_in_group = serializers.SerializerMethodField()
 
@@ -227,9 +229,15 @@ class CreateGroupSerializer(ModelSerializer):
 
 
 class UpdateGroupSerializer(ModelSerializer):
+    users = serializers.PrimaryKeyRelatedField(
+        source='user_set',
+        queryset=User.objects.all(),
+        many=True
+    )
+
     class Meta:
         model = Group
-        fields = ['name', 'permissions']
+        fields = ['name', 'permissions', 'users']
 
 
 class AddUserToGroupSerializer(ModelSerializer):
