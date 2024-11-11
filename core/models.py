@@ -164,6 +164,13 @@ class Group(BaseGroup):
         verbose_name_plural = _('groups')
         proxy = True
 
+class ExtendedGroup(models.Model):
+    group = models.OneToOneField(BaseGroup, on_delete=models.CASCADE)
+    date_created = models.DateTimeField(default=timezone.now)
+    
+    def __str__(self):
+        return f"{self.group.name} - Created on {self.date_created}"
+
 
 class CustomUserManager(UserManager):
 

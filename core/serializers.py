@@ -1,11 +1,12 @@
 import os
+import random
 import secrets
 import string
 from django.contrib.auth import authenticate
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.db import transaction
-from django.contrib.auth.models import Group, Permission
+from django.contrib.auth.models import Permission, Group
 from djoser.serializers import UserSerializer as BaseUserSerializer, UserCreateSerializer as BaseUserCreateSerializer, UserDeleteSerializer
 from djoser.conf import settings
 from djoser.serializers import TokenCreateSerializer
@@ -13,9 +14,8 @@ from djoser.compat import get_user_email, get_user_email_field_name
 from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
+from .signals import group_created
 from .models import User
-from django.contrib.auth.hashers import make_password
-import random
 
 load_dotenv()
 
@@ -98,10 +98,11 @@ class PermissionSerializer(ModelSerializer):
 class GroupSerializer(ModelSerializer):
     permissions = PermissionSerializer(many=True)
     users = serializers.SerializerMethodField(method_name='get_users')
+    date_created = serializers.DateTimeField(source='extendedgroup.date_created', read_only=True)
 
     class Meta:
         model = Group
-        fields = ['id', 'name', 'permissions', 'users']
+        fields = ['id', 'name', 'permissions', 'users', 'date_created']
 
     def get_users(self, obj):
         users = obj.user_set.all()
@@ -203,29 +204,15 @@ class UpdateStaffSerializer(ModelSerializer):
 
 
 class CreateGroupSerializer(ModelSerializer):
-    user_ids = serializers.ListField(
-        child=serializers.IntegerField(),
-        write_only=True,
-        required=False
+    user_ids = serializers.PrimaryKeyRelatedField(
+        source='user_set',
+        queryset=User.objects.all(),
+        many=True
     )
 
     class Meta:
         model = Group
         fields = ['id', 'name', 'permissions', 'user_ids']
-
-    def create(self, validated_data):
-        # Extract the user IDs from the validated data
-        user_ids = validated_data.pop('user_ids', [])
-
-        # Create the group
-        group = super().create(validated_data)
-
-        # Retrieve and add users to the group
-        if user_ids:
-            users = User.objects.filter(id__in=user_ids)
-            group.user_set.add(*users)
-
-        return group
 
 
 class UpdateGroupSerializer(ModelSerializer):
