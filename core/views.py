@@ -5,7 +5,8 @@ from rest_framework import viewsets, permissions, status
 from rest_framework import mixins
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from .serializers import AddUsersToGroupSerializer, GroupSerializer, PermissionSerializer, AddUserToGroupSerializer, CreateGroupSerializer, UserListSerializer, UserSerializer, UpdateGroupSerializer, UserCreateSerializer, InviteStaffSerializer, UpdateStaffSerializer
+from .serializers import (AddUsersToGroupSerializer, GroupSerializer, PermissionSerializer, AddUserToGroupSerializer, CreateGroupSerializer,
+                          UserListSerializer, UserSerializer, UpdateGroupSerializer, UserCreateSerializer, InviteStaffSerializer, UpdateStaffSerializer, BulkDeleteGroupSerializer)
 from .models import User
 from .permissions import FullDjangoModelPermissions
 
@@ -22,11 +23,31 @@ class GroupViewSet(viewsets.ModelViewSet):
             return AddUserToGroupSerializer
         elif self.action == "add_users":
             return AddUsersToGroupSerializer
+        elif self.action == 'delete_multiple':
+            return BulkDeleteGroupSerializer
         elif self.request.method == "POST":
             return CreateGroupSerializer
         elif self.request.method == "PUT":
             return UpdateGroupSerializer
         return GroupSerializer
+
+    @action(detail=False, methods=['delete'], url_path='delete-multiple')
+    def delete_multiple(self, request):
+        group_ids = request.data.get('ids', [])
+
+        if not isinstance(group_ids, list) or not group_ids:
+            return Response(
+                {"detail": "Please provide a list of group IDs to delete."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        groups_to_delete = Group.objects.filter(id__in=group_ids)
+        deleted_count, _ = groups_to_delete.delete()
+
+        return Response(
+            {"detail": f"Deleted {deleted_count} groups."},
+            status=status.HTTP_204_NO_CONTENT
+        )
 
     @action(detail=False, methods=['get'], url_path='with-users')
     def groups_with_users(self, request):
@@ -194,7 +215,7 @@ class StaffViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
             group_count=Count('groups')).filter(group_count=0)
         serializer = self.get_serializer(groups, many=True)
         return Response(serializer.data)
-    
+
     @action(detail=False, methods=['get'], url_path='list-with-group-status')
     def list_with_group_status(self, request):
         """Endpoint to list users with their membership status for a specific group."""
@@ -202,6 +223,7 @@ class StaffViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
         if not group_id:
             return Response({"error": "group_id is required as a query parameter."},
                             status=status.HTTP_400_BAD_REQUEST)
-        
-        serializer = UserListSerializer(self.queryset, many=True, context={'group_id': group_id})
+
+        serializer = UserListSerializer(
+            self.queryset, many=True, context={'group_id': group_id})
         return Response(serializer.data, status=status.HTTP_200_OK)

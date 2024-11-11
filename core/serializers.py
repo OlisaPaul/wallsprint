@@ -214,6 +214,18 @@ class CreateGroupSerializer(ModelSerializer):
         model = Group
         fields = ['id', 'name', 'permissions', 'user_ids']
 
+class BulkDeleteGroupSerializer(serializers.Serializer):
+    ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        allow_empty=False,
+        help_text="A list of group IDs to delete."
+    )
+
+    def validate_ids(self, value):
+        if not Group.objects.filter(id__in=value).exists():
+            raise serializers.ValidationError("One or more group IDs are invalid.")
+        return value
+
 
 class UpdateGroupSerializer(ModelSerializer):
     users = serializers.PrimaryKeyRelatedField(
