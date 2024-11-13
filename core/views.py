@@ -6,9 +6,9 @@ from rest_framework import mixins
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from .serializers import (AddUsersToGroupSerializer, GroupSerializer, PermissionSerializer, AddUserToGroupSerializer, CreateGroupSerializer,
-                          UserListSerializer, UserSerializer, UpdateGroupSerializer, UserCreateSerializer, InviteStaffSerializer, UpdateStaffSerializer, BulkDeleteGroupSerializer)
+                          UserListSerializer, UserSerializer, UpdateGroupSerializer, UserCreateSerializer, InviteStaffSerializer, UpdateStaffSerializer)
 from .models import User
-from .permissions import FullDjangoModelPermissions
+from .utils import bulk_delete_objects
 
 # Create your views here.
 
@@ -23,8 +23,6 @@ class GroupViewSet(viewsets.ModelViewSet):
             return AddUserToGroupSerializer
         elif self.action == "add_users":
             return AddUsersToGroupSerializer
-        elif self.action == 'delete_multiple':
-            return BulkDeleteGroupSerializer
         elif self.request.method == "POST":
             return CreateGroupSerializer
         elif self.request.method == "PUT":
@@ -33,21 +31,7 @@ class GroupViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['delete'], url_path='delete-multiple')
     def delete_multiple(self, request):
-        group_ids = request.data.get('ids', [])
-
-        if not isinstance(group_ids, list) or not group_ids:
-            return Response(
-                {"detail": "Please provide a list of group IDs to delete."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        groups_to_delete = Group.objects.filter(id__in=group_ids)
-        deleted_count, _ = groups_to_delete.delete()
-
-        return Response(
-            {"detail": f"Deleted {deleted_count} groups."},
-            status=status.HTTP_204_NO_CONTENT
-        )
+        return bulk_delete_objects(request, Group)
 
     @action(detail=False, methods=['get'], url_path='with-users')
     def groups_with_users(self, request):
@@ -162,7 +146,7 @@ class PermissionViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class StaffViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
-    http_method_names = ['post', 'put', 'get']
+    http_method_names = ['post', 'put', 'get', 'delete']
     queryset = User.objects.prefetch_related('groups').filter(is_staff=True)
     serializer_class = InviteStaffSerializer
     permission_classes = [permissions.IsAdminUser]
@@ -175,6 +159,10 @@ class StaffViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
         elif self.request.method == 'PUT':
             return UpdateStaffSerializer
         return UserSerializer
+
+    @action(detail=False, methods=['delete'], url_path='delete-multiple')
+    def delete_multiple(self, request):
+        return bulk_delete_objects(request, User)
 
     @action(detail=False, methods=["GET", "PUT"])
     def me(self, request):
