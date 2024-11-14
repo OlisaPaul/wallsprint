@@ -10,10 +10,11 @@ from rest_framework.permissions import IsAdminUser, AllowAny, DjangoModelPermiss
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, DestroyModelMixin
 from .models import ContactInquiry, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup
-from .serializers import BulkCreateCustomerSerializer, ContactInquirySerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCustomerSerializer, User, FileUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer
+from .serializers import BulkCreateCustomerSerializer, ContactInquirySerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCustomerSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer
 from .permissions import FullDjangoModelPermissions, create_permission_class
 from .mixins import HandleImagesMixin
 from .utils import get_queryset_for_models_with_files
+from .utils import bulk_delete_objects
 
 CanTransferFiles = create_permission_class('store.transfer_files')
 
@@ -91,7 +92,7 @@ class CustomerViewSet(ModelViewSet):
 
     def get_serializer_class(self):
         if self.action == 'bulk_upload':
-            return FileUploadSerializer
+            return CSVUploadSerializer
         elif self.request.method == "POST":
             return CreateCustomerSerializer
         elif self.request.method in ["PUT", "PATCH"]:
@@ -101,22 +102,37 @@ class CustomerViewSet(ModelViewSet):
     @action(detail=False, methods=['post'], url_path='bulk-upload', url_name='bulk_upload')
     @transaction.atomic()
     def bulk_upload(self, request):
-        csv_file = request.FILES.get('file')
-        if not csv_file:
-            return Response({"error": "No file uploaded."}, status=status.HTTP_400_BAD_REQUEST)
+        """
+        Handles bulk upload of data from a CSV file.
 
-        try:
-            csv_reader = csv.DictReader(
-                TextIOWrapper(csv_file.file, encoding='utf-8'))
-            rows = list(csv_reader)  # Read all rows into a list
-        except csv.Error as e:
-            return Response({"error": f"CSV parsing error: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+        This method accepts a file upload through a POST request and processes it as a CSV.
+        Each row in the CSV is read and converted to a dictionary format using `csv.DictReader`.
+        
+        Expects:
+            - The uploaded file to be in CSV format with UTF-8 encoding.
+            - A file uploaded with the key 'file' in the request.
+
+        Returns:
+            - HTTP 400 response with an error message if the file is missing, is not a CSV, 
+            or there is a CSV parsing error.
+            - HTTP 200 response indicating success once the file is processed.
+        """
+
+        serializer = CSVUploadSerializer(data=request.FILES)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # Retrieve validated and parsed CSV content from serializer
+        csv_content = serializer.validated_data['file']
+        
+        # Parse CSV rows
+        csv_reader = csv.DictReader(csv_content.splitlines())
+        rows = list(csv_reader)
 
         users = []
         errors = []
         customer_count = 0
 
-        # Validate and create User instances first
         for row in rows:
             serializer = CreateCustomerSerializer(data=row)
             if serializer.is_valid():
@@ -134,6 +150,10 @@ class CustomerViewSet(ModelViewSet):
                 customer_data.pop('name')
                 customer_data.pop('email')
                 customer_data.pop('password')
+
+                if customer_data['pay_tax'] == 'FALSE':
+                    customer_data['pay_tax'] = False
+                    
                 customer_data['pay_tax'] = bool(customer_data['pay_tax'])
 
                 Customer.objects.create(user=user, **customer_data)
@@ -146,6 +166,11 @@ class CustomerViewSet(ModelViewSet):
 
         return Response({"success": f"{customer_count} customers created successfully."}, status=status.HTTP_201_CREATED)
 
+    @action(detail=False, methods=['delete'], url_path='delete-multiple')
+    def delete_multiple(self, request):
+        return bulk_delete_objects(request, Customer)
+
+
 class CustomerGroupViewSet(ModelViewSet):
     queryset = CustomerGroup.objects.prefetch_related('customers').all()
     permission_classes = [FullDjangoModelPermissions]
@@ -154,3 +179,7 @@ class CustomerGroupViewSet(ModelViewSet):
         if self.request.method == "GET":
             return CustomerGroupSerializer
         return CreateCustomerGroupSerializer
+
+    @action(detail=False, methods=['delete'], url_path='delete-multiple')
+    def delete_multiple(self, request):
+        return bulk_delete_objects(request, CustomerGroup)

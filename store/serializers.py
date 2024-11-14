@@ -6,6 +6,8 @@ from django.contrib.contenttypes.models import ContentType
 from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.validators import ValidationError
+import csv
+from io import TextIOWrapper
 from .models import ContactInquiry, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup
 from .utils import create_instance_with_files
 
@@ -57,8 +59,26 @@ class FileSerializer(serializers.ModelSerializer):
         return f"https://res.cloudinary.com/{cloud_name}/{path}"
 
 
-class FileUploadSerializer(serializers.Serializer):
-    file = serializers.FileField()
+class CSVUploadSerializer(serializers.Serializer):
+    file = serializers.FileField(
+        validators=[FileExtensionValidator(allowed_extensions=['csv'])]
+    )
+
+    def validate_file(self, file):
+        if file.content_type != 'text/csv':
+            raise serializers.ValidationError(
+                "Invalid file type. Please upload a CSV file.")
+
+        file_data = file.read().decode('utf-8')
+
+        try:
+            csv_reader = csv.DictReader(file_data.splitlines())
+            list(csv_reader)
+        except csv.Error:
+            raise serializers.ValidationError(
+                "CSV parsing error. Ensure the file is a valid CSV with UTF-8 encoding.")
+
+        return file_data
 
 
 class QuoteRequestSerializer(serializers.ModelSerializer):
