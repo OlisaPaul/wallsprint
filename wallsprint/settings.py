@@ -173,6 +173,9 @@ DJOSER = {
     'EMAIL': {
         'password_reset': 'core.email.CustomPasswordResetEmail',
     },
+    'PERMISSIONS': {
+        "user_create": ['rest_framework.permissions.IsAdminUser'],
+    },
     'DOMAIN': 'wallsprint.netlify.app',
     'SITE_NAME': 'Wallsprint',
     'PASSWORD_RESET_CONFIRM_URL': 'reset-password/{uid}/{token}',
