@@ -134,14 +134,12 @@ class File(models.Model):
 
 class Customer(models.Model):
     company = models.CharField(max_length=255)
-    address = models.CharField(max_length=255)
-    city = models.CharField(max_length=255)
-    state = models.CharField(max_length=255)
-    zip = models.CharField(max_length=255)
-    phone_number = models.CharField(max_length=255)
-    fax_number = models.CharField(max_length=255)
-    pay_tax = models.BooleanField()
-    third_party_identifier = models.CharField(max_length=255)
+    address = models.CharField(max_length=255, null=True)
+    city_state_zip = models.CharField(max_length=255, null=True)
+    phone_number = models.CharField(max_length=255, null=True, validators=[validate_phone_number])
+    fax_number = models.CharField(max_length=255, null=True, validators=[validate_number])
+    pay_tax = models.BooleanField(default=False)
+    third_party_identifier = models.CharField(max_length=255, null=True)
     credit_balance = models.DecimalField(
         max_digits=9, decimal_places=2, default=0)
     user = models.OneToOneField(

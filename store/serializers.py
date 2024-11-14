@@ -25,8 +25,9 @@ image_fields = general_fields + \
     ['preferred_mode_of_response', 'artwork_provided',
         'project_name', 'project_due_date']
 
-customer_fields = ['id', 'company', 'address', 'city', 'state', 'zip',
-                   'phone_number', 'fax_number', 'pay_tax', 'third_party_identifier', 'name']
+customer_fields = ['id', 'company', 'address', 'city_state_zip',
+                   'phone_number', 'fax_number', 'pay_tax',
+                   'third_party_identifier', 'name', 'credit_balance']
 
 
 def create_file_fields(num_files, allowed_extensions):
@@ -166,13 +167,17 @@ class CustomerSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
     username = serializers.SerializerMethodField()
     email = serializers.SerializerMethodField()
+    is_active = serializers.SerializerMethodField()
 
     class Meta:
         model = Customer
-        fields = [*customer_fields, 'email', 'username']
+        fields = [*customer_fields, 'email', 'username', 'is_active']
 
     def get_email(self, customer: Customer):
         return customer.user.email
+
+    def get_is_active(self, customer: Customer):
+        return customer.user.is_active
 
     def get_username(self, customer: Customer):
         return customer.user.username
@@ -220,17 +225,26 @@ class UpdateCustomerSerializer(serializers.ModelSerializer):
 class CreateCustomerSerializer(serializers.ModelSerializer):
     name = serializers.CharField(max_length=255, write_only=True)
     email = serializers.EmailField(write_only=True)
+    is_active = serializers.BooleanField(write_only=True)
     password = serializers.CharField(
         write_only=True, style={'input_type': 'password'})
+    username = serializers.CharField(write_only=True)
 
     class Meta:
         model = Customer
-        fields = [*customer_fields, 'email', 'password']
+        fields = [*customer_fields, 'email',
+                  'password', 'username', 'is_active']
 
     def validate_email(self, value):
         """Ensure email is unique across users"""
         if User.objects.filter(email=value).exists():
             raise ValidationError("A user with this email already exists.")
+        return value
+
+    def validate_username(self, value):
+        """Ensure email is unique across users"""
+        if User.objects.filter(username=value).exists():
+            raise ValidationError("A user with this username already exists.")
         return value
 
     def get_name(self, customer: Customer):
@@ -239,12 +253,13 @@ class CreateCustomerSerializer(serializers.ModelSerializer):
     @transaction.atomic()
     def create(self, validated_data):
         email = validated_data.pop('email')
+        is_active = validated_data.pop('is_active')
         name = validated_data.pop('name')
+        username = validated_data.pop('username')
         password = validated_data.pop('password')
-        username = email
 
         user = User.objects.create_user(
-            email=email, password=password, name=name, username=username)
+            email=email, password=password, name=name, username=username, is_active=is_active)
         customer = Customer.objects.create(user=user, **validated_data)
 
         return customer
