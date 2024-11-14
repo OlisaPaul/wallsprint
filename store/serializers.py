@@ -203,6 +203,7 @@ class SimpleCustomerSerializer(serializers.ModelSerializer):
 
 class UpdateCustomerSerializer(serializers.ModelSerializer):
     name = serializers.CharField(write_only=True)
+    is_active = serializers.BooleanField(write_only=True)
 
     class Meta:
         model = Customer
@@ -211,12 +212,17 @@ class UpdateCustomerSerializer(serializers.ModelSerializer):
     @transaction.atomic()
     def update(self, instance, validated_data):
         name = validated_data.pop('name')
+        is_active = validated_data.pop('is_active')
 
         customer = super().update(instance, validated_data)
 
-        if name:
+        if name is not None or isinstance(is_active, bool):
             user = instance.user
-            user.name = name
+
+            if name:
+                user.name = name
+            if isinstance(is_active, bool):
+                user.is_active = is_active
             user.save()
 
         return customer
