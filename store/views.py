@@ -10,7 +10,7 @@ from rest_framework.permissions import IsAdminUser, AllowAny, DjangoModelPermiss
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, DestroyModelMixin
 from .models import ContactInquiry, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup
-from .serializers import BulkCreateCustomerSerializer, ContactInquirySerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCustomerSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer
+from .serializers import BulkCreateCustomerSerializer, ContactInquirySerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCustomerSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, customer_fields
 from .permissions import FullDjangoModelPermissions, create_permission_class
 from .mixins import HandleImagesMixin
 from .utils import get_queryset_for_models_with_files
@@ -107,7 +107,7 @@ class CustomerViewSet(ModelViewSet):
 
         This method accepts a file upload through a POST request and processes it as a CSV.
         Each row in the CSV is read and converted to a dictionary format using `csv.DictReader`.
-        
+
         Expects:
             - The uploaded file to be in CSV format with UTF-8 encoding.
             - A file uploaded with the key 'file' in the request.
@@ -122,18 +122,28 @@ class CustomerViewSet(ModelViewSet):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        # Retrieve validated and parsed CSV content from serializer
         csv_content = serializer.validated_data['file']
-        
-        # Parse CSV rows
+        has_header = serializer.validated_data['has_header']
+
         csv_reader = csv.DictReader(csv_content.splitlines())
         rows = list(csv_reader)
+
+        columns = ['name', 'email', 'password', 'username', 'is_active'] + customer_fields
 
         users = []
         errors = []
         customer_count = 0
 
+        mapped_rows = []
+
         for row in rows:
+            if not has_header:
+                mapped_row = {columns[index]: value for index, value in enumerate(row)}
+                mapped_rows.append(mapped_row)
+            else:
+                mapped_rows.append(row)
+
+        for row in mapped_row:
             serializer = CreateCustomerSerializer(data=row)
             if serializer.is_valid():
                 email = row.get('email')
@@ -153,7 +163,7 @@ class CustomerViewSet(ModelViewSet):
 
                 if customer_data['pay_tax'] == 'FALSE':
                     customer_data['pay_tax'] = False
-                    
+
                 customer_data['pay_tax'] = bool(customer_data['pay_tax'])
 
                 Customer.objects.create(user=user, **customer_data)

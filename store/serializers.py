@@ -27,7 +27,7 @@ image_fields = general_fields + \
 
 customer_fields = ['id', 'company', 'address', 'city_state_zip',
                    'phone_number', 'fax_number', 'pay_tax',
-                   'third_party_identifier', 'name', 'credit_balance']
+                   'third_party_identifier', 'credit_balance']
 
 
 def create_file_fields(num_files, allowed_extensions):
@@ -64,6 +64,7 @@ class CSVUploadSerializer(serializers.Serializer):
     file = serializers.FileField(
         validators=[FileExtensionValidator(allowed_extensions=['csv'])]
     )
+    has_header = serializers.BooleanField()
 
     def validate_file(self, file):
         if file.content_type != 'text/csv':
@@ -171,7 +172,7 @@ class CustomerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Customer
-        fields = [*customer_fields, 'email', 'username', 'is_active']
+        fields = [*customer_fields, 'name', 'email', 'username', 'is_active']
 
     def get_email(self, customer: Customer):
         return customer.user.email
@@ -207,7 +208,7 @@ class UpdateCustomerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Customer
-        fields = customer_fields
+        fields = [*customer_fields, 'name']
 
     @transaction.atomic()
     def update(self, instance, validated_data):
@@ -239,7 +240,7 @@ class CreateCustomerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Customer
         fields = [*customer_fields, 'email',
-                  'password', 'username', 'is_active']
+                  'password', 'username', 'name', 'is_active']
 
     def validate_email(self, value):
         """Ensure email is unique across users"""
@@ -297,7 +298,7 @@ class BulkCreateCustomerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Customer
-        fields = [*customer_fields, 'email', 'password']
+        fields = [*customer_fields, 'name', 'email', 'password']
 
     def validate_email(self, value):
         """Ensure email is unique across users"""
