@@ -208,7 +208,7 @@ class UpdateCustomerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Customer
-        fields = [*customer_fields, 'name']
+        fields = [*customer_fields,'is_active', 'name']
 
     @transaction.atomic()
     def update(self, instance, validated_data):
