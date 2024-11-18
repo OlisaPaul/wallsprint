@@ -87,7 +87,7 @@ class FileTransferViewSet(GenericViewSet, DestroyModelMixin, CreateModelMixin, L
 
 
 class CustomerViewSet(ModelViewSet):
-    queryset = Customer.objects.select_related('user').all()
+    queryset = Customer.objects.select_related('user').prefetch_related('groups').all()
     permission_classes = [FullDjangoModelPermissions]
 
     def get_serializer_class(self):

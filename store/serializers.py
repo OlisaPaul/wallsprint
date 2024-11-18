@@ -164,18 +164,30 @@ class CreateFileTransferSerializer(serializers.ModelSerializer):
         return create_instance_with_files(FileTransfer, validated_data)
 
 
+class SimpleCustomerGroupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerGroup
+        fields = ['id', 'title']
+
+
 class CustomerSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
     username = serializers.SerializerMethodField()
     email = serializers.SerializerMethodField()
     is_active = serializers.SerializerMethodField()
+    groups = SimpleCustomerGroupSerializer(many=True, read_only=True)
+    groups_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Customer
-        fields = [*customer_fields, 'name', 'email', 'username', 'is_active']
+        fields = [*customer_fields, 'groups', 'groups_count',
+                  'name', 'email', 'username', 'is_active']
 
     def get_email(self, customer: Customer):
         return customer.user.email
+
+    def get_groups_count(self, customer: Customer):
+        return customer.groups.count()
 
     def get_is_active(self, customer: Customer):
         return customer.user.is_active
@@ -193,7 +205,7 @@ class SimpleCustomerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Customer
-        fields = ['name', 'email', 'company']
+        fields = ['id', 'name', 'email', 'company']
 
     def get_name(self, customer: Customer):
         return customer.user.name
@@ -208,7 +220,7 @@ class UpdateCustomerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Customer
-        fields = [*customer_fields,'is_active', 'name']
+        fields = [*customer_fields, 'is_active', 'name']
 
     @transaction.atomic()
     def update(self, instance, validated_data):
