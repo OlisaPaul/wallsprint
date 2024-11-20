@@ -387,28 +387,54 @@ class PortalSerializer(serializers.ModelSerializer):
 
 
 class CreatePortalSerializer(serializers.ModelSerializer):
-    content = CreatePortalContentSerializer(many=True)
+    content = CreatePortalContentSerializer(many=True, required=False)
+    copy_from_portal_id = serializers.IntegerField(
+        required=False, allow_null=True)
 
     class Meta:
         model = Portal
-        fields = ['id', 'name', 'content']
+        fields = ['id', 'name', 'content', 'copy_from_portal_id']
 
     @transaction.atomic()
     def create(self, validated_data):
-        content_data = validated_data.pop('content')
+        content_data = validated_data.pop('content', [])
         portal = Portal.objects.create(**validated_data)
+        copy_from_portal_id = validated_data.pop('copy_from_portal_id', None)
+
+        if copy_from_portal_id and content_data:
+            raise ValidationError(
+                "You cannot specify both 'content' and 'copy_from_portal_id'. Choose one option."
+            )
+
+        if copy_from_portal_id:
+            try:
+                source_portal = Portal.objects.prefetch_related(
+                    'content__customer_groups', 'content__customers'
+                ).get(id=copy_from_portal_id)
+            except Portal.DoesNotExist:
+                raise ValidationError(
+                    {"copy_from_portal_id": "The portal to copy from does not exist."})
+
+            for source_content in source_portal.content.all():
+
+                portal_content = PortalContent.objects.create(
+                    portal=portal,
+                    everyone=source_content.everyone,
+                    html_file=source_content.html_file,
+                )
+
+                portal_content.customer_groups.set(
+                    source_content.customer_groups.all())
+                portal_content.customers.set(source_content.customers.all())
 
         for content in content_data:
             customer_group_data = []
             customer_data = []
             everyone = content.get('everyone')
 
-            if isinstance(content.get('customer_groups'), list):
-                customer_group_data = content.pop('customer_groups')
+            customer_group_data = content.pop('customer_groups', None)
+            customer_data = content.pop('customers', None)
 
-            if isinstance(content.get('customers'), list):
-                customer_data = content.pop('customers')
-            
             is_customer_or_customer_data = customer_group_data or customer_data
 
             if is_customer_or_customer_data and everyone:

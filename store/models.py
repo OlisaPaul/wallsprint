@@ -210,6 +210,7 @@ class FileTransfer(CommonFields):
 
 class Portal(models.Model):
     name = models.CharField(max_length=255)
+    copy_from_portal_id = models.IntegerField(null=True, blank=True)
 
     def __str__(self):
         return self.name
