@@ -6,17 +6,20 @@ from django.db import models
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAdminUser, AllowAny, DjangoModelPermissions
+from rest_framework.permissions import  AllowAny,  IsAuthenticated
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, DestroyModelMixin
-from .models import ContactInquiry, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup
-from .serializers import BulkCreateCustomerSerializer, ContactInquirySerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCustomerSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, customer_fields
+from .models import ContactInquiry, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, Portal
+from .serializers import ContactInquirySerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCustomerSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, PortalSerializer, customer_fields
 from .permissions import FullDjangoModelPermissions, create_permission_class
 from .mixins import HandleImagesMixin
 from .utils import get_queryset_for_models_with_files
-from .utils import bulk_delete_objects
+from .utils import bulk_delete_objects, CustomModelViewSet
+from store import models
+from store import serializers
 
 CanTransferFiles = create_permission_class('store.transfer_files')
+PortalPermissions = create_permission_class('store.portals')
 
 
 class CustomerCreationHandler:
@@ -86,8 +89,9 @@ class FileTransferViewSet(GenericViewSet, DestroyModelMixin, CreateModelMixin, L
         return [CanTransferFiles()]
 
 
-class CustomerViewSet(ModelViewSet):
-    queryset = Customer.objects.select_related('user').prefetch_related('groups').all()
+class CustomerViewSet(CustomModelViewSet):
+    queryset = Customer.objects.select_related(
+        'user').prefetch_related('groups').all()
     permission_classes = [FullDjangoModelPermissions]
 
     def get_serializer_class(self):
@@ -128,7 +132,8 @@ class CustomerViewSet(ModelViewSet):
         csv_reader = csv.DictReader(csv_content.splitlines())
         rows = list(csv_reader)
 
-        columns = ['name', 'email', 'password', 'username', 'is_active'] + customer_fields
+        columns = ['name', 'email', 'password',
+                   'username', 'is_active'] + customer_fields
 
         users = []
         errors = []
@@ -138,7 +143,8 @@ class CustomerViewSet(ModelViewSet):
 
         for row in rows:
             if not has_header:
-                mapped_row = {columns[index]: value for index, value in enumerate(row)}
+                mapped_row = {
+                    columns[index]: value for index, value in enumerate(row)}
                 mapped_rows.append(mapped_row)
             else:
                 mapped_rows.append(row)
@@ -176,12 +182,8 @@ class CustomerViewSet(ModelViewSet):
 
         return Response({"success": f"{customer_count} customers created successfully."}, status=status.HTTP_201_CREATED)
 
-    @action(detail=False, methods=['delete'], url_path='delete-multiple')
-    def delete_multiple(self, request):
-        return bulk_delete_objects(request, Customer)
 
-
-class CustomerGroupViewSet(ModelViewSet):
+class CustomerGroupViewSet(CustomModelViewSet):
     queryset = CustomerGroup.objects.prefetch_related('customers').all()
     permission_classes = [FullDjangoModelPermissions]
 
@@ -190,6 +192,51 @@ class CustomerGroupViewSet(ModelViewSet):
             return CustomerGroupSerializer
         return CreateCustomerGroupSerializer
 
-    @action(detail=False, methods=['delete'], url_path='delete-multiple')
-    def delete_multiple(self, request):
-        return bulk_delete_objects(request, CustomerGroup)
+
+class PortalViewSet(CustomModelViewSet):
+    queryset = Portal.objects.prefetch_related(
+        'content__customer_groups', 'content__customers', 'content__html_file').all()
+    
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [PortalPermissions()]
+        return [IsAuthenticated()]
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return serializers.CreatePortalSerializer
+        return PortalSerializer
+
+    def get_serializer_context(self):
+        return {'request': self.request}
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+
+        portals = serializer.data
+        for portal in portals:
+            content = portal.get('content')
+            content = [
+                item for item in content
+                if (item.get('can_user_access') or item['everyone'])
+            ]
+            portal['content'] = content
+
+        return Response(portals)
+
+
+class PortalContentViewSet(CustomModelViewSet):
+    queryset = models.PortalContent.objects.all()
+    serializer_class = serializers.PortalContentSerializer
+
+
+class HTMLFileViewSet(CustomModelViewSet):
+    queryset = models.HTMLFile.objects.all()
+    serializer_class = serializers.HTMLFileSerializer

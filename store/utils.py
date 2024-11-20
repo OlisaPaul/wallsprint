@@ -1,4 +1,6 @@
 from django.db import models
+from rest_framework.viewsets import ModelViewSet
+from rest_framework.decorators import action
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from rest_framework import serializers
@@ -75,3 +77,39 @@ def get_queryset_for_models_with_files(model_class):
             queryset=File.objects.filter(content_type=content_type)
         )
     )
+
+
+class CustomModelViewSet(ModelViewSet):
+    """
+    A custom ModelViewSet that adds a bulk delete endpoint.
+    """
+    @action(detail=False, methods=['delete'], url_path='delete-multiple')
+    def bulk_delete(self, request, *args, **kwargs):
+        """
+        Delete multiple objects by providing a list of IDs.
+        """
+        ids = request.data.get('ids', [])
+        if not isinstance(ids, list) or not ids:
+            return Response(
+                {"detail": "Invalid input. Provide a list of IDs to delete."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        queryset = self.filter_queryset(self.get_queryset())
+
+        # Filter objects to be deleted
+        objects_to_delete = queryset.filter(id__in=ids)
+        count = objects_to_delete.count()
+
+        if count == 0:
+            return Response(
+                {"detail": "No matching objects found for the provided IDs."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        objects_to_delete.delete()
+
+        return Response(
+            {"detail": f"Successfully deleted {count} object(s)."},
+            status=status.HTTP_200_OK
+        )

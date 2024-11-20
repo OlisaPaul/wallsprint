@@ -8,7 +8,7 @@ from rest_framework import serializers
 from rest_framework.validators import ValidationError
 import csv
 from io import TextIOWrapper
-from .models import ContactInquiry, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup
+from .models import ContactInquiry, HTMLFile, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent
 from .utils import create_instance_with_files
 
 User = get_user_model()
@@ -317,3 +317,111 @@ class BulkCreateCustomerSerializer(serializers.ModelSerializer):
         if User.objects.filter(email=value).exists():
             raise ValidationError("A user with this email already exists.")
         return value
+
+
+class HTMLFileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HTMLFile
+        fields = ['id', 'title', 'link']
+
+
+class PortalContentSerializer(serializers.ModelSerializer):
+    customer_groups = CustomerGroupSerializer(many=True, read_only=True)
+    customers = SimpleCustomerSerializer(many=True, read_only=True)
+    can_user_access = serializers.SerializerMethodField()
+    groups_count = serializers.SerializerMethodField()
+    user_count = serializers.SerializerMethodField()
+    html_file = HTMLFileSerializer()
+
+    class Meta:
+        model = PortalContent
+        fields = ['id', 'html_file',
+                  'customer_groups', 'everyone', 'can_user_access', 'customers', 'groups_count', 'user_count']
+
+    def get_can_user_access(self, obj):
+        request = self.context['request']
+        user = request.user
+        user = User.objects.get(id=request.user.id)
+
+        if user.is_staff:
+            return True
+
+        customer = Customer.objects.get(user=user)
+        customer_id = customer.id
+        customer_ids = obj.get_accessible_customers()
+
+        return customer_id in customer_ids
+
+    def get_groups_count(self, portal_content: PortalContent):
+        return portal_content.customer_groups.count()
+
+    def get_user_count(self, portal_content: PortalContent):
+        return portal_content.customers.count()
+
+
+class CreatePortalContentSerializer(serializers.ModelSerializer):
+    customer_groups = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False
+    )
+
+    customers = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False
+    )
+
+    class Meta:
+        model = PortalContent
+        fields = ['id', 'html_file',
+                  'customer_groups', 'everyone', 'customers']
+
+
+class PortalSerializer(serializers.ModelSerializer):
+    content = PortalContentSerializer(many=True)
+
+    class Meta:
+        model = Portal
+        fields = ['id', 'name', 'content']
+
+
+class CreatePortalSerializer(serializers.ModelSerializer):
+    content = CreatePortalContentSerializer(many=True)
+
+    class Meta:
+        model = Portal
+        fields = ['id', 'name', 'content']
+
+    @transaction.atomic()
+    def create(self, validated_data):
+        content_data = validated_data.pop('content')
+        portal = Portal.objects.create(**validated_data)
+
+        for content in content_data:
+            customer_group_data = []
+            customer_data = []
+            everyone = content.get('everyone')
+
+            if isinstance(content.get('customer_groups'), list):
+                customer_group_data = content.pop('customer_groups')
+
+            if isinstance(content.get('customers'), list):
+                customer_data = content.pop('customers')
+            
+            is_customer_or_customer_data = customer_group_data or customer_data
+
+            if is_customer_or_customer_data and everyone:
+                raise ValidationError(
+                    "You cannot select 'everyone' and also specify 'customer_groups' or 'customers'. Choose one option only.")
+
+            portal_content = PortalContent.objects.create(
+                portal=portal, **content)
+
+            if customer_group_data:
+                portal_content.customer_groups.set(customer_group_data)
+
+            if customer_data:
+                portal_content.customers.set(customer_data)
+
+        return portal

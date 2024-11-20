@@ -14,12 +14,14 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from core.forms import AuthenticationForm
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include, re_path
 from django.contrib.auth.views import LoginView
 from rest_framework.routers import DefaultRouter
 import debug_toolbar
+from core.forms import AuthenticationForm
 from core.views import GroupViewSet, PermissionViewSet, StaffViewSet
 
 
@@ -43,4 +45,7 @@ urlpatterns = [
     path('api/v1/auth/customer/', include('djoser.urls')),
     path('api/v1/auth/customer/', include('djoser.urls.jwt')),
     path('__debug__/', include(debug_toolbar.urls)),
-]
+] 
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Welcome to Walls Printing</title>
+</head>
+<body>
+    <p>Dear {{ user.name }},</p>
+
+    <p>We're excited to welcome you to the Walls Printing team!</p>
+
+    <p>Your account has been created. You can now access the system using the following credentials:</p>
+    <ul>
+        <li><strong>Username:</strong> {{ user.username }}</li>
+        <li><strong>Password:</strong> {{ temporary_password }}</li>
+    </ul>
+
+    <p><strong>Important:</strong> For security reasons, please change your password immediately after logging in.</p>
+
+    <p>To log in, please visit: <a href="{{ login_url }}">{{ login_url }}</a></p>
+
+    <p>If you have any questions or encounter any issues, please don't hesitate to contact the IT department.</p>
+
+    <p>Welcome aboard!</p>
+
+    <p>Best regards,<br>
+    Walls Printing</p>
+</body>
+</html>

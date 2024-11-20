@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome to Walls Printing Team!</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        color: #333;
+        line-height: 1.6;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 20px auto;
+        background: #ffffff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        text-align: center;
+        background-color: #007bff;
+        color: #ffffff;
+        padding: 10px 0;
+        border-radius: 8px 8px 0 0;
+      }
+      .content {
+        padding: 20px;
+      }
+      .button {
+        display: inline-block;
+        background-color: #007bff;
+        color: #ffffff;
+        padding: 10px 20px;
+        text-decoration: none;
+        border-radius: 5px;
+        margin-top: 20px;
+      }
+      .footer {
+        text-align: center;
+        font-size: 12px;
+        color: #777;
+        padding-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>Welcome to Walls Printing Team!</h2>
+      </div>
+      <div class="content">
+        <p>Dear {{ user.name }},</p>
+
+        <p>You've been invited to join the Walls Printing team!</p>
+
+        <p>
+          To get started, please click on the following link to create your
+          account and set your password:
+        </p>
+        <p>
+          <a href="{{ invitation_link }}" class="button">Create Your Account</a>
+        </p>
+
+        <p>Your temporary credentials are:</p>
+        <ul>
+          <li><strong>Email:</strong> {{ user.email }}</li>
+          <li><strong>Password:</strong> {{ temporary_password }}</li>
+        </ul>
+
+        <p>
+          <strong>Important:</strong> Please change your password after logging
+          in for security purposes.
+        </p>
+
+        <p>We look forward to having you on the team!</p>
+
+        <p>
+          Best regards,<br />
+          Walls Printing Team
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
