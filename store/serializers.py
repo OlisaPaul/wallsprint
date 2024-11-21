@@ -345,12 +345,15 @@ class PortalContentSerializer(serializers.ModelSerializer):
 
         if user.is_staff:
             return True
+        
+        try:
+            customer = Customer.objects.get(user=user)
+            customer_id = customer.id
+            customer_ids = obj.get_accessible_customers()
 
-        customer = Customer.objects.get(user=user)
-        customer_id = customer.id
-        customer_ids = obj.get_accessible_customers()
-
-        return customer_id in customer_ids
+            return customer_id in customer_ids
+        except Customer.DoesNotExist:
+            return False
 
     def get_groups_count(self, portal_content: PortalContent):
         return portal_content.customer_groups.count()
@@ -380,24 +383,54 @@ class CreatePortalContentSerializer(serializers.ModelSerializer):
 
 class PortalSerializer(serializers.ModelSerializer):
     content = PortalContentSerializer(many=True)
+    can_user_access = serializers.SerializerMethodField()
 
     class Meta:
         model = Portal
-        fields = ['id', 'name', 'content']
+        fields = ['id', 'name', 'content', 'can_user_access', 'customers', 'customer_groups']
+    
+    def get_can_user_access(self, obj):
+        request = self.context['request']
+        user = request.user
+        user = User.objects.get(id=request.user.id)
+
+        if user.is_staff:
+            return True
+
+        try:
+            customer = Customer.objects.get(user=user)
+            customer_id = customer.id
+            customer_ids = obj.get_accessible_customers()
+
+            return customer_id in customer_ids
+        except Customer.DoesNotExist:
+            return False
 
 
 class CreatePortalSerializer(serializers.ModelSerializer):
     content = CreatePortalContentSerializer(many=True, required=False)
     copy_from_portal_id = serializers.IntegerField(
         required=False, allow_null=True)
+    customer_groups = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False
+    )
+    customers = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False
+    )
 
     class Meta:
         model = Portal
-        fields = ['id', 'name', 'content', 'copy_from_portal_id']
+        fields = ['id', 'name', 'content', 'copy_from_portal_id', 'customers', 'customer_groups']
 
     @transaction.atomic()
     def create(self, validated_data):
         content_data = validated_data.pop('content', [])
+        customers = validated_data.pop('customers', [])
+        customer_groups = validated_data.pop('customer_groups', [])
         portal = Portal.objects.create(**validated_data)
         copy_from_portal_id = validated_data.pop('copy_from_portal_id', None)
 
@@ -411,6 +444,11 @@ class CreatePortalSerializer(serializers.ModelSerializer):
                 source_portal = Portal.objects.prefetch_related(
                     'content__customer_groups', 'content__customers'
                 ).get(id=copy_from_portal_id)
+
+                if not customers:
+                    customers = source_portal.customers.all()
+                if not customer_groups:
+                    customer_groups = source_portal.customer_groups.all()
             except Portal.DoesNotExist:
                 raise ValidationError(
                     {"copy_from_portal_id": "The portal to copy from does not exist."})
@@ -422,12 +460,13 @@ class CreatePortalSerializer(serializers.ModelSerializer):
                     everyone=source_content.everyone,
                     html_file=source_content.html_file,
                 )
-
+                
                 portal_content.customer_groups.set(
                     source_content.customer_groups.all())
                 portal_content.customers.set(source_content.customers.all())
 
         for content in content_data:
+
             customer_group_data = []
             customer_data = []
             everyone = content.get('everyone')
@@ -450,4 +489,7 @@ class CreatePortalSerializer(serializers.ModelSerializer):
             if customer_data:
                 portal_content.customers.set(customer_data)
 
+        print(customers)
+        portal.customers.set(customers)
+        portal.customer_groups.set(customer_groups)
         return portal

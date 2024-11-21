@@ -209,8 +209,13 @@ class FileTransfer(CommonFields):
 
 
 class Portal(models.Model):
-    name = models.CharField(max_length=255)
+    title = models.CharField(max_length=255)
+    logo = models.FileField(upload_to='logos/', null=True)
     copy_from_portal_id = models.IntegerField(null=True, blank=True)
+    customers = models.ManyToManyField(
+        Customer, blank=True, related_name='portals')
+    customer_groups = models.ManyToManyField(
+        CustomerGroup, blank=True, related_name='portals')
 
     def __str__(self):
         return self.name
@@ -219,11 +224,29 @@ class Portal(models.Model):
         permissions = [
             ('portals', "Portals")
         ]
+    
+    def get_accessible_customers(self):
+        """
+        Returns the customers who can access the content.
+        If the content is public, all customers have access.
+        """
+        direct_customers = self.customers.values_list('id', flat=True)
+        group_customers = Customer.objects.filter(
+            groups__in=self.customer_groups.all()).values_list('id', flat=True)
+
+        accessible_customer_ids = direct_customers.union(group_customers)
+        return accessible_customer_ids
 
 
 class HTMLFile(models.Model):
     link = models.FileField(upload_to='html_files/')
     title = models.CharField(max_length=255)
+
+class PortalSection(models.Model):
+    portal = models.ForeignKey(
+        Portal, on_delete=models.CASCADE, related_name='sections')
+    title = models.CharField(max_length=255)
+    location = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
 
 
 class PortalContent(models.Model):

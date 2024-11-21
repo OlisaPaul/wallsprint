@@ -1,12 +1,13 @@
 import csv
 from io import TextIOWrapper
 from django.db import transaction
+from django.db.models import Q
 from django.shortcuts import render
 from django.db import models
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import  AllowAny,  IsAuthenticated
+from rest_framework.permissions import AllowAny,  IsAuthenticated
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, DestroyModelMixin
 from .models import ContactInquiry, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, Portal
@@ -182,6 +183,19 @@ class CustomerViewSet(CustomModelViewSet):
 
         return Response({"success": f"{customer_count} customers created successfully."}, status=status.HTTP_201_CREATED)
 
+    @action(detail=False, methods=["GET", "PUT"], permission_classes=[IsAuthenticated])
+    def me(self, request):
+        customer = Customer.objects.get(
+            user_id=request.user.id)
+        if request.method == "GET":
+            serializer = CustomerSerializer(customer)
+            return Response(serializer.data)
+        elif request.method == "PUT":
+            serializer = CustomerSerializer(customer, data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+
 
 class CustomerGroupViewSet(CustomModelViewSet):
     queryset = CustomerGroup.objects.prefetch_related('customers').all()
@@ -196,7 +210,24 @@ class CustomerGroupViewSet(CustomModelViewSet):
 class PortalViewSet(CustomModelViewSet):
     queryset = Portal.objects.prefetch_related(
         'content__customer_groups', 'content__customers', 'content__html_file').all()
-    
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff:
+           return Portal.objects.prefetch_related(
+                'content__customer_groups', 'content__customers',
+                'content__html_file').all()
+        
+        try:
+            customer = Customer.objects.get(user=user)
+            return Portal.objects.prefetch_related(
+                    'content__customer_groups', 'content__customers',
+                    'content__html_file').filter(
+                            Q(customers=customer) | Q(customer_groups__customers=customer)
+                            ).distinct()
+        except Customer.DoesNotExist:
+            pass
+
     def get_permissions(self):
         if self.request.method == 'POST':
             return [PortalPermissions()]
