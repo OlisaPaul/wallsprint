@@ -123,40 +123,44 @@ class CustomerViewSet(CustomModelViewSet):
             - HTTP 200 response indicating success once the file is processed.
         """
 
-        serializer = CSVUploadSerializer(data=request.FILES)
+        serializer = CSVUploadSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        print(request.data)
 
         csv_content = serializer.validated_data['file']
         has_header = serializer.validated_data['has_header']
+        [id, *fields_without_id] = customer_fields
 
-        csv_reader = csv.DictReader(csv_content.splitlines())
-        rows = list(csv_reader)
+        columns = ['name', 'email', 'password', 'username', 'is_active'] + fields_without_id
 
-        columns = ['name', 'email', 'password',
-                   'username', 'is_active'] + customer_fields
+        try:
+            if has_header:
+                csv_reader = csv.DictReader(csv_content.splitlines())
+            else:
+                csv_reader = csv.DictReader(csv_content.splitlines(), fieldnames=columns)
 
-        users = []
+            rows = list(csv_reader)
+        except csv.Error as e:
+            return Response(
+                {"error": f"CSV parsing error: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not rows:
+            return Response({"error": "The uploaded file contains no data."}, status=status.HTTP_400_BAD_REQUEST)
+
         errors = []
         customer_count = 0
 
-        mapped_rows = []
-
         for row in rows:
-            if not has_header:
-                mapped_row = {
-                    columns[index]: value for index, value in enumerate(row)}
-                mapped_rows.append(mapped_row)
-            else:
-                mapped_rows.append(row)
-
-        for row in mapped_row:
             serializer = CreateCustomerSerializer(data=row)
             if serializer.is_valid():
                 email = row.get('email')
                 name = row.get('name')
                 password = row.get('password')
-                username = email
+                username = row.get('username')
 
                 user = User(email=email, username=username)
                 user.set_password(password)
@@ -171,9 +175,13 @@ class CustomerViewSet(CustomModelViewSet):
                 if customer_data['pay_tax'] == 'FALSE':
                     customer_data['pay_tax'] = False
 
-                customer_data['pay_tax'] = bool(customer_data['pay_tax'])
+                if customer_data['is_active'] == 'FALSE':
+                    customer_data['is_active'] = False
 
-                Customer.objects.create(user=user, **customer_data)
+                customer_data['pay_tax'] = bool(customer_data['pay_tax'])
+                customer_data['is_active'] = bool(customer_data['is_active'])
+
+                Customer.objects.create(user=user, **serializer.data)
                 customer_count += 1
             else:
                 errors.append({**serializer.errors, "row": row})
@@ -214,17 +222,17 @@ class PortalViewSet(CustomModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_staff:
-           return Portal.objects.prefetch_related(
+            return Portal.objects.prefetch_related(
                 'content__customer_groups', 'content__customers',
                 'content__html_file').all()
-        
+
         try:
             customer = Customer.objects.get(user=user)
             return Portal.objects.prefetch_related(
-                    'content__customer_groups', 'content__customers',
-                    'content__html_file').filter(
-                            Q(customers=customer) | Q(customer_groups__customers=customer)
-                            ).distinct()
+                'content__customer_groups', 'content__customers',
+                'content__html_file').filter(
+                Q(customers=customer) | Q(customer_groups__customers=customer)
+            ).distinct()
         except Customer.DoesNotExist:
             pass
 
@@ -264,8 +272,16 @@ class PortalViewSet(CustomModelViewSet):
 
 
 class PortalContentViewSet(CustomModelViewSet):
-    queryset = models.PortalContent.objects.all()
-    serializer_class = serializers.PortalContentSerializer
+    def get_queryset(self):
+        return models.PortalContent.objects.filter(portal_id=self.kwargs['portal_pk']).select_related('html_file', 'portal').prefetch_related('customers', 'customer_groups')
+
+    def get_serializer_context(self):
+        return {'portal_id': self.kwargs['portal_pk'], 'request': self.request}
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return serializers.CreatePortalContentSerializer
+        return serializers.PortalContentSerializer
 
 
 class HTMLFileViewSet(CustomModelViewSet):

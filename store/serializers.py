@@ -336,7 +336,8 @@ class PortalContentSerializer(serializers.ModelSerializer):
     class Meta:
         model = PortalContent
         fields = ['id', 'html_file',
-                  'customer_groups', 'everyone', 'can_user_access', 'customers', 'groups_count', 'user_count']
+                  'customer_groups', 'everyone', 'can_user_access',
+                  'customers', 'groups_count', 'user_count',]
 
     def get_can_user_access(self, obj):
         request = self.context['request']
@@ -345,7 +346,7 @@ class PortalContentSerializer(serializers.ModelSerializer):
 
         if user.is_staff:
             return True
-        
+
         try:
             customer = Customer.objects.get(user=user)
             customer_id = customer.id
@@ -378,7 +379,34 @@ class CreatePortalContentSerializer(serializers.ModelSerializer):
     class Meta:
         model = PortalContent
         fields = ['id', 'html_file',
-                  'customer_groups', 'everyone', 'customers']
+                  'customer_groups', 'everyone', 'customers', 'location',
+                  'page_redirect', 'include_in_site_map', 'display_in_site_navigation',
+                  ]
+
+    def create(self, validated_data):
+        portal_id = self.context['portal_id']
+        customer_group_data = []
+        customer_data = []
+        everyone = validated_data.get('everyone')
+
+        customer_group_data = validated_data.pop('customer_groups', None)
+        customer_data = validated_data.pop('customers', None)
+
+        is_customer_or_customer_data = customer_group_data or customer_data
+
+        if is_customer_or_customer_data and everyone:
+            raise ValidationError(
+                "You cannot select 'everyone' and also specify 'customer_groups' or 'customers'. Choose one option only.")
+
+        portal_content = PortalContent.objects.create(
+            portal_id=portal_id, **validated_data)
+
+        if customer_group_data:
+            portal_content.customer_groups.set(customer_group_data)
+        if customer_data:
+            portal_content.customers.set(customer_data)
+
+        return portal_content
 
 
 class PortalSerializer(serializers.ModelSerializer):
@@ -387,8 +415,9 @@ class PortalSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Portal
-        fields = ['id', 'name', 'content', 'can_user_access', 'customers', 'customer_groups']
-    
+        fields = ['id', 'title', 'content', 'can_user_access',
+                  'customers', 'customer_groups']
+
     def get_can_user_access(self, obj):
         request = self.context['request']
         user = request.user
@@ -408,9 +437,14 @@ class PortalSerializer(serializers.ModelSerializer):
 
 
 class CreatePortalSerializer(serializers.ModelSerializer):
-    content = CreatePortalContentSerializer(many=True, required=False)
+    # content = CreatePortalContentSerializer(many=True, required=False)
+    copy_an_existing_portal = serializers.BooleanField(default=False)
     copy_from_portal_id = serializers.IntegerField(
         required=False, allow_null=True)
+    copy_the_logo = serializers.BooleanField(default=False)
+    same_permissions = serializers.BooleanField(required=False)
+    same_catalogs = serializers.BooleanField(required=False)
+    same_proofing_categories = serializers.BooleanField(required=False)
     customer_groups = serializers.ListField(
         child=serializers.IntegerField(),
         write_only=True,
@@ -424,31 +458,79 @@ class CreatePortalSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Portal
-        fields = ['id', 'name', 'content', 'copy_from_portal_id', 'customers', 'customer_groups']
+        fields = ['id', 'title', 'logo', 'copy_an_existing_portal', 'copy_from_portal_id',
+                    'same_permissions', 'copy_the_logo', 'same_catalogs', 'same_proofing_categories',
+                    'customers', 'customer_groups',
+                  ]
+        
+    def validate(self, data):
+            copy_an_existing_portal = data.get('copy_an_existing_portal', False)
+            copy_the_logo = data.get('copy_the_logo', False)
+            same_permissions = data.get('same_permissions', False)
+            customers = data.get('customers', False)
+            customer_groups = data.get('customer_groups', False)
+            logo = data.get('logo', None)
+
+            if not copy_an_existing_portal:
+                invalid_fields = {
+                    field: data.get(field)
+                    for field in ['copy_from_portal_id', 'same_permissions', 'same_catalogs', 'same_proofing_categories', 'copy_the_logo']
+                    if data.get(field) is not None
+                }
+                if invalid_fields:
+                    raise serializers.ValidationError(
+                        {
+                            field: f"Must be null when 'copy_an_existing_portal' is False."
+                            for field in invalid_fields
+                        }
+                    )
+            else:
+                if logo and copy_the_logo:
+                    raise serializers.ValidationError(
+                        {
+                            field: f"No need to specify the logo when you are copying a logo from a another portal"
+                            for field in ['logo', 'copy_the_logo']
+                        }
+                    )
+                
+                if same_permissions and (customers or customer_groups):
+                    raise serializers.ValidationError(
+                        {
+                            field: f"No need to specify the logo when you are copying a logo from a another portal"
+                            for field in ['customer', 'copy_the_logo']
+                        }
+                    )
+
+            return data
 
     @transaction.atomic()
     def create(self, validated_data):
-        content_data = validated_data.pop('content', [])
+        # content_data = validated_data.pop('content', [])
         customers = validated_data.pop('customers', [])
         customer_groups = validated_data.pop('customer_groups', [])
         portal = Portal.objects.create(**validated_data)
         copy_from_portal_id = validated_data.pop('copy_from_portal_id', None)
+        same_permissions = validated_data.pop('same_permissions', None)
+        same_catalogs = validated_data.pop('same_catalogs', None)
+        same_proofing_categories = validated_data.pop(
+            'same_proofing_categories', None)
 
-        if copy_from_portal_id and content_data:
+
+        if customer_groups and copy_from_portal_id:
             raise ValidationError(
-                "You cannot specify both 'content' and 'copy_from_portal_id'. Choose one option."
+                "You cannot specify both 'customer_groups' and 'copy_from_portal_id'. Choose one option."
             )
 
         if copy_from_portal_id:
             try:
+                if None in [same_permissions, same_catalogs, same_proofing_categories]:
+                    return ValueError('Neither same_permissions, same_catalogs nor same_proofing_categories is allowed to be null')
                 source_portal = Portal.objects.prefetch_related(
                     'content__customer_groups', 'content__customers'
                 ).get(id=copy_from_portal_id)
 
-                if not customers:
-                    customers = source_portal.customers.all()
-                if not customer_groups:
-                    customer_groups = source_portal.customer_groups.all()
+                customers = source_portal.customers.all()
+                customer_groups = source_portal.customer_groups.all()
             except Portal.DoesNotExist:
                 raise ValidationError(
                     {"copy_from_portal_id": "The portal to copy from does not exist."})
@@ -460,36 +542,39 @@ class CreatePortalSerializer(serializers.ModelSerializer):
                     everyone=source_content.everyone,
                     html_file=source_content.html_file,
                 )
-                
+
                 portal_content.customer_groups.set(
                     source_content.customer_groups.all())
                 portal_content.customers.set(source_content.customers.all())
 
-        for content in content_data:
+        if None not in [same_permissions, same_catalogs, same_proofing_categories]:
+            raise ValueError(
+                "One or more values (same_permissions, same_catalogs, same_proofing_categories) should not be set.")
 
-            customer_group_data = []
-            customer_data = []
-            everyone = content.get('everyone')
+        # for content in content_data:
 
-            customer_group_data = content.pop('customer_groups', None)
-            customer_data = content.pop('customers', None)
+        #     customer_group_data = []
+        #     customer_data = []
+        #     everyone = content.get('everyone')
 
-            is_customer_or_customer_data = customer_group_data or customer_data
+        #     customer_group_data = content.pop('customer_groups', None)
+        #     customer_data = content.pop('customers', None)
 
-            if is_customer_or_customer_data and everyone:
-                raise ValidationError(
-                    "You cannot select 'everyone' and also specify 'customer_groups' or 'customers'. Choose one option only.")
+        #     is_customer_or_customer_data = customer_group_data or customer_data
 
-            portal_content = PortalContent.objects.create(
-                portal=portal, **content)
+        #     if is_customer_or_customer_data and everyone:
+        #         raise ValidationError(
+        #             "You cannot select 'everyone' and also specify 'customer_groups' or 'customers'. Choose one option only.")
 
-            if customer_group_data:
-                portal_content.customer_groups.set(customer_group_data)
+        #     portal_content = PortalContent.objects.create(
+        #         portal=portal, **content)
 
-            if customer_data:
-                portal_content.customers.set(customer_data)
+        #     if customer_group_data:
+        #         portal_content.customer_groups.set(customer_group_data)
 
-        print(customers)
+        #     if customer_data:
+        #         portal_content.customers.set(customer_data)
+
         portal.customers.set(customers)
         portal.customer_groups.set(customer_groups)
         return portal

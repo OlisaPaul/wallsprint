@@ -218,13 +218,13 @@ class Portal(models.Model):
         CustomerGroup, blank=True, related_name='portals')
 
     def __str__(self):
-        return self.name
+        return self.title
 
     class Meta:
         permissions = [
             ('portals', "Portals")
         ]
-    
+
     def get_accessible_customers(self):
         """
         Returns the customers who can access the content.
@@ -242,11 +242,18 @@ class HTMLFile(models.Model):
     link = models.FileField(upload_to='html_files/')
     title = models.CharField(max_length=255)
 
+    def __str__(self):
+        return self.title
+
+
 class PortalSection(models.Model):
     portal = models.ForeignKey(
         Portal, on_delete=models.CASCADE, related_name='sections')
     title = models.CharField(max_length=255)
-    location = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
+    location = models.ForeignKey(
+        'self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
+    display_in_site_navigation = models.BooleanField(default=True)
+    include_in_site_map = models.BooleanField(default=True)
 
 
 class PortalContent(models.Model):
@@ -258,16 +265,29 @@ class PortalContent(models.Model):
     customers = models.ManyToManyField(
         Customer, blank=True, related_name='portal_content')
     everyone = models.BooleanField(default=False)
+    display_in_site_navigation = models.BooleanField(default=True)
+    include_in_site_map = models.BooleanField(default=True)
+    page_redirect = models.CharField(max_length=50,
+                                     choices=[
+                                         ('no_redirect', 'No Redirect'),
+                                         ('external', 'To a page on another website'),
+                                         ('internal', 'To another page on your site'),
+                                         ('file', 'To a downloadable file'),
+                                     ], 
+                                     default='no_redirect')
+    location = models.OneToOneField(
+        PortalSection, on_delete=models.CASCADE, null=True, blank=True, related_name='content')
 
     def __str__(self):
         return self.html_file.title
-    
+
     def clean(self):
         if self.everyone and (len(self.customer_groups) or len(self.customers)):
-            raise ValidationError("You cannot select 'everyone' and also specify 'customer_groups' or 'customers'. Choose one option only.")
+            raise ValidationError(
+                "You cannot select 'everyone' and also specify 'customer_groups' or 'customers'. Choose one option only.")
         if not self.everyone and not (len(self.customer_groups) or len(self.customers)):
-            raise ValidationError("You must set either 'customer_group' or 'everyone'.")
-
+            raise ValidationError(
+                "You must set either 'customer_group' or 'everyone'.")
 
     def get_accessible_customers(self):
         """
