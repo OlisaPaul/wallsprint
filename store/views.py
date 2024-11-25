@@ -127,8 +127,6 @@ class CustomerViewSet(CustomModelViewSet):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
-        print(request.data)
-
         csv_content = serializer.validated_data['file']
         has_header = serializer.validated_data['has_header']
         [id, *fields_without_id] = customer_fields
