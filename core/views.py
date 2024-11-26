@@ -147,7 +147,7 @@ class PermissionViewSet(viewsets.ReadOnlyModelViewSet):
 
 class StaffViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
     http_method_names = ['post', 'put', 'get', 'delete']
-    queryset = User.objects.prefetch_related('groups').filter(is_staff=True)
+    queryset = User.objects.prefetch_related('groups__permissions').filter(is_staff=True)
     serializer_class = InviteStaffSerializer
     permission_classes = [permissions.IsAdminUser]
 

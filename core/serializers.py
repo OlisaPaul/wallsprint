@@ -55,16 +55,31 @@ class UserSerializer(BaseUserSerializer):
         child=serializers.IntegerField(), write_only=True, required=False
     )
     groups = SimpleGroupSerializer(many=True, read_only=True)
+    permissions = serializers.SerializerMethodField()
 
     class Meta(BaseUserSerializer.Meta):
         fields = ['id', 'email', 'name', 'username',
-                  'is_staff', 'is_superuser', 'groups', "group_ids", "groups_count"]
+                  'is_staff', 'is_superuser', 'groups', "group_ids", "groups_count", 'permissions']
         read_only_fields = (settings.LOGIN_FIELD, 'email',
                             'is_staff', 'is_superuser', 'groups', 'username')
 
     def validate(self, attrs):
         self.group_ids = attrs.pop('group_ids', [])
         return super().validate(attrs)
+
+    def get_permissions(self, obj):
+        """
+        Return a list of all permissions assigned to the user, either
+        directly or through groups.
+        """
+        permissions = set()
+
+        permissions.update(obj.user_permissions.all())
+
+        for group in obj.groups.all():
+            permissions.update(group.permissions.all())
+
+        return [perm.name for perm in permissions]
 
     @transaction.atomic()
     def update(self, instance, validated_data):
@@ -98,7 +113,8 @@ class PermissionSerializer(ModelSerializer):
 class GroupSerializer(ModelSerializer):
     permissions = PermissionSerializer(many=True)
     users = serializers.SerializerMethodField(method_name='get_users')
-    date_created = serializers.DateTimeField(source='extendedgroup.date_created', read_only=True)
+    date_created = serializers.DateTimeField(
+        source='extendedgroup.date_created', read_only=True)
 
     class Meta:
         model = Group
