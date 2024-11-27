@@ -21,7 +21,7 @@ from store import serializers
 
 CanTransferFiles = create_permission_class('store.transfer_files')
 PortalPermissions = create_permission_class('store.portals')
-
+CustomerServicePermissions = create_permission_class('store.customers')
 
 class CustomerCreationHandler:
     def __init__(self, user, customer_data):
@@ -93,7 +93,7 @@ class FileTransferViewSet(GenericViewSet, DestroyModelMixin, CreateModelMixin, L
 class CustomerViewSet(CustomModelViewSet):
     queryset = Customer.objects.select_related(
         'user').prefetch_related('groups').all()
-    permission_classes = [FullDjangoModelPermissions]
+    permission_classes = [CustomerServicePermissions]
 
     def get_serializer_class(self):
         if self.action == 'bulk_upload':
@@ -205,7 +205,7 @@ class CustomerViewSet(CustomModelViewSet):
 
 class CustomerGroupViewSet(CustomModelViewSet):
     queryset = CustomerGroup.objects.prefetch_related('customers').all()
-    permission_classes = [FullDjangoModelPermissions]
+    permission_classes = [CustomerServicePermissions]
 
     def get_serializer_class(self):
         if self.request.method == "GET":
@@ -285,3 +285,7 @@ class PortalContentViewSet(CustomModelViewSet):
 class HTMLFileViewSet(CustomModelViewSet):
     queryset = models.HTMLFile.objects.all()
     serializer_class = serializers.HTMLFileSerializer
+
+class CatalogViewSet(CustomModelViewSet):
+    queryset = models.Catalog.objects.all()
+    serializer_class = serializers.CatalogSerializer

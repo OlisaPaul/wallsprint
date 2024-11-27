@@ -2,13 +2,14 @@ import os
 from django.core.validators import FileExtensionValidator
 from django.db import transaction
 from django.contrib.auth import get_user_model
+from django.core.validators import validate_email
 from django.contrib.contenttypes.models import ContentType
 from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.validators import ValidationError
 import csv
 from io import TextIOWrapper
-from .models import ContactInquiry, HTMLFile, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent
+from .models import Catalog, ContactInquiry, HTMLFile, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent
 from .utils import create_instance_with_files
 
 User = get_user_model()
@@ -364,23 +365,11 @@ class PortalContentSerializer(serializers.ModelSerializer):
 
 
 class CreatePortalContentSerializer(serializers.ModelSerializer):
-    customer_groups = serializers.ListField(
-        child=serializers.IntegerField(),
-        write_only=True,
-        required=False
-    )
-
-    customers = serializers.ListField(
-        child=serializers.IntegerField(),
-        write_only=True,
-        required=False
-    )
-
     class Meta:
         model = PortalContent
-        fields = ['id', 'html_file',
-                  'customer_groups', 'everyone', 'customers', 'location',
+        fields = ['id', 'html_file', 'location',
                   'page_redirect', 'include_in_site_map', 'display_in_site_navigation',
+                  'customer_groups', 'customers','everyone'
                   ]
 
     def create(self, validated_data):
@@ -459,69 +448,69 @@ class CreatePortalSerializer(serializers.ModelSerializer):
     class Meta:
         model = Portal
         fields = ['id', 'title', 'logo', 'copy_an_existing_portal', 'copy_from_portal_id',
-                    'same_permissions', 'copy_the_logo', 'same_catalogs', 'same_proofing_categories',
-                    'customers', 'customer_groups',
+                  'same_permissions', 'copy_the_logo', 'same_catalogs', 'same_proofing_categories',
+                  'customers', 'customer_groups',
                   ]
-        
+
     def validate(self, data):
-            copy_an_existing_portal = data.get('copy_an_existing_portal', False)
-            copy_the_logo = data.get('copy_the_logo', False)
-            same_permissions = data.get('same_permissions', False)
-            customers = data.get('customers', False)
-            customer_groups = data.get('customer_groups', False)
-            logo = data.get('logo', None)
+        copy_an_existing_portal = data.get('copy_an_existing_portal', False)
+        copy_the_logo = data.get('copy_the_logo', False)
+        same_permissions = data.get('same_permissions', False)
+        customers = data.get('customers', False)
+        customer_groups = data.get('customer_groups', False)
+        logo = data.get('logo', None)
 
-            if not copy_an_existing_portal:
-                invalid_fields = {
-                    field: data.get(field)
-                    for field in ['copy_from_portal_id', 'same_permissions', 'same_catalogs', 'same_proofing_categories', 'copy_the_logo']
-                    if data.get(field) is not None
-                }
-                if invalid_fields:
-                    raise serializers.ValidationError(
-                        {
-                            field: f"Must be null when 'copy_an_existing_portal' is False."
-                            for field in invalid_fields
-                        }
-                    )
-            else:
-                if logo and copy_the_logo:
-                    raise serializers.ValidationError(
-                        {
-                            field: f"No need to specify the logo when you are copying a logo from a another portal"
-                            for field in ['logo', 'copy_the_logo']
-                        }
-                    )
-                
-                if same_permissions and (customers or customer_groups):
-                    raise serializers.ValidationError(
-                        {
-                            field: f"No need to specify the logo when you are copying a logo from a another portal"
-                            for field in ['customer', 'copy_the_logo']
-                        }
-                    )
+        if not copy_an_existing_portal:
+            invalid_fields = {
+                field: data.get(field)
+                for field in ['copy_from_portal_id', 'same_permissions', 'same_catalogs', 'same_proofing_categories', 'copy_the_logo']
+                if data.get(field) is True
+            }
+            if invalid_fields:
+                raise serializers.ValidationError(
+                    {
+                        field: f"Must be false when 'copy_an_existing_portal' is False."
+                        for field in invalid_fields
+                    }
+                )
+        else:
+            if logo and copy_the_logo:
+                raise serializers.ValidationError(
+                    {
+                        field: f"No need to specify the logo when you are copying a logo from a another portal"
+                        for field in ['logo', 'copy_the_logo']
+                    }
+                )
 
-            return data
+            if same_permissions and (customers or customer_groups):
+                raise serializers.ValidationError(
+                    {
+                        field: f"No need to specify the logo when you are copying a logo from a another portal"
+                        for field in ['customer', 'copy_the_logo']
+                    }
+                )
+
+        return data
 
     @transaction.atomic()
     def create(self, validated_data):
-        # content_data = validated_data.pop('content', [])
+        copy_an_existing_portal = validated_data.pop('copy_an_existing_portal', False)
+        validated_data.pop('copy_the_logo', False)
         customers = validated_data.pop('customers', [])
         customer_groups = validated_data.pop('customer_groups', [])
-        portal = Portal.objects.create(**validated_data)
-        copy_from_portal_id = validated_data.pop('copy_from_portal_id', None)
+        copy_from_portal_id = validated_data.pop('copy_from_portal_id', False)
         same_permissions = validated_data.pop('same_permissions', None)
         same_catalogs = validated_data.pop('same_catalogs', None)
         same_proofing_categories = validated_data.pop(
             'same_proofing_categories', None)
-
+        portal = Portal.objects.create(**validated_data)
 
         if customer_groups and copy_from_portal_id:
             raise ValidationError(
                 "You cannot specify both 'customer_groups' and 'copy_from_portal_id'. Choose one option."
             )
 
-        if copy_from_portal_id:
+        if copy_an_existing_portal:
             try:
                 if None in [same_permissions, same_catalogs, same_proofing_categories]:
                     return ValueError('Neither same_permissions, same_catalogs nor same_proofing_categories is allowed to be null')
@@ -546,10 +535,6 @@ class CreatePortalSerializer(serializers.ModelSerializer):
                 portal_content.customer_groups.set(
                     source_content.customer_groups.all())
                 portal_content.customers.set(source_content.customers.all())
-
-        if None not in [same_permissions, same_catalogs, same_proofing_categories]:
-            raise ValueError(
-                "One or more values (same_permissions, same_catalogs, same_proofing_categories) should not be set.")
 
         # for content in content_data:
 
@@ -578,3 +563,51 @@ class CreatePortalSerializer(serializers.ModelSerializer):
         portal.customers.set(customers)
         portal.customer_groups.set(customer_groups)
         return portal
+
+
+class CatalogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Catalog
+        fields = [
+            'id',
+            'title',
+            'parent_catalog',
+            'specify_low_inventory_message',
+            'recipient_emails',
+            'subject',
+            'message_text',
+            'description',
+            'display_items_on_same_page',
+        ]
+
+    def validate_recipient_emails(self, value):
+        """
+        Validate the recipient_emails field.
+        """
+        if not value:
+            return value  
+        
+        emails = [email.strip() for email in value.split(',')]
+        for email in emails:
+            try:
+                validate_email(email)
+            except ValidationError:
+                raise serializers.ValidationError(f"'{email}' is not a valid email address.")
+        
+        return value
+
+    def validate(self, data):
+        """
+        Validate the fields related to 'specify_low_inventory_message'.
+        """
+        if data.get('specify_low_inventory_message'):
+            if not data.get('recipient_emails'):
+                raise serializers.ValidationError({"recipient_emails": "This field is required when specifying a low inventory message."})
+            if not data.get('subject'):
+                raise serializers.ValidationError({"subject": "This field is required when specifying a low inventory message."})
+            if not data.get('message_text'):
+                raise serializers.ValidationError({"message_text": "This field is required when specifying a low inventory message."})
+        else:
+            if data.get('recipient_emails') or data.get('subject') or data.get('message_text'):
+                raise serializers.ValidationError("Low inventory message fields should not be filled if 'specify_low_inventory_message' is disabled.")
+        return data

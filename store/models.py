@@ -282,10 +282,10 @@ class PortalContent(models.Model):
         return self.html_file.title
 
     def clean(self):
-        if self.everyone and (len(self.customer_groups) or len(self.customers)):
+        if self.everyone and (self.customer_groups or self.customers):
             raise ValidationError(
                 "You cannot select 'everyone' and also specify 'customer_groups' or 'customers'. Choose one option only.")
-        if not self.everyone and not (len(self.customer_groups) or len(self.customers)):
+        if not self.everyone and not (self.customer_groups or self.customers):
             raise ValidationError(
                 "You must set either 'customer_group' or 'everyone'.")
 
@@ -303,7 +303,64 @@ class PortalContent(models.Model):
         accessible_customer_ids = direct_customers.union(group_customers)
         return accessible_customer_ids
 
+class Catalog(models.Model):
+    title = models.CharField(max_length=255, verbose_name="Title", help_text="Enter the catalog title.")
+    parent_catalog = models.ForeignKey(
+        'self', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        verbose_name="Parent Catalog", 
+        help_text="Select the parent catalog if applicable."
+    )
+    specify_low_inventory_message = models.BooleanField(
+        default=False, 
+        verbose_name="Specify Low Inventory Message?", 
+        help_text="Enable to specify a low inventory message."
+    )
+    recipient_emails = models.TextField(
+        blank=True, 
+        null=True, 
+        verbose_name="Recipient Email(s)", 
+        help_text="Enter recipient email addresses separated by commas."
+    )
+    subject = models.CharField(
+        max_length=255, 
+        blank=True, 
+        null=True, 
+        verbose_name="Subject", 
+        help_text="Enter the subject for the low inventory message."
+    )
+    message_text = models.TextField(
+        blank=True, 
+        null=True, 
+        verbose_name="Message Text", 
+        help_text="Enter the message text for low inventory warnings."
+    )
+    description = models.TextField(
+        blank=True, 
+        null=True, 
+        verbose_name="Description", 
+        help_text="Provide a description for the catalog."
+    )
+    display_items_on_same_page = models.BooleanField(
+        default=False, 
+        verbose_name="Display Items on the Same Page as the Catalog?", 
+        help_text="Enable to display items on the same page as the catalog."
+    )
 
+    def __str__(self):
+        return self.title
+
+    def clean(self):
+        """Custom validation to ensure low inventory fields are only filled if enabled."""
+        if self.specify_low_inventory_message:
+            if not self.recipient_emails or not self.subject or not self.message_text:
+                raise ValidationError("All low inventory message fields must be filled if enabled.")
+        else:
+            if self.recipient_emails or self.subject or self.message_text:
+                raise ValidationError("Low inventory message fields should not be filled if disabled.")
+            
 class CatalogItem(models.Model):
     class Meta:
         permissions = [
