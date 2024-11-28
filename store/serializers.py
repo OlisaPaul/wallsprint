@@ -53,7 +53,7 @@ class FileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = File
-        fields = ['path', 'url']
+        fields = ['path', 'url', 'file_size']
 
     def get_url(self, image: File):
         cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
@@ -611,3 +611,25 @@ class CatalogSerializer(serializers.ModelSerializer):
             if data.get('recipient_emails') or data.get('subject') or data.get('message_text'):
                 raise serializers.ValidationError("Low inventory message fields should not be filled if 'specify_low_inventory_message' is disabled.")
         return data
+    
+class MessageCenterSerializer(serializers.ModelSerializer):
+    title_and_tracking = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = None  # This is a composite serializer, not tied to a single model
+        fields = ['created_at', 'title_and_tracking', 'your_name', 'files']
+    
+    def get_title_and_tracking(self, obj):
+        if isinstance(obj, FileTransfer):
+            return 'Online File Transfer'
+        elif isinstance(obj, Request):
+            if obj.this_is_an == 'Estimate Request':
+                return 'Estimate Request'
+            else: 
+                return 'Online Order'
+        # elif isinstance(obj, EcommerceOrder):
+        #     return 'Ecommerce Order'
+        elif isinstance(obj, ContactInquiry):
+            return 'General Contact'
+        else:
+            return ''

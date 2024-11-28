@@ -16,12 +16,18 @@ router.register('customers', views.CustomerViewSet, basename='customers'),
 router.register('customer-groups', views.CustomerGroupViewSet,
                 basename='customer-groups'),
 router.register('requests', views.RequestViewSet, basename='requests'),
+# router.register('message-center', views.MessageCenterViewSet, basename='message-center'),
 router.register('contact-us', views.ContactInquiryViewSet,
                 basename='contact-us'),
 
 portals_router = routers.NestedDefaultRouter(router, 'portals', lookup='portal')
 portals_router.register('contents', views.PortalContentViewSet, basename='portal-contents')
 
+message_centre_url = [
+    path('message-center/', views.MessageCenterView.as_view(), name='message-center'),
+]
+
 
 # URLConf
-urlpatterns = router.urls + portals_router.urls
+urlpatterns = router.urls + portals_router.urls + message_centre_url
+

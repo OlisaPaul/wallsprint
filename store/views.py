@@ -1,10 +1,13 @@
 import csv
 from io import TextIOWrapper
+from django.views.generic import View
+from django.http import JsonResponse
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import render
 from django.db import models
 from rest_framework import status
+from rest_framework.views import APIView
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny,  IsAuthenticated
@@ -289,3 +292,75 @@ class HTMLFileViewSet(CustomModelViewSet):
 class CatalogViewSet(CustomModelViewSet):
     queryset = models.Catalog.objects.all()
     serializer_class = serializers.CatalogSerializer
+
+
+class MessageCenterViewSet(ModelViewSet):
+    serializer_class = serializers.MessageCenterSerializer
+    # ordering = ['-date']
+
+
+    def get_queryset(self):
+        queryset = []
+        queryset.extend(list(Request.objects.all()))
+        queryset.extend(list(ContactInquiry.objects.all()))
+        queryset.extend(list(FileTransfer.objects.all()))
+        return sorted(queryset, key=lambda x: x.created_at, reverse=True)
+    
+
+class MessageCenterView(APIView):
+    def get(self, request):
+        messages = []
+
+        file_transfers = get_queryset_for_models_with_files(FileTransfer)
+        online_orders = get_queryset_for_models_with_files(Request)
+        general_contacts = ContactInquiry.objects.all()
+
+        def calculate_file_size(instance):
+            file_size_in_bytes = sum([file.file_size for file in instance.files.all() if file.file_size])
+            file_size = ''
+            if file_size_in_bytes >= 1024 * 1024:
+                file_size = f"{file_size_in_bytes / (1024 * 1024):.2f} MB"
+            else:
+                file_size = f"{file_size_in_bytes / 1024:.2f} KB"
+            
+            return file_size
+        
+
+        for file_transfer in file_transfers:
+            file_size = calculate_file_size(file_transfer)
+
+            messages.append({
+                'id': file_transfer.id,
+                'Date': file_transfer.created_at,
+                'Title & Tracking #': 'Online File Transfer',
+                'From': file_transfer.name,
+                'Attachments': file_size,
+            })
+
+        for online_order in online_orders:
+            title = 'Estimate Request'
+            if online_order.this_is_an == 'Order Request':
+                title = 'Online Order'
+            file_size = calculate_file_size(online_order)
+            messages.append({
+                'id': online_order.id,
+                'Date': online_order.created_at,
+                'Title & Tracking #': title,
+                'From': online_order.name,
+                'Attachments': file_size,
+            })
+
+        for general_contact in general_contacts:
+            messages.append({
+                'id': general_contact.id,
+                'Date': general_contact.created_at,
+                'Title & Tracking #': 'General Contact',
+                'From': general_contact.name,
+                'Attachments': 'n/a',
+            })
+
+        # Sort the messages by date in descending order
+        messages.sort(key=lambda x: x['Date'], reverse=True)    
+    
+        return Response(messages)
+

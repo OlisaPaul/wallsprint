@@ -126,6 +126,7 @@ class Request(CommonFields):
 
 class File(models.Model):
     path = CloudinaryField("auto", blank=True, null=True)
+    file_size = models.PositiveIntegerField(null=True, blank=True)
     upload_date = models.DateTimeField(auto_now_add=True)
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField()

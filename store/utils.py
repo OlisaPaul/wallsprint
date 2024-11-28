@@ -1,11 +1,15 @@
 from django.db import models
-from rest_framework.viewsets import ModelViewSet
-from rest_framework.decorators import action
+from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
+from rest_framework.viewsets import ModelViewSet
+from rest_framework.decorators import action
 from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework import status
+from cloudinary.uploader import upload
+from cloudinary.api import resource
+from cloudinary.exceptions import Error
 from .models import File
 
 def get_bulk_delete_serializer_class(model):
@@ -57,15 +61,39 @@ def create_instance_with_files(model_class, validated_data):
         instance = model_class.objects.create(**validated_data)
         content_type = ContentType.objects.get_for_model(model_class)
 
-        for path in files_data:
+        for file in files_data:
+            file_size = None
+            cloudinary_path = None
+
+            # Check if the file is an InMemoryUploadedFile
+            if isinstance(file, InMemoryUploadedFile):
+                file_size = file.size  # Get size from the uploaded file object
+                try:
+                    # Upload file to Cloudinary
+                    upload_result = upload(file)
+                    cloudinary_path = upload_result.get("public_id")  # Get public ID for storage
+                except Error as e:
+                    print(f"Error uploading file {file}: {e}")
+                    continue  # Skip this file if upload fails
+            else:
+                # Assume the file is a Cloudinary public ID or URL
+                try:
+                    file_metadata = resource(file)
+                    file_size = file_metadata.get("bytes")
+                    cloudinary_path = file  # Use the provided path
+                except Error as e:
+                    print(f"Error fetching metadata for {file}: {e}")
+                    continue  # Skip this file if metadata fetch fails
+
+            # Create the File instance
             File.objects.create(
-                path=path,
+                path=cloudinary_path,
+                file_size=file_size,
                 content_type=content_type,
                 object_id=instance.id
             )
 
     return instance
-
 
 def get_queryset_for_models_with_files(model_class):
 
