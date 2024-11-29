@@ -317,50 +317,44 @@ class MessageCenterView(APIView):
 
         def calculate_file_size(instance):
             file_size_in_bytes = sum([file.file_size for file in instance.files.all() if file.file_size])
-            file_size = ''
             if file_size_in_bytes >= 1024 * 1024:
-                file_size = f"{file_size_in_bytes / (1024 * 1024):.2f} MB"
-            else:
-                file_size = f"{file_size_in_bytes / 1024:.2f} KB"
-            
-            return file_size
-        
+                return f"{file_size_in_bytes / (1024 * 1024):.2f} MB"
+            return f"{file_size_in_bytes / 1024:.2f} KB"
 
-        for file_transfer in file_transfers:
-            file_size = calculate_file_size(file_transfer)
-
-            messages.append({
-                'id': file_transfer.id,
-                'Date': file_transfer.created_at,
-                'Title & Tracking #': 'Online File Transfer',
-                'From': file_transfer.name,
-                'Attachments': file_size,
-            })
-
-        for online_order in online_orders:
-            title = 'Estimate Request'
-            if online_order.this_is_an == 'Order Request':
-                title = 'Online Order'
-            file_size = calculate_file_size(online_order)
-            messages.append({
-                'id': online_order.id,
-                'Date': online_order.created_at,
+        def create_message(instance, title, attachments='n/a'):
+            return {
+                'id': instance.id,
+                'Date': instance.created_at,
                 'Title & Tracking #': title,
-                'From': online_order.name,
-                'Attachments': file_size,
-            })
+                'From': instance.name,
+                'Email': instance.email_address,
+                'Attachments': attachments,
+            }
 
+        # File transfers
+        for file_transfer in file_transfers:
+            messages.append(create_message(
+                file_transfer,
+                'Online File Transfer',
+                calculate_file_size(file_transfer)
+            ))
+
+        # Online orders
+        for online_order in online_orders:
+            title = 'Online Order' if online_order.this_is_an == 'Order Request' else 'Estimate Request'
+            messages.append(create_message(
+                online_order,
+                title,
+                calculate_file_size(online_order)
+            ))
+
+        # General contacts
         for general_contact in general_contacts:
-            messages.append({
-                'id': general_contact.id,
-                'Date': general_contact.created_at,
-                'Title & Tracking #': 'General Contact',
-                'From': general_contact.name,
-                'Attachments': 'n/a',
-            })
+            messages.append(create_message(
+                general_contact,
+                'General Contact',
+            ))
 
-        # Sort the messages by date in descending order
-        messages.sort(key=lambda x: x['Date'], reverse=True)    
-    
+        messages.sort(key=lambda x: x['Date'], reverse=True)
+
         return Response(messages)
-
