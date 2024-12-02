@@ -320,8 +320,6 @@ class MessageCenterView(APIView):
             end_date = parse_datetime(end_date)
             date_filter &= Q(created_at__lte=end_date)
         
-        print(date_filter)
-
         file_transfers = get_queryset_for_models_with_files(FileTransfer).filter(date_filter)
         online_orders = get_queryset_for_models_with_files(Request).filter(date_filter)
         general_contacts = ContactInquiry.objects.filter(date_filter)
