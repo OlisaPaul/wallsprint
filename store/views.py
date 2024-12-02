@@ -1,7 +1,4 @@
 import csv
-from io import TextIOWrapper
-from django.views.generic import View
-from django.http import JsonResponse
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import render
@@ -9,6 +6,7 @@ from django.db import models
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.decorators import action
+from django.utils.dateparse import parse_datetime
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny,  IsAuthenticated
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
@@ -311,9 +309,22 @@ class MessageCenterView(APIView):
     def get(self, request):
         messages = []
 
-        file_transfers = get_queryset_for_models_with_files(FileTransfer)
-        online_orders = get_queryset_for_models_with_files(Request)
-        general_contacts = ContactInquiry.objects.all()
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+
+        date_filter = Q()
+        if start_date:
+            start_date = parse_datetime(start_date)
+            date_filter &= Q(created_at__gte=start_date)
+        if end_date:
+            end_date = parse_datetime(end_date)
+            date_filter &= Q(created_at__lte=end_date)
+        
+        print(date_filter)
+
+        file_transfers = get_queryset_for_models_with_files(FileTransfer).filter(date_filter)
+        online_orders = get_queryset_for_models_with_files(Request).filter(date_filter)
+        general_contacts = ContactInquiry.objects.filter(date_filter)
 
         def calculate_file_size(instance):
             file_size_in_bytes = sum([file.file_size for file in instance.files.all() if file.file_size])
