@@ -1,4 +1,6 @@
+import csv
 import os
+from django.conf import settings
 from django.core.validators import FileExtensionValidator
 from django.db import transaction
 from django.contrib.auth import get_user_model
@@ -7,14 +9,22 @@ from django.contrib.contenttypes.models import ContentType
 from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.validators import ValidationError
-import csv
 from io import TextIOWrapper
-from .models import Catalog, ContactInquiry, HTMLFile, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent
+from .models import AttributeOption, Attribute, Catalog, CatalogItem, ContactInquiry, HTMLFile, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent
 from .utils import create_instance_with_files
 
 User = get_user_model()
 
 load_dotenv()
+
+catalog_item_fields = [
+    'id', 'title', 'item_sku', 'description', 'short_description',
+    'default_quantity', 'pricing_grid', 'thumbnail', 'preview_image', 'preview_file',
+    'available_inventory', 'minimum_inventory', 'track_inventory_automatically',
+    'restrict_orders_to_inventory', 'weight_per_piece_lb', 'weight_per_piece_oz',
+    'exempt_from_shipping_charges', 'is_this_item_taxable', 'can_item_be_ordered',
+    'details_page_per_layout', 'attributes'
+]
 
 general_fields = [
     'id', 'name', 'email_address', 'phone_number', 'address', 'fax_number',
@@ -206,7 +216,8 @@ class SimpleCustomerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Customer
-        fields = ['id', 'name', 'email', 'company']
+        fields = ['id', 'name', 'email', 'company', 'fax_number',
+                  'city_state_zip', 'address', 'phone_number']
 
     def get_name(self, customer: Customer):
         return customer.user.name
@@ -369,7 +380,7 @@ class CreatePortalContentSerializer(serializers.ModelSerializer):
         model = PortalContent
         fields = ['id', 'html_file', 'location',
                   'page_redirect', 'include_in_site_map', 'display_in_site_navigation',
-                  'customer_groups', 'customers','everyone'
+                  'customer_groups', 'customers', 'everyone'
                   ]
 
     def create(self, validated_data):
@@ -494,7 +505,8 @@ class CreatePortalSerializer(serializers.ModelSerializer):
 
     @transaction.atomic()
     def create(self, validated_data):
-        copy_an_existing_portal = validated_data.pop('copy_an_existing_portal', False)
+        copy_an_existing_portal = validated_data.pop(
+            'copy_an_existing_portal', False)
         validated_data.pop('copy_the_logo', False)
         customers = validated_data.pop('customers', [])
         customer_groups = validated_data.pop('customer_groups', [])
@@ -585,15 +597,16 @@ class CatalogSerializer(serializers.ModelSerializer):
         Validate the recipient_emails field.
         """
         if not value:
-            return value  
-        
+            return value
+
         emails = [email.strip() for email in value.split(',')]
         for email in emails:
             try:
                 validate_email(email)
             except ValidationError:
-                raise serializers.ValidationError(f"'{email}' is not a valid email address.")
-        
+                raise serializers.ValidationError(
+                    f"'{email}' is not a valid email address.")
+
         return value
 
     def validate(self, data):
@@ -602,30 +615,35 @@ class CatalogSerializer(serializers.ModelSerializer):
         """
         if data.get('specify_low_inventory_message'):
             if not data.get('recipient_emails'):
-                raise serializers.ValidationError({"recipient_emails": "This field is required when specifying a low inventory message."})
+                raise serializers.ValidationError(
+                    {"recipient_emails": "This field is required when specifying a low inventory message."})
             if not data.get('subject'):
-                raise serializers.ValidationError({"subject": "This field is required when specifying a low inventory message."})
+                raise serializers.ValidationError(
+                    {"subject": "This field is required when specifying a low inventory message."})
             if not data.get('message_text'):
-                raise serializers.ValidationError({"message_text": "This field is required when specifying a low inventory message."})
+                raise serializers.ValidationError(
+                    {"message_text": "This field is required when specifying a low inventory message."})
         else:
             if data.get('recipient_emails') or data.get('subject') or data.get('message_text'):
-                raise serializers.ValidationError("Low inventory message fields should not be filled if 'specify_low_inventory_message' is disabled.")
+                raise serializers.ValidationError(
+                    "Low inventory message fields should not be filled if 'specify_low_inventory_message' is disabled.")
         return data
-    
+
+
 class MessageCenterSerializer(serializers.ModelSerializer):
     title_and_tracking = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = None  # This is a composite serializer, not tied to a single model
         fields = ['created_at', 'title_and_tracking', 'your_name', 'files']
-    
+
     def get_title_and_tracking(self, obj):
         if isinstance(obj, FileTransfer):
             return 'Online File Transfer'
         elif isinstance(obj, Request):
             if obj.this_is_an == 'Estimate Request':
                 return 'Estimate Request'
-            else: 
+            else:
                 return 'Online Order'
         # elif isinstance(obj, EcommerceOrder):
         #     return 'Ecommerce Order'
@@ -633,3 +651,124 @@ class MessageCenterSerializer(serializers.ModelSerializer):
             return 'General Contact'
         else:
             return ''
+
+
+class AttributeOptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AttributeOption
+        fields = ['id', 'option', 'alternate_display_text',
+                  'price_modifier_type', 'pricing_tiers']
+
+
+class AttributeSerializer(serializers.ModelSerializer):
+    options = AttributeOptionSerializer(many=True)
+
+    class Meta:
+        model = Attribute
+        fields = [
+            'id', 'label', 'is_required', 'attribute_type', 'max_length',
+            'pricing_tiers', 'price_modifier_scope', 'price_modifier_type', 'options'
+        ]
+
+
+class CatalogItemSerializer(serializers.ModelSerializer):
+    attributes = AttributeSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = CatalogItem
+        fields = catalog_item_fields + ['created_at']
+
+
+class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
+    attributes = AttributeSerializer(many=True, read_only=True)
+    attribute_data = AttributeSerializer(
+        many=True, write_only=True, required=False)
+
+    class Meta:
+        model = CatalogItem
+        fields = catalog_item_fields + ['attribute_data']
+
+    def create(self, validated_data):
+        catalog_id = self.context['catalog_id']
+        attributes_data = validated_data.pop('attribute_data', [])
+        catalog_item = CatalogItem.objects.create(
+            catalog_id=catalog_id, **validated_data)
+        for attribute_data in attributes_data:
+            options_data = attribute_data.pop('options', [])
+            attribute = Attribute.objects.create(
+                catalog_item=catalog_item, **attribute_data)
+            for option_data in options_data:
+                AttributeOption.objects.create(
+                    item_attribute=attribute, **option_data)
+        return catalog_item
+
+    def update(self, instance, validated_data):
+        attributes_data = validated_data.pop('attribute_data', [])
+        instance.title = validated_data.get('title', instance.title)
+        instance.parent_catalog = validated_data.get(
+            'parent_catalog', instance.parent_catalog)
+        instance.mark_as_favorite = validated_data.get(
+            'mark_as_favorite', instance.mark_as_favorite)
+        instance.item_sku = validated_data.get('item_sku', instance.item_sku)
+        instance.description = validated_data.get(
+            'description', instance.description)
+        instance.short_description = validated_data.get(
+            'short_description', instance.short_description)
+        instance.default_quantity = validated_data.get(
+            'default_quantity', instance.default_quantity)
+        instance.pricing_grid = validated_data.get(
+            'pricing_grid', instance.pricing_grid)
+        instance.thumbnail = validated_data.get(
+            'thumbnail', instance.thumbnail)
+        instance.preview_image = validated_data.get(
+            'preview_image', instance.preview_image)
+        instance.available_inventory = validated_data.get(
+            'available_inventory', instance.available_inventory)
+        instance.minimum_inventory = validated_data.get(
+            'minimum_inventory', instance.minimum_inventory)
+        instance.track_inventory_automatically = validated_data.get(
+            'track_inventory_automatically', instance.track_inventory_automatically)
+        instance.restrict_orders_to_inventory = validated_data.get(
+            'restrict_orders_to_inventory', instance.restrict_orders_to_inventory)
+        instance.weight_per_piece_lb = validated_data.get(
+            'weight_per_piece_lb', instance.weight_per_piece_lb)
+        instance.weight_per_piece_oz = validated_data.get(
+            'weight_per_piece_oz', instance.weight_per_piece_oz)
+        instance.exempt_from_shipping_charges = validated_data.get(
+            'exempt_from_shipping_charges', instance.exempt_from_shipping_charges)
+        instance.is_this_item_taxable = validated_data.get(
+            'is_this_item_taxable', instance.is_this_item_taxable)
+        instance.can_item_be_ordered = validated_data.get(
+            'can_item_be_ordered', instance.can_item_be_ordered)
+        instance.details_page_per_layout = validated_data.get(
+            'details_page_per_layout', instance.details_page_per_layout)
+        instance.save()
+
+        for attribute_data in attributes_data:
+            options_data = attribute_data.pop('options', [])
+            attribute_id = attribute_data.get('id')
+            if attribute_id:
+                attribute = Attribute.objects.get(
+                    id=attribute_id, catalog_item=instance)
+                for key, value in attribute_data.items():
+                    setattr(attribute, key, value)
+                attribute.save()
+                for option_data in options_data:
+                    option_id = option_data.get('id')
+                    if option_id:
+                        option = AttributeOption.objects.get(
+                            id=option_id, item_attribute=attribute)
+                        for key, value in option_data.items():
+                            setattr(option, key, value)
+                        option.save()
+                    else:
+                        AttributeOption.objects.create(
+                            item_attribute=attribute, **option_data)
+            else:
+                attribute = Attribute.objects.create(
+                    catalog_item=instance, **attribute_data)
+                for option_data in options_data:
+                    AttributeOption.objects.create(
+                        item_attribute=attribute, **option_data)
+
+        return instance

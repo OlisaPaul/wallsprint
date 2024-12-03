@@ -11,6 +11,24 @@ from phonenumber_field.modelfields import PhoneNumberField
 from cloudinary.models import CloudinaryField
 import datetime
 
+def validate_pricing_grid(value):
+    if not isinstance(value, list):
+        raise ValidationError("The pricing_grid must be a list.")
+
+    for tier in value:
+        if not isinstance(tier, dict):
+            raise ValidationError("Each pricing tier must be a dictionary.")
+        if set(tier.keys()) != {'minimum_quantity', 'unit_price'}:
+            raise ValidationError(
+                "Each pricing tier must only contain 'minimum_quantity' and 'unit_price' as keys."
+            )
+        if 'minimum_quantity' not in tier or 'unit_price' not in tier:
+            raise ValidationError("Each pricing tier must contain 'minimum_quantity' and 'unit_price'.")
+        if not isinstance(tier['minimum_quantity'], int) or tier['minimum_quantity'] <= 0:
+            raise ValidationError("The 'minimum_quantity' in each pricing tier must be a positive integer.")
+        if not isinstance(tier['unit_price'], (int, float)) or tier['unit_price'] < 0:
+            raise ValidationError("The 'unit_price' in each pricing tier must be a non-negative number.")
+
 
 def validate_number(value):
     if not re.match(r'^\+?[\d\s\-\(\)]{7,20}$', value):
@@ -274,7 +292,7 @@ class PortalContent(models.Model):
                                          ('external', 'To a page on another website'),
                                          ('internal', 'To another page on your site'),
                                          ('file', 'To a downloadable file'),
-                                     ], 
+                                     ],
                                      default='no_redirect')
     location = models.OneToOneField(
         PortalSection, on_delete=models.CASCADE, null=True, blank=True, related_name='content')
@@ -304,49 +322,51 @@ class PortalContent(models.Model):
         accessible_customer_ids = direct_customers.union(group_customers)
         return accessible_customer_ids
 
+
 class Catalog(models.Model):
-    title = models.CharField(max_length=255, verbose_name="Title", help_text="Enter the catalog title.")
+    title = models.CharField(
+        max_length=255, verbose_name="Title", help_text="Enter the catalog title.")
     parent_catalog = models.ForeignKey(
-        'self', 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True, 
-        verbose_name="Parent Catalog", 
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Parent Catalog",
         help_text="Select the parent catalog if applicable."
     )
     specify_low_inventory_message = models.BooleanField(
-        default=False, 
-        verbose_name="Specify Low Inventory Message?", 
+        default=False,
+        verbose_name="Specify Low Inventory Message?",
         help_text="Enable to specify a low inventory message."
     )
     recipient_emails = models.TextField(
-        blank=True, 
-        null=True, 
-        verbose_name="Recipient Email(s)", 
+        blank=True,
+        null=True,
+        verbose_name="Recipient Email(s)",
         help_text="Enter recipient email addresses separated by commas."
     )
     subject = models.CharField(
-        max_length=255, 
-        blank=True, 
-        null=True, 
-        verbose_name="Subject", 
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name="Subject",
         help_text="Enter the subject for the low inventory message."
     )
     message_text = models.TextField(
-        blank=True, 
-        null=True, 
-        verbose_name="Message Text", 
+        blank=True,
+        null=True,
+        verbose_name="Message Text",
         help_text="Enter the message text for low inventory warnings."
     )
     description = models.TextField(
-        blank=True, 
-        null=True, 
-        verbose_name="Description", 
+        blank=True,
+        null=True,
+        verbose_name="Description",
         help_text="Provide a description for the catalog."
     )
     display_items_on_same_page = models.BooleanField(
-        default=False, 
-        verbose_name="Display Items on the Same Page as the Catalog?", 
+        default=False,
+        verbose_name="Display Items on the Same Page as the Catalog?",
         help_text="Enable to display items on the same page as the catalog."
     )
 
@@ -357,16 +377,126 @@ class Catalog(models.Model):
         """Custom validation to ensure low inventory fields are only filled if enabled."""
         if self.specify_low_inventory_message:
             if not self.recipient_emails or not self.subject or not self.message_text:
-                raise ValidationError("All low inventory message fields must be filled if enabled.")
+                raise ValidationError(
+                    "All low inventory message fields must be filled if enabled.")
         else:
             if self.recipient_emails or self.subject or self.message_text:
-                raise ValidationError("Low inventory message fields should not be filled if disabled.")
-            
+                raise ValidationError(
+                    "Low inventory message fields should not be filled if disabled.")
+
+
 class CatalogItem(models.Model):
-    class Meta:
-        permissions = [
-            ('catalog_items', "Catalog Items")
-        ]
+    title = models.CharField(max_length=255)
+    catalog = models.ForeignKey(
+        'Catalog', null=True, blank=True, on_delete=models.SET_NULL, related_name='catalog_items'
+    )
+    item_sku = models.CharField(max_length=100, unique=True)
+    description = models.TextField()
+    short_description = models.CharField(max_length=255, blank=True)
+    default_quantity = models.PositiveIntegerField(default=1)
+    pricing_grid = models.JSONField(default=list, validators=[validate_pricing_grid])
+    thumbnail = models.ImageField(
+        upload_to='thumbnails/', blank=True, null=True)
+    preview_image = models.ImageField(
+        upload_to='previews/', blank=True, null=True)
+    preview_file = models.FileField(
+        upload_to='preview_files/', blank=True, null=True)
+    available_inventory = models.PositiveIntegerField(default=0)
+    minimum_inventory = models.PositiveIntegerField(default=0)
+    track_inventory_automatically = models.BooleanField(default=False)
+    restrict_orders_to_inventory = models.BooleanField(default=False)
+    weight_per_piece_lb = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0)
+    weight_per_piece_oz = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0)
+    exempt_from_shipping_charges = models.BooleanField(default=False)
+    is_this_item_taxable = models.BooleanField(default=False)
+    can_item_be_ordered = models.BooleanField(default=False)
+    details_page_per_layout = models.CharField(
+        max_length=255, default='default')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.title
+
+
+class Attribute(models.Model):
+    TEXT_FIELD = 'text_field'
+    TEXT_AREA = 'text_area'
+    CHECKBOXES = 'checkboxes'
+    RADIO_BUTTONS = 'radio_buttons'
+    SELECT_MENU = 'select_menu'
+    FILE_UPLOAD = 'file_upload'
+
+    ATTRIBUTE_TYPE_CHOICES = [
+        (TEXT_FIELD, 'Text field'),
+        (TEXT_AREA, 'Text area'),
+        (CHECKBOXES, 'Checkboxes'),
+        (RADIO_BUTTONS, 'Radio buttons'),
+        (SELECT_MENU, 'Select menu'),
+        (FILE_UPLOAD, 'File upload'),
+    ]
+
+    PER_UNIT = 'per_unit'
+    ALL_UNITS = 'all_units'
+
+    PRICE_MODIFIER_SCOPE_CHOICES = [
+        (PER_UNIT, 'Per Unit'),
+        (ALL_UNITS, 'All units as a whole'),
+    ]
+
+    label = models.CharField(max_length=255)
+    is_required = models.BooleanField(default=False)
+    attribute_type = models.CharField(
+        max_length=20, choices=ATTRIBUTE_TYPE_CHOICES, default=TEXT_FIELD
+    )
+    max_length = models.PositiveIntegerField(null=True, blank=True)
+
+    pricing_tiers = models.JSONField(
+        default=list, blank=True,
+        help_text="List of dictionaries with 'quantity' and 'price_modifier' keys.",
+        validators=[validate_pricing_grid]
+    ) 
+    catalog_item = models.ForeignKey(CatalogItem, on_delete=models.CASCADE, related_name='attributes')
+    price_modifier_scope = models.CharField(
+        max_length=20, choices=PRICE_MODIFIER_SCOPE_CHOICES, default=PER_UNIT
+    )
+    price_modifier_type = models.CharField(
+        max_length=10, choices=[('dollar', 'Dollar'), ('percentage', 'Percentage')],
+        default='dollar'
+    )
+
+    def __str__(self):
+        return self.label
+
+    def save(self, *args, **kwargs):
+        if self.pricing_tiers:
+            self.pricing_tiers = sorted(self.pricing_tiers, key=lambda x: x.get('quantity', 0))
+        super().save(*args, **kwargs)
+
+
+class AttributeOption(models.Model):
+    option = models.CharField(max_length=255)
+    alternate_display_text = models.CharField(max_length=255)
+    price_modifier_type = models.CharField(
+        max_length=10, choices=[('dollar', 'Dollar'), ('percentage', 'Percentage')],
+        default='dollar'
+    )
+    pricing_tiers = models.JSONField(
+        default=list, blank=True,
+        help_text="List of dictionaries with 'quantity' and 'price_modifier' keys.",
+        validators=[validate_pricing_grid]
+    )
+    item_attribute = models.ForeignKey(Attribute, on_delete=models.CASCADE, related_name='options')
+
+    def __str__(self):
+        return self.option
+
+    def save(self, *args, **kwargs):
+        if self.pricing_tiers:
+            self.pricing_tiers = sorted(
+                self.pricing_tiers, key=lambda x: x.get('quantity', 0))
+        super().save(*args, **kwargs)
 
 
 class Order(models.Model):

@@ -11,8 +11,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny,  IsAuthenticated
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, DestroyModelMixin
-from .models import ContactInquiry, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, Portal
-from .serializers import ContactInquirySerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCustomerSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, PortalSerializer, customer_fields
+from .models import CatalogItem, ContactInquiry, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, Portal
+from .serializers import CatalogItemSerializer, ContactInquirySerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCustomerSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, PortalSerializer, customer_fields, CreateOrUpdateCatalogItemSerializer
 from .permissions import FullDjangoModelPermissions, create_permission_class
 from .mixins import HandleImagesMixin
 from .utils import get_queryset_for_models_with_files
@@ -23,6 +23,7 @@ from store import serializers
 CanTransferFiles = create_permission_class('store.transfer_files')
 PortalPermissions = create_permission_class('store.portals')
 CustomerServicePermissions = create_permission_class('store.customers')
+
 
 class CustomerCreationHandler:
     def __init__(self, user, customer_data):
@@ -127,18 +128,20 @@ class CustomerViewSet(CustomModelViewSet):
         serializer = CSVUploadSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
         csv_content = serializer.validated_data['file']
         has_header = serializer.validated_data['has_header']
         [id, *fields_without_id] = customer_fields
 
-        columns = ['name', 'email', 'password', 'username', 'is_active'] + fields_without_id
+        columns = ['name', 'email', 'password',
+                   'username', 'is_active'] + fields_without_id
 
         try:
             if has_header:
                 csv_reader = csv.DictReader(csv_content.splitlines())
             else:
-                csv_reader = csv.DictReader(csv_content.splitlines(), fieldnames=columns)
+                csv_reader = csv.DictReader(
+                    csv_content.splitlines(), fieldnames=columns)
 
             rows = list(csv_reader)
         except csv.Error as e:
@@ -287,6 +290,7 @@ class HTMLFileViewSet(CustomModelViewSet):
     queryset = models.HTMLFile.objects.all()
     serializer_class = serializers.HTMLFileSerializer
 
+
 class CatalogViewSet(CustomModelViewSet):
     queryset = models.Catalog.objects.all()
     serializer_class = serializers.CatalogSerializer
@@ -296,14 +300,13 @@ class MessageCenterViewSet(ModelViewSet):
     serializer_class = serializers.MessageCenterSerializer
     # ordering = ['-date']
 
-
     def get_queryset(self):
         queryset = []
         queryset.extend(list(Request.objects.all()))
         queryset.extend(list(ContactInquiry.objects.all()))
         queryset.extend(list(FileTransfer.objects.all()))
         return sorted(queryset, key=lambda x: x.created_at, reverse=True)
-    
+
 
 class MessageCenterView(APIView):
     def get(self, request):
@@ -319,13 +322,16 @@ class MessageCenterView(APIView):
         if end_date:
             end_date = parse_datetime(end_date)
             date_filter &= Q(created_at__lte=end_date)
-        
-        file_transfers = get_queryset_for_models_with_files(FileTransfer).filter(date_filter)
-        online_orders = get_queryset_for_models_with_files(Request).filter(date_filter)
+
+        file_transfers = get_queryset_for_models_with_files(
+            FileTransfer).filter(date_filter)
+        online_orders = get_queryset_for_models_with_files(
+            Request).filter(date_filter)
         general_contacts = ContactInquiry.objects.filter(date_filter)
 
         def calculate_file_size(instance):
-            file_size_in_bytes = sum([file.file_size for file in instance.files.all() if file.file_size])
+            file_size_in_bytes = sum(
+                [file.file_size for file in instance.files.all() if file.file_size])
             if file_size_in_bytes >= 1024 * 1024:
                 return f"{file_size_in_bytes / (1024 * 1024):.2f} MB"
             return f"{file_size_in_bytes / 1024:.2f} KB"
@@ -367,3 +373,42 @@ class MessageCenterView(APIView):
         messages.sort(key=lambda x: x['Date'], reverse=True)
 
         return Response(messages)
+
+
+class CatalogItemViewSet(ModelViewSet):
+    """
+    A viewset for viewing and editing catalog items.
+    """
+
+    def get_serializer_class(self):
+        if self.request.method in ['POST', 'PUT']:
+            return CreateOrUpdateCatalogItemSerializer
+        return CatalogItemSerializer
+
+    def get_queryset(self):
+        return CatalogItem.objects.filter(catalog_id=self.kwargs['catalog_pk']).prefetch_related('attributes__options')
+
+    def get_serializer_context(self):
+        return {'catalog_id': self.kwargs['catalog_pk']}
+
+    def create(self, request, *args, **kwargs):
+        """
+        Override create to handle nested attributes.
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def update(self, request, *args, **kwargs):
+        """
+        Override update to handle nested attributes.
+        """
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(serializer.data)

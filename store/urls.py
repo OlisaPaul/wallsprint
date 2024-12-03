@@ -10,6 +10,7 @@ router.register('file-transfers', views.FileTransferViewSet,
                 basename='file-transfers'),
 router.register('images', views.ImageViewSet, basename='images'),
 router.register('catalogs', views.CatalogViewSet, basename='catalogs'),
+# router.register(r'catalog-items', views.CatalogItemViewSet, basename='catalog-item')
 router.register('portals', views.PortalViewSet, basename='portals'),
 router.register('html-files', views.HTMLFileViewSet, basename='html-files'),
 router.register('customers', views.CustomerViewSet, basename='customers'),
@@ -20,8 +21,15 @@ router.register('requests', views.RequestViewSet, basename='requests'),
 router.register('contact-us', views.ContactInquiryViewSet,
                 basename='contact-us'),
 
-portals_router = routers.NestedDefaultRouter(router, 'portals', lookup='portal')
-portals_router.register('contents', views.PortalContentViewSet, basename='portal-contents')
+portals_router = routers.NestedDefaultRouter(
+    router, 'portals', lookup='portal')
+portals_router.register(
+    'contents', views.PortalContentViewSet, basename='portal-contents')
+
+catalogs_router = routers.NestedDefaultRouter(
+    router, 'catalogs', lookup='catalog')
+catalogs_router.register(
+    'items', views.CatalogItemViewSet, basename='catalog-items')
 
 message_centre_url = [
     path('message-center/', views.MessageCenterView.as_view(), name='message-center'),
@@ -29,5 +37,5 @@ message_centre_url = [
 
 
 # URLConf
-urlpatterns = router.urls + portals_router.urls + message_centre_url
-
+urlpatterns = router.urls + portals_router.urls + \
+    catalogs_router.urls + message_centre_url
