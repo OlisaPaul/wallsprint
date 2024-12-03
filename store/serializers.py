@@ -263,7 +263,7 @@ class CreateCustomerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Customer
-        fields = [*customer_fields, 'email',
+        fields = [*customer_fields, 'groups', 'email',
                   'password', 'username', 'name', 'is_active']
 
     def validate_email(self, value):
@@ -288,10 +288,13 @@ class CreateCustomerSerializer(serializers.ModelSerializer):
         name = validated_data.pop('name')
         username = validated_data.pop('username')
         password = validated_data.pop('password')
+        groups = validated_data.pop('groups', [])
 
         user = User.objects.create_user(
             email=email, password=password, name=name, username=username, is_active=is_active)
         customer = Customer.objects.create(user=user, **validated_data)
+        if groups:
+            customer.groups.set(groups)
 
         return customer
 
