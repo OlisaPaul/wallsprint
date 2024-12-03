@@ -232,12 +232,16 @@ class UpdateCustomerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Customer
-        fields = [*customer_fields, 'is_active', 'name']
+        fields = [*customer_fields, 'groups', 'is_active', 'name']
 
     @transaction.atomic()
     def update(self, instance, validated_data):
         name = validated_data.pop('name')
         is_active = validated_data.pop('is_active')
+        groups = validated_data.pop('groups')
+
+        if groups:
+            customer.groups.set(groups)
 
         customer = super().update(instance, validated_data)
 
