@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.validators import ValidationError
 from io import TextIOWrapper
-from .models import AttributeOption, Attribute, Catalog, CatalogItem, ContactInquiry, HTMLFile, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent
+from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, HTMLFile, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent
 from .utils import create_instance_with_files
 
 User = get_user_model()
@@ -240,10 +240,10 @@ class UpdateCustomerSerializer(serializers.ModelSerializer):
         is_active = validated_data.pop('is_active')
         groups = validated_data.pop('groups')
 
+        customer = super().update(instance, validated_data)
+        
         if groups:
             customer.groups.set(groups)
-
-        customer = super().update(instance, validated_data)
 
         if name is not None or isinstance(is_active, bool):
             user = instance.user
@@ -779,3 +779,28 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
                         item_attribute=attribute, **option_data)
 
         return instance
+
+class CartItemSerializer(serializers.ModelSerializer):
+    catalog_item = CatalogItemSerializer()
+    total_price = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CartItem
+        fields = ['id', 'product', 'quantity', 'total_price']
+
+    def get_total_price(self, item: CartItem):
+        return item.product.unit_price * item.quantity
+
+
+class CartSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(read_only=True)
+    items = CartItemSerializer(many=True, read_only=True)
+    total_price = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Cart
+        fields = ["id", "items", "total_price"]
+
+    def get_total_price(self, cart: Cart):
+        items = cart.items.all()
+        return sum(item.product.unit_price * item.quantity for item in items)

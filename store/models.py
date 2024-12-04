@@ -1,5 +1,6 @@
 import re
-from django.utils import timezone
+from uuid import uuid4
+from django.core.validators import MinValueValidator
 from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -7,7 +8,6 @@ from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from phonenumber_field.modelfields import PhoneNumberField
 from cloudinary.models import CloudinaryField
 import datetime
 
@@ -532,3 +532,20 @@ class WebsiteUsers(models.Model):
         permissions = [
             ('website_users', "Website Users")
         ]
+
+
+class Cart(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class CartItem(models.Model):
+    cart = models.ForeignKey(
+        Cart, on_delete=models.CASCADE, related_name="items")
+    catalog_item = models.ForeignKey(CatalogItem, on_delete=models.CASCADE)
+    quantity = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1)]
+    )
+
+    class Meta:
+        unique_together = [["catalog_item", "cart"]]
