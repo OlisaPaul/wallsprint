@@ -11,6 +11,7 @@ router.register('file-transfers', views.FileTransferViewSet,
                 basename='file-transfers'),
 router.register('images', views.ImageViewSet, basename='images'),
 router.register('catalogs', views.CatalogViewSet, basename='catalogs'),
+router.register("orders", views.OrderViewSet, basename='orders')
 # router.register(r'catalog-items', views.CatalogItemViewSet, basename='catalog-item')
 router.register('portals', views.PortalViewSet, basename='portals'),
 router.register('html-files', views.HTMLFileViewSet, basename='html-files'),

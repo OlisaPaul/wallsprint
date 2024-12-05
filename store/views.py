@@ -7,12 +7,14 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.decorators import action
 from django.utils.dateparse import parse_datetime
+from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny,  IsAuthenticated
+from rest_framework.permissions import AllowAny,  IsAuthenticated, IsAdminUser
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, DestroyModelMixin
-from .models import Cart, CartItem, CatalogItem, ContactInquiry, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, Portal
-from .serializers import AddCartItemSerializer, CartItemSerializer, CartSerializer, CatalogItemSerializer, ContactInquirySerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCartItemSerializer, UpdateCustomerSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, PortalSerializer, customer_fields, CreateOrUpdateCatalogItemSerializer
+from .models import Cart, CartItem, CatalogItem, ContactInquiry, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, Portal, Order, OrderItem
+from .serializers import AddCartItemSerializer, CartItemSerializer, CartSerializer, CatalogItemSerializer, ContactInquirySerializer, CreateOrderSerializer, OrderSerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCartItemSerializer, UpdateCustomerSerializer, UpdateOrderSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, PortalSerializer, customer_fields, CreateOrUpdateCatalogItemSerializer
+from django.shortcuts import get_object_or_404
 from .permissions import FullDjangoModelPermissions, create_permission_class
 from .mixins import HandleImagesMixin
 from .utils import get_queryset_for_models_with_files
@@ -23,6 +25,7 @@ from store import serializers
 CanTransferFiles = create_permission_class('store.transfer_files')
 PortalPermissions = create_permission_class('store.portals')
 CustomerServicePermissions = create_permission_class('store.customers')
+OrderPermissions = create_permission_class('store.order')
 
 
 class CustomerCreationHandler:
@@ -417,6 +420,31 @@ class CartViewSet(CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, Gener
     queryset = Cart.objects.prefetch_related("items__catalog_item").all()
     serializer_class = CartSerializer
 
+    def get_serializer_context(self):
+        return {'user_id': self.request.user.id}
+    
+    @action(detail=False, methods=['get'], url_path='customer-cart')
+    def get_customer_cart(self, request):
+        user = self.request.user
+        customer_id = request.query_params.get('customer_id')  # Get customer_id from query params
+
+        if user.is_staff and not customer_id:
+            return Response(
+                {"detail": "customer_id query parameter is required."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        elif not user.is_staff:
+            try:    
+                customer_id = Customer.objects.only('id').get(user_id=user.id)
+            except Customer.DoesNotExist:
+                raise NotFound(f"No Customer found with id {user.id}.")
+
+        cart = Cart.objects.prefetch_related("items__catalog_item").filter(customer_id=customer_id).first()
+        if not cart:
+            raise NotFound(f"No cart found for customer with id {customer_id}.")
+
+        serializer = self.get_serializer(cart)
+        return Response(serializer.data)
 
 class CartItemViewSet(ModelViewSet):
     http_method_names = ['get', 'post', 'patch', 'delete']
@@ -432,4 +460,39 @@ class CartItemViewSet(ModelViewSet):
         return CartItem.objects.filter(cart_id=self.kwargs['cart_pk']).select_related("catalog_item")
 
     def get_serializer_context(self):
-        return {"cart_id": self.kwargs["cart_pk"]}
+        return {"cart_id": self.kwargs["cart_pk"], 'user_id': self.request.user.id}
+
+
+class OrderViewSet(ModelViewSet):
+    http_method_names = ['get', 'patch', 'delete', 'post', 'head', 'options']
+
+    def get_permissions(self):
+        if self.request.method in ['PATCH', 'DELETE']:
+            return [IsAdminUser()]
+        return [IsAuthenticated()]
+
+    def create(self, request, *args, **kwargs):
+        serializer = CreateOrderSerializer(
+            data=request.data,
+            context={'user_id': self.request.user.id}
+        )
+        serializer.is_valid(raise_exception=True)
+        order = serializer.save()
+        serializer = OrderSerializer(order)
+        return Response(serializer.data)
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return CreateOrderSerializer
+        elif self.request.method == 'PATCH':
+            return UpdateOrderSerializer
+        return OrderSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+
+        if user.is_staff:
+            return Order.objects.all().select_related('customer').prefetch_related('items')
+        customer_id = Customer.objects.only(
+            'id').get(user_id=user.id)
+        return Order.objects.filter(customer_id=customer_id)

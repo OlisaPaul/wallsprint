@@ -531,13 +531,14 @@ class WebsiteUsers(models.Model):
 class Cart(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     created_at = models.DateTimeField(auto_now_add=True)
+    customer = models.OneToOneField(Customer, on_delete=models.PROTECT, null=True, blank=True)
+
 
 
 class CartItem(models.Model):
     cart = models.ForeignKey(
         Cart, on_delete=models.CASCADE, related_name="items")
     catalog_item = models.ForeignKey(CatalogItem, on_delete=models.CASCADE)
-    customer = models.ForeignKey(Customer, on_delete=models.PROTECT)
     quantity = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1)]
     )
@@ -569,7 +570,7 @@ class Order(models.Model):
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name="items")
-    product = models.ForeignKey(
+    catalog_item = models.ForeignKey(
         CatalogItem, on_delete=models.PROTECT, related_name="orderitems")
     quantity = models.PositiveSmallIntegerField()
     unit_price = models.DecimalField(max_digits=6, decimal_places=2)

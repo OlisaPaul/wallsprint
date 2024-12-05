@@ -635,7 +635,8 @@ class CatalogSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     "Low inventory message fields should not be filled if 'specify_low_inventory_message' is disabled.")
         return data
-    
+
+
 class SimpleCatalogSerializer(serializers.ModelSerializer):
     class Meta:
         model = Catalog
@@ -646,7 +647,6 @@ class SimpleCatalogSerializer(serializers.ModelSerializer):
             'description',
             'display_items_on_same_page',
         ]
-
 
 
 class MessageCenterSerializer(serializers.ModelSerializer):
@@ -792,6 +792,7 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
 
         return instance
 
+
 class SimpleCatalogItemSerializer(serializers.ModelSerializer):
     catalog = SimpleCatalogSerializer()
 
@@ -801,6 +802,7 @@ class SimpleCatalogItemSerializer(serializers.ModelSerializer):
             'id', 'title', 'item_sku', 'description', 'short_description',
             'default_quantity', 'thumbnail', 'preview_image', 'catalog'
         ]
+
 
 class CartItemSerializer(serializers.ModelSerializer):
     catalog_item = SimpleCatalogItemSerializer()
@@ -823,11 +825,36 @@ class CartItemSerializer(serializers.ModelSerializer):
 class CartSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(read_only=True)
     items = CartItemSerializer(many=True, read_only=True)
+    customer = SimpleCustomerSerializer(read_only=True)
     total_price = serializers.SerializerMethodField()
+    customer_id = serializers.IntegerField(required=False, write_only=True)
 
     class Meta:
         model = Cart
-        fields = ["id", "items", "total_price"]
+        fields = ["id", "items", "total_price", "customer_id", 'customer']
+
+    def validate_customer_id(self, value):
+        if not Customer.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(
+                "No customer with the given customer_id")
+
+        if Cart.objects.filter(customer_id=value).exists():
+            raise serializers.ValidationError(
+                "The customer already has an active cart")
+    
+        return value
+    
+    def validate(self, attrs):
+        customer = attrs.get('customer_id', None)
+        user = User.objects.get(id=self.context['user_id'])
+        is_staff = user.is_staff
+        
+        if is_staff and not customer:
+            raise serializers.ValidationError(
+                {"customer_id": "A valid integer field is required"})
+        
+        return attrs
+        
 
     def get_total_price(self, cart: Cart):
         return sum(
@@ -869,7 +896,6 @@ class AddCartItemSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"quantity": "The quantity provided is not in the pricing grid."}
             )
-
         return attrs
 
     def save(self, **kwargs):
@@ -918,6 +944,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
+    customer = SimpleCustomerSerializer() 
 
     class Meta:
         model = Order
@@ -936,30 +963,31 @@ class CreateOrderSerializer(serializers.Serializer):
     def validate_cart_id(self, cart_id):
         if not Cart.objects.filter(pk=cart_id).exists():
             raise serializers.ValidationError(
-                {'cart_id':'No cart with the given cart ID was found'})
+                {'cart_id': 'No cart with the given cart ID was found'})
         if CartItem.objects.filter(cart_id=cart_id).count() == 0:
             raise serializers.ValidationError('The cart is empty')
         return cart_id
 
+    @transaction.atomic()
     def save(self, **kwargs):
         with transaction.atomic():
             cart_id = self.validated_data['cart_id']
             cart_items = CartItem.objects.select_related(
                 "catalog_item").filter(cart_id=cart_id)
+            cart = Cart.objects.get(id=cart_id)
+            print(cart.customer_id)
 
-            customer = Customer.objects.get(
-                user_id=self.context['user_id'])
-            order = Order.objects.create(customer=customer)
+            order = Order.objects.create(customer=cart.customer)
 
             order_items = [
                 OrderItem(
                     order=order,
                     catalog_item=item.catalog_item,
-                    unit_price= item.quantity * next(
-                        (entry['unit_price'] for entry in item.catalog_item.pricing_grid 
+                    unit_price=item.quantity * next(
+                        (entry['unit_price'] for entry in item.catalog_item.pricing_grid
                          if entry['minimum_quantity'] == item.quantity),
                         0
-                        ) or item.sub_total,
+                    ) or item.sub_total,
                     quantity=item.quantity
                 ) for item in cart_items
             ]
