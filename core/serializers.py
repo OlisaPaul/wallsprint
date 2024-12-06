@@ -51,6 +51,7 @@ class SimpleGroupSerializer(ModelSerializer):
 
 class UpdateCurrentUserSerializer(BaseUserSerializer):
     groups_count = serializers.SerializerMethodField()
+    groups = SimpleGroupSerializer(many=True, read_only=True)
     permissions = serializers.SerializerMethodField()
 
     class Meta(BaseUserSerializer.Meta):
