@@ -19,7 +19,7 @@ router.register('customers', views.CustomerViewSet, basename='customers'),
 router.register('customer-groups', views.CustomerGroupViewSet,
                 basename='customer-groups'),
 router.register('requests', views.RequestViewSet, basename='requests'),
-# router.register('message-center', views.MessageCenterViewSet, basename='message-center'),
+router.register('online-payments', views.OnlinePaymentViewSet, basename='online-payments'),
 router.register('contact-us', views.ContactInquiryViewSet,
                 basename='contact-us'),
 portals_router = routers.NestedDefaultRouter(

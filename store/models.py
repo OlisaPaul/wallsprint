@@ -1,6 +1,7 @@
 import re
 from uuid import uuid4
 from django.core.validators import MinValueValidator
+from django.utils import timezone
 from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -561,6 +562,7 @@ class Order(models.Model):
     payment_status = models.CharField(
         max_length=1, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_STATUS_PENDING)
     customer = models.ForeignKey(Customer, on_delete=models.PROTECT)
+    date_needed = models.DateField(default=timezone.now)
 
     class Meta:
         permissions =[
@@ -575,3 +577,28 @@ class OrderItem(models.Model):
     quantity = models.PositiveSmallIntegerField()
     unit_price = models.DecimalField(max_digits=6, decimal_places=2)
 
+
+class OnlinePayment(models.Model):
+    PAYMENT_METHOD_CHOICES = [
+        ('credit_card', 'Use My Credit Card On File'),
+        ('debit_card', 'Use My Debit Account On File'),
+    ]
+
+    name = models.CharField(max_length=255, verbose_name="Your Name")
+    email = models.EmailField(verbose_name="Email Address")
+    payment_method = models.CharField(
+        max_length=50,
+        choices=PAYMENT_METHOD_CHOICES,
+        verbose_name="Payment Method"
+    )
+    invoice_number = models.CharField(max_length=100, verbose_name="Invoice #")
+    po_number = models.CharField(max_length=100, verbose_name="P.O. #", blank=True, null=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Amount")
+    additional_instructions = models.TextField(blank=True, null=True, verbose_name="Additional Instructions")
+
+    def __str__(self):
+        return f"Payment by {self.name} - {self.invoice_number}"
+
+    class Meta:
+        verbose_name = "Online Payment"
+        verbose_name_plural = "Online Payments"

@@ -496,3 +496,14 @@ class OrderViewSet(ModelViewSet):
         customer_id = Customer.objects.only(
             'id').get(user_id=user.id)
         return Order.objects.filter(customer_id=customer_id)
+
+class OnlinePaymentViewSet(ModelViewSet):
+    http_method_names = ['get', 'post', 'head', 'options']
+
+    serializer_class = serializers.OnlinePaymentSerializer
+    queryset = models.OnlinePayment.objects.all()
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAdminUser()]
+        return [IsAuthenticated()]

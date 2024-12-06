@@ -6,7 +6,9 @@ from rest_framework import mixins
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from .serializers import (AddUsersToGroupSerializer, GroupSerializer, PermissionSerializer, AddUserToGroupSerializer, CreateGroupSerializer,
-                          UserListSerializer, UserSerializer, UpdateGroupSerializer, UserCreateSerializer, InviteStaffSerializer, UpdateStaffSerializer)
+                          UserListSerializer, UserSerializer, UpdateGroupSerializer, UserCreateSerializer, InviteStaffSerializer, UpdateStaffSerializer,
+                          UpdateCurrentUserSerializer  
+                        )
 from .models import User
 from .utils import bulk_delete_objects
 
@@ -154,6 +156,8 @@ class StaffViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
     def get_serializer_class(self):
         if self.action == 'invite_user':
             return InviteStaffSerializer
+        elif self.action == 'me':
+            return UpdateCurrentUserSerializer
         elif self.request.method == 'POST':
             return UserCreateSerializer
         elif self.request.method == 'PUT':
@@ -171,7 +175,7 @@ class StaffViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
             serializer = UserSerializer(user)
             return Response(serializer.data)
         elif request.method == "PUT":
-            serializer = UpdateStaffSerializer(user, data=request.data)
+            serializer = UpdateCurrentUserSerializer(user, data=request.data)
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response(serializer.data)

@@ -168,7 +168,7 @@ DJOSER = {
     "SERIALIZERS": {
         # 'password_reset': 'core.serializers.CustomPasswordResetSerializer',
         "user_create": 'core.serializers.UserCreateSerializer',
-        "current_user": 'core.serializers.UserSerializer',
+        "current_user": 'core.serializers.UpdateCurrentUserSerializer',
         "user": 'core.serializers.UserSerializer',
         'token_create': 'core.serializers.CustomTokenCreateSerializer',
         'user_delete': 'core.serializers.CustomUserDeleteSerializer',

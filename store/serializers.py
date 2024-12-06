@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.validators import ValidationError
 from io import TextIOWrapper
-from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, HTMLFile, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem
+from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, HTMLFile, OnlinePayment, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem
 from .utils import create_instance_with_files
 
 User = get_user_model()
@@ -996,3 +996,25 @@ class CreateOrderSerializer(serializers.Serializer):
             Cart.objects.filter(pk=cart_id).delete()
 
             return order
+
+class OnlinePaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OnlinePayment
+        fields = [
+            'id',  
+            'name',
+            'email',
+            'payment_method',
+            'invoice_number',
+            'po_number',
+            'amount',
+            'additional_instructions',
+        ]
+
+    def validate_payment_method(self, value):
+        """
+        Ensure the selected payment method is valid.
+        """
+        if value not in dict(OnlinePayment.PAYMENT_METHOD_CHOICES).keys():
+            raise serializers.ValidationError("Invalid payment method.")
+        return value

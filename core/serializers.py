@@ -49,6 +49,35 @@ class SimpleGroupSerializer(ModelSerializer):
         fields = ['id', 'name']
 
 
+class UpdateCurrentUserSerializer(BaseUserSerializer):
+    groups_count = serializers.SerializerMethodField()
+    permissions = serializers.SerializerMethodField()
+
+    class Meta(BaseUserSerializer.Meta):
+        fields = ['id', 'email', 'name', 'username', 'is_active', 'status',
+                  'is_staff', 'is_superuser', 'groups',  "groups_count", 'permissions']
+        read_only_fields = (settings.LOGIN_FIELD, 'email', 'is_active', 'status',
+                        'is_staff', 'is_superuser', 'groups', "groups_count", 'permissions')
+ 
+    def get_groups_count(self, obj):
+        return obj.groups.count()
+
+    def get_permissions(self, obj):
+        """
+        Return a list of all permissions assigned to the user, either
+        directly or through groups.
+        """
+        permissions = set()
+
+        permissions.update(obj.user_permissions.all())
+
+        for group in obj.groups.all():
+            permissions.update(group.permissions.all())
+
+        return [perm.name for perm in permissions]
+
+
+
 class UserSerializer(BaseUserSerializer):
     groups_count = serializers.SerializerMethodField()
     group_ids = serializers.ListField(
@@ -58,10 +87,10 @@ class UserSerializer(BaseUserSerializer):
     permissions = serializers.SerializerMethodField()
 
     class Meta(BaseUserSerializer.Meta):
-        fields = ['id', 'email', 'name', 'username',
+        fields = ['id', 'email', 'name', 'username', 'is_active', 'status',
                   'is_staff', 'is_superuser', 'groups', "group_ids", "groups_count", 'permissions']
         read_only_fields = (settings.LOGIN_FIELD, 'email',
-                            'is_staff', 'is_superuser', 'groups', 'username')
+                            'is_staff', 'is_superuser', 'groups', 'username', 'status')
 
     def validate(self, attrs):
         self.group_ids = attrs.pop('group_ids', [])
@@ -139,7 +168,7 @@ class UserCreateSerializer(BaseUserCreateSerializer):
 
     @transaction.atomic()
     def create(self, validated_data):
-        validated_data = {**validated_data, 'is_staff': True}
+        validated_data = {**validated_data, 'is_staff': True, 'status': 'active'}
         user = super().create(validated_data)
         subject = "Welcome to Walls Printing!"
         template = "email/welcome_email.html"
@@ -210,14 +239,19 @@ class UserListSerializer(serializers.ModelSerializer):
 class UpdateStaffSerializer(ModelSerializer):
     class Meta:
         model = User
-        fields = ['name', 'username']
+        fields = ['name', 'username', "status"]
 
     def update(self, instance, validated_data):
         validated_data['is_staff'] = True
+
+        if validated_data['status'] == 'inactive':
+            validated_data = {**validated_data, 'is_active': False}
+            print(validated_data)
+
         user = super().update(instance, validated_data)
 
         return user
-
+    
 
 class CreateGroupSerializer(ModelSerializer):
     user_ids = serializers.PrimaryKeyRelatedField(
