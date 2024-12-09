@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.validators import ValidationError
 from io import TextIOWrapper
-from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, HTMLFile, OnlinePayment, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem
+from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, HTMLFile, OnlinePayment, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog
 from .utils import create_instance_with_files
 
 User = get_user_model()
@@ -1018,3 +1018,34 @@ class OnlinePaymentSerializer(serializers.ModelSerializer):
         if value not in dict(OnlinePayment.PAYMENT_METHOD_CHOICES).keys():
             raise serializers.ValidationError("Invalid payment method.")
         return value
+
+
+class PortalContentCatalogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PortalContentCatalog
+        fields = ['portal_content', 'catalog', 'is_active', 'order_approval']
+
+    def create(self, validated_data):
+        # Handle single object creation
+        return PortalContentCatalog.objects.create(**validated_data)
+
+class BulkPortalContentCatalogSerializer(serializers.ListSerializer):
+    def create(self, validated_data):
+        return PortalContentCatalog.objects.bulk_create([
+            PortalContentCatalog(**item) for item in validated_data
+        ])
+    
+    def validate(self, data):
+        # Optional: Perform any validation for bulk data
+        portal_content_catalog_pairs = [
+            (item['portal_content'], item['catalog']) for item in data
+        ]
+        if len(portal_content_catalog_pairs) != len(set(portal_content_catalog_pairs)):
+            raise serializers.ValidationError("Duplicate portal_content-catalog pairs found.")
+        return data
+
+class PortalContentCatalogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PortalContentCatalog
+        fields = ['portal_content', 'catalog', 'is_active', 'order_approval']
+        list_serializer_class = BulkPortalContentCatalogSerializer

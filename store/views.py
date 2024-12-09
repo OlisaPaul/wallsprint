@@ -39,7 +39,7 @@ class CustomerCreationHandler:
 
 
 class ContactInquiryViewSet(ListModelMixin, RetrieveModelMixin, CreateModelMixin, GenericViewSet):
-    queryset = ContactInquiry.objects.prefetch_related('files').all()
+    queryset = ContactInquiry.objects.all()
     serializer_class = ContactInquirySerializer
 
     def get_permissions(self):

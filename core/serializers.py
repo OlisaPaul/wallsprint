@@ -245,9 +245,10 @@ class UpdateStaffSerializer(ModelSerializer):
     def update(self, instance, validated_data):
         validated_data['is_staff'] = True
 
-        if validated_data['status'] == 'inactive':
-            validated_data = {**validated_data, 'is_active': False}
-            print(validated_data)
+        if validated_data['status']:
+            is_active = not (validated_data['status'] == 'inactive')
+            validated_data = {**validated_data, 'is_active': is_active}
+        
 
         user = super().update(instance, validated_data)
 
