@@ -67,7 +67,7 @@ class QuoteRequestViewSet(ModelViewSet, HandleImagesMixin):
         return [FullDjangoModelPermissions()]
 
 
-class RequestViewSet(GenericViewSet, DestroyModelMixin, CreateModelMixin, ListModelMixin):
+class RequestViewSet(GenericViewSet, DestroyModelMixin, CreateModelMixin, ListModelMixin, RetrieveModelMixin):
     queryset = get_queryset_for_models_with_files(Request)
 
     def get_serializer_class(self):
