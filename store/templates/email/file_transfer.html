@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>File Transfer</title>
+  </head>
+  <body
+    style="
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      margin: 0;
+      padding: 0;
+    "
+  >
+    <table
+      width="100%"
+      cellpadding="0"
+      cellspacing="0"
+      border="0"
+      style="background-color: #f4f4f9; margin: 0; padding: 20px"
+    >
+      <tr>
+        <td align="center">
+          <table
+            width="600px"
+            cellpadding="0"
+            cellspacing="0"
+            border="0"
+            style="
+              background-color: #ffffff;
+              border-radius: 8px;
+              box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+              overflow: hidden;
+            "
+          >
+            <tr>
+              <td
+                style="
+                  background-color: #4caf50;
+                  padding: 20px;
+                  text-align: center;
+                "
+              >
+                <h2 style="margin: 0; color: #ffffff">
+                  File Transfer Notification
+                </h2>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 20px">
+                <p style="font-size: 16px; margin-bottom: 20px">
+                  A file has been posted for you to download.
+                </p>
+                <table width="100%" style="font-size: 14px; color: #555555">
+                  <tr>
+                    <td style="padding: 8px 0"><strong>Date:</strong></td>
+                    <td style="padding: 8px 0">{{ date }}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0">
+                      <strong>Recipient Name:</strong>
+                    </td>
+                    <td style="padding: 8px 0">{{ recipient_name }}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0">
+                      <strong>Recipient Email:</strong>
+                    </td>
+                    <td style="padding: 8px 0">{{ recipient_email }}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0">
+                      <strong>Sender Name:</strong>
+                    </td>
+                    <td style="padding: 8px 0">{{ sender_name }}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0">
+                      <strong>Sender Email:</strong>
+                    </td>
+                    <td style="padding: 8px 0">{{ sender_email }}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0"><strong>Details:</strong></td>
+                    <td style="padding: 8px 0">{{ details }}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0"><strong>File:</strong></td>
+                    <td style="padding: 8px 0">
+                      {{ file_name }} ({{ file_size|filesizeformat }})
+                    </td>
+                  </tr>
+                </table>
+                <div style="margin: 20px 0; text-align: center">
+                  <a
+                    href="{{ file_url }}"
+                    style="
+                      background-color: #4caf50;
+                      color: #ffffff;
+                      text-decoration: none;
+                      padding: 10px 20px;
+                      border-radius: 4px;
+                      font-size: 16px;
+                    "
+                    >Download Your Files</a
+                  >
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td
+                style="
+                  background-color: #f4f4f9;
+                  text-align: center;
+                  padding: 10px;
+                  font-size: 12px;
+                  color: #999999;
+                "
+              >
+                © 2024 Your Company. All rights reserved.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
