@@ -12,6 +12,7 @@ from django.utils.translation import gettext_lazy as _
 from cloudinary.models import CloudinaryField
 import datetime
 
+
 def validate_pricing_grid(value):
     if not isinstance(value, list):
         raise ValidationError("The pricing_grid must be a list.")
@@ -24,11 +25,14 @@ def validate_pricing_grid(value):
                 "Each pricing tier must only contain 'minimum_quantity' and 'unit_price' as keys."
             )
         if 'minimum_quantity' not in tier or 'unit_price' not in tier:
-            raise ValidationError("Each pricing tier must contain 'minimum_quantity' and 'unit_price'.")
+            raise ValidationError(
+                "Each pricing tier must contain 'minimum_quantity' and 'unit_price'.")
         if not isinstance(tier['minimum_quantity'], int) or tier['minimum_quantity'] <= 0:
-            raise ValidationError("The 'minimum_quantity' in each pricing tier must be a positive integer.")
+            raise ValidationError(
+                "The 'minimum_quantity' in each pricing tier must be a positive integer.")
         if not isinstance(tier['unit_price'], (int, float)) or tier['unit_price'] < 0:
-            raise ValidationError("The 'unit_price' in each pricing tier must be a non-negative number.")
+            raise ValidationError(
+                "The 'unit_price' in each pricing tier must be a non-negative number.")
 
 
 def validate_number(value):
@@ -107,6 +111,30 @@ class QuoteRequest(CommonFields):
 
     def __str__(self):
         return f"{self.name} - {self.project_name}"
+
+
+class OnlineProof(models.Model):
+    name = models.CharField(max_length=255)
+    email_address = models.EmailField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    tracking_number = models.CharField(max_length=255, blank=True, null=True)
+    proof_status = models.CharField(max_length=255)
+    recipient_name = models.CharField(max_length=255)
+    recipient_email = models.EmailField()
+    project_title = models.CharField(max_length=255, blank=True, null=True)
+    project_details = models.TextField(blank=True, null=True)
+    proof_due_date = models.DateField(blank=True, null=True)
+    additional_info = models.TextField(blank=True, null=True)
+    files = GenericRelation(
+        "File", related_query_name='online_proofs', null=True)
+
+    def __str__(self):
+        return f"Proof Approval for {self.project_title or 'Untitled Project'} - {self.recipient_name}"
+
+    class Meta:
+        permissions = [
+            ('online_proofing', "Online Proofing")
+        ]
 
 
 class Request(CommonFields):
@@ -276,7 +304,6 @@ class PortalSection(models.Model):
     include_in_site_map = models.BooleanField(default=True)
 
 
-
 class Catalog(models.Model):
     title = models.CharField(
         max_length=255, verbose_name="Title", help_text="Enter the catalog title.")
@@ -337,6 +364,7 @@ class Catalog(models.Model):
             if self.recipient_emails or self.subject or self.message_text:
                 raise ValidationError(
                     "Low inventory message fields should not be filled if disabled.")
+
 
 class PortalContent(models.Model):
     portal = models.ForeignKey(
@@ -399,9 +427,13 @@ class PortalContentCatalog(models.Model):
     is_active = models.BooleanField(default=False)
     order_approval = models.BooleanField(default=False)
 
+    class Meta:
+        unique_together = ('portal_content', 'catalog')
+
     def __str__(self):
         return f"{self.portal_content} - {self.catalog}"
-    
+
+
 class CatalogItem(models.Model):
     title = models.CharField(max_length=255)
     catalog = models.ForeignKey(
@@ -411,7 +443,8 @@ class CatalogItem(models.Model):
     description = models.TextField()
     short_description = models.CharField(max_length=255, blank=True)
     default_quantity = models.PositiveIntegerField(default=1)
-    pricing_grid = models.JSONField(default=list, validators=[validate_pricing_grid])
+    pricing_grid = models.JSONField(
+        default=list, validators=[validate_pricing_grid])
     thumbnail = models.ImageField(
         upload_to='thumbnails/', blank=True, null=True)
     preview_image = models.ImageField(
@@ -473,8 +506,9 @@ class Attribute(models.Model):
         default=list, blank=True,
         help_text="List of dictionaries with 'quantity' and 'price_modifier' keys.",
         validators=[validate_pricing_grid]
-    ) 
-    catalog_item = models.ForeignKey(CatalogItem, on_delete=models.CASCADE, related_name='attributes')
+    )
+    catalog_item = models.ForeignKey(
+        CatalogItem, on_delete=models.CASCADE, related_name='attributes')
     price_modifier_scope = models.CharField(
         max_length=20, choices=PRICE_MODIFIER_SCOPE_CHOICES, default=PER_UNIT
     )
@@ -488,7 +522,8 @@ class Attribute(models.Model):
 
     def save(self, *args, **kwargs):
         if self.pricing_tiers:
-            self.pricing_tiers = sorted(self.pricing_tiers, key=lambda x: x.get('quantity', 0))
+            self.pricing_tiers = sorted(
+                self.pricing_tiers, key=lambda x: x.get('quantity', 0))
         super().save(*args, **kwargs)
 
 
@@ -504,7 +539,8 @@ class AttributeOption(models.Model):
         help_text="List of dictionaries with 'quantity' and 'price_modifier' keys.",
         validators=[validate_pricing_grid]
     )
-    item_attribute = models.ForeignKey(Attribute, on_delete=models.CASCADE, related_name='options')
+    item_attribute = models.ForeignKey(
+        Attribute, on_delete=models.CASCADE, related_name='options')
 
     def __str__(self):
         return self.option
@@ -515,13 +551,6 @@ class AttributeOption(models.Model):
                 self.pricing_tiers, key=lambda x: x.get('quantity', 0))
         super().save(*args, **kwargs)
 
-
-
-class OnlineProofing(models.Model):
-    class Meta:
-        permissions = [
-            ('online_proofing', "Online Proofing")
-        ]
 
 
 class PrintReadyFiles(models.Model):
@@ -548,8 +577,8 @@ class WebsiteUsers(models.Model):
 class Cart(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     created_at = models.DateTimeField(auto_now_add=True)
-    customer = models.OneToOneField(Customer, on_delete=models.PROTECT, null=True, blank=True)
-
+    customer = models.OneToOneField(
+        Customer, on_delete=models.PROTECT, null=True, blank=True)
 
 
 class CartItem(models.Model):
@@ -559,10 +588,12 @@ class CartItem(models.Model):
     quantity = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1)]
     )
-    sub_total = models.DecimalField(max_digits=9, decimal_places=2, default=0.00)
+    sub_total = models.DecimalField(
+        max_digits=9, decimal_places=2, default=0.00)
 
     class Meta:
         unique_together = [["catalog_item", "cart", "quantity"]]
+
 
 class Order(models.Model):
     PAYMENT_STATUS_PENDING = 'P'
@@ -581,13 +612,14 @@ class Order(models.Model):
     date_needed = models.DateField(default=timezone.now)
 
     class Meta:
-        permissions =[
+        permissions = [
             ('order', "Order Administration")
         ]
 
 
 class OrderItem(models.Model):
-    order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name="items")
+    order = models.ForeignKey(
+        Order, on_delete=models.PROTECT, related_name="items")
     catalog_item = models.ForeignKey(
         CatalogItem, on_delete=models.PROTECT, related_name="orderitems")
     quantity = models.PositiveSmallIntegerField()
@@ -601,16 +633,20 @@ class OnlinePayment(models.Model):
     ]
 
     name = models.CharField(max_length=255, verbose_name="Your Name")
-    email = models.EmailField(verbose_name="Email Address")
+    email_address = models.EmailField(verbose_name="Email Address")
     payment_method = models.CharField(
         max_length=50,
         choices=PAYMENT_METHOD_CHOICES,
         verbose_name="Payment Method"
     )
     invoice_number = models.CharField(max_length=100, verbose_name="Invoice #")
-    po_number = models.CharField(max_length=100, verbose_name="P.O. #", blank=True, null=True)
-    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Amount")
-    additional_instructions = models.TextField(blank=True, null=True, verbose_name="Additional Instructions")
+    po_number = models.CharField(
+        max_length=100, verbose_name="P.O. #", blank=True, null=True)
+    amount = models.DecimalField(
+        max_digits=10, decimal_places=2, verbose_name="Amount")
+    additional_instructions = models.TextField(
+        blank=True, null=True, verbose_name="Additional Instructions")
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"Payment by {self.name} - {self.invoice_number}"
@@ -618,3 +654,22 @@ class OnlinePayment(models.Model):
     class Meta:
         verbose_name = "Online Payment"
         verbose_name_plural = "Online Payments"
+
+
+class FileExchange(models.Model):
+    name = models.CharField(max_length=255, default="System Account")
+    email_address = models.EmailField()
+    recipient_name = models.CharField(max_length=255)
+    recipient_email = models.EmailField()
+    details = models.TextField(blank=True, null=True)
+    file = models.FileField(upload_to='uploads/')
+    file_size = models.PositiveIntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if self.file and not self.file_size:
+            self.file_size = self.file.size
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Transfer to {self.recipient_name} from {self.name}"

@@ -9,6 +9,10 @@ router.register('quote-requests', views.QuoteRequestViewSet,
                 basename='quote-requests'),
 router.register('file-transfers', views.FileTransferViewSet,
                 basename='file-transfers'),
+router.register('transfer-files', views.FileExchangeViewSet,
+                basename='transfer-files'),
+router.register('online-proofs', views.OnlineProofViewSet,
+                basename='online-proofs'),
 router.register('images', views.ImageViewSet, basename='images'),
 router.register('catalogs', views.CatalogViewSet, basename='catalogs'),
 router.register("orders", views.OrderViewSet, basename='orders')
@@ -19,6 +23,7 @@ router.register('customers', views.CustomerViewSet, basename='customers'),
 router.register('customer-groups', views.CustomerGroupViewSet,
                 basename='customer-groups'),
 router.register('requests', views.RequestViewSet, basename='requests'),
+router.register('portal-content-catalogs', views.PortalContentCatalogViewSet, basename='portal-content-catalogs'),
 router.register('online-payments', views.OnlinePaymentViewSet, basename='online-payments'),
 router.register('contact-us', views.ContactInquiryViewSet,
                 basename='contact-us'),
@@ -26,6 +31,9 @@ portals_router = routers.NestedDefaultRouter(
     router, 'portals', lookup='portal')
 portals_router.register(
     'contents', views.PortalContentViewSet, basename='portal-contents')
+contents_router = routers.NestedDefaultRouter(portals_router, r'contents', lookup='content')
+contents_router.register(r'catalogs', views.PortalContentCatalogViewSet, basename='content-catalogs')
+
 catalogs_router = routers.NestedDefaultRouter(
     router, 'catalogs', lookup='catalog')
 catalogs_router.register(
@@ -41,4 +49,5 @@ message_centre_url = [
 
 # URLConf
 urlpatterns = router.urls + portals_router.urls + \
-    catalogs_router.urls + message_centre_url + carts_router.urls
+    catalogs_router.urls + message_centre_url + carts_router.urls +\
+    contents_router.urls

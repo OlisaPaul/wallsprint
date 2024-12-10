@@ -12,8 +12,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny,  IsAuthenticated, IsAdminUser
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, DestroyModelMixin
-from .models import Cart, CartItem, CatalogItem, ContactInquiry, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, Portal, Order, OrderItem
-from .serializers import AddCartItemSerializer, CartItemSerializer, CartSerializer, CatalogItemSerializer, ContactInquirySerializer, CreateOrderSerializer, OrderSerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCartItemSerializer, UpdateCustomerSerializer, UpdateOrderSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, PortalSerializer, customer_fields, CreateOrUpdateCatalogItemSerializer
+from .models import Cart, CartItem, CatalogItem, ContactInquiry, PortalContentCatalog, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, Portal, Order, OrderItem
+from .serializers import AddCartItemSerializer, CartItemSerializer, CartSerializer, CatalogItemSerializer, ContactInquirySerializer, CreateOrderSerializer, OrderSerializer, PortalContentCatalogSerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCartItemSerializer, UpdateCustomerSerializer, UpdateOrderSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, PortalSerializer, customer_fields, CreateOrUpdateCatalogItemSerializer
 from django.shortcuts import get_object_or_404
 from .permissions import FullDjangoModelPermissions, create_permission_class
 from .mixins import HandleImagesMixin
@@ -79,6 +79,16 @@ class RequestViewSet(GenericViewSet, DestroyModelMixin, CreateModelMixin, ListMo
         if self.request.method == "POST":
             return [AllowAny()]
         return [FullDjangoModelPermissions()]
+
+class OnlineProofViewSet(ModelViewSet):
+    queryset = get_queryset_for_models_with_files(models.OnlineProof)
+    permission_classes = [create_permission_class('store.online_proofing')]
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return serializers.CreateOnlineProofSerializer
+        return serializers.OnlineProofSerializer
+    
 
 
 class FileTransferViewSet(GenericViewSet, DestroyModelMixin, CreateModelMixin, ListModelMixin):
@@ -222,7 +232,7 @@ class CustomerGroupViewSet(CustomModelViewSet):
 
 class PortalViewSet(CustomModelViewSet):
     queryset = Portal.objects.prefetch_related(
-        'content__customer_groups', 'content__customers', 'content__html_file').all()
+        'content__customer_groups', 'content__customers', 'content__html_file', 'content__catalog_assignments').all()
 
     def get_queryset(self):
         user = self.request.user
@@ -289,6 +299,31 @@ class PortalContentViewSet(CustomModelViewSet):
         return serializers.PortalContentSerializer
 
 
+class PortalContentCatalogViewSet(ModelViewSet):
+    serializer_class = PortalContentCatalogSerializer
+
+    def get_serializer_context(self):
+        return {'content_id': self.kwargs['content_pk']}
+
+    def get_queryset(self):
+        content_id = self.kwargs['content_pk']
+        return PortalContentCatalog.objects.filter(portal_content_id=content_id)
+
+    def create(self, request, *args, **kwargs):
+        # Check if the input data is a list for bulk creation
+        if isinstance(request.data, list):
+            serializer = self.get_serializer(data=request.data, many=True)
+        else:
+            serializer = self.get_serializer(data=request.data)
+
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def perform_create(self, serializer):
+        serializer.save()
+
+
 class HTMLFileViewSet(CustomModelViewSet):
     queryset = models.HTMLFile.objects.all()
     serializer_class = serializers.HTMLFileSerializer
@@ -326,15 +361,21 @@ class MessageCenterView(APIView):
             end_date = parse_datetime(end_date)
             date_filter &= Q(created_at__lte=end_date)
 
-        file_transfers = get_queryset_for_models_with_files(
+        online_file_transfers = get_queryset_for_models_with_files(
             FileTransfer).filter(date_filter)
         online_orders = get_queryset_for_models_with_files(
             Request).filter(date_filter)
         general_contacts = ContactInquiry.objects.filter(date_filter)
+        online_payments = models.OnlinePayment.objects.filter(date_filter)
+        online_proofs = models.OnlineProof.objects.filter(date_filter)
+        file_transfers = models.FileExchange.objects.filter(date_filter)
 
         def calculate_file_size(instance):
             file_size_in_bytes = sum(
-                [file.file_size for file in instance.files.all() if file.file_size])
+                [file.file_size for file in instance.files.all() if file.file_size]) if not isinstance(instance, models.FileExchange) else instance.file_size
+
+            if not file_size_in_bytes:
+                return '0KB'
             if file_size_in_bytes >= 1024 * 1024:
                 return f"{file_size_in_bytes / (1024 * 1024):.2f} MB"
             return f"{file_size_in_bytes / 1024:.2f} KB"
@@ -350,11 +391,25 @@ class MessageCenterView(APIView):
             }
 
         # File transfers
-        for file_transfer in file_transfers:
+        for online_proof in online_file_transfers:
             messages.append(create_message(
-                file_transfer,
+                online_proof,
                 'Online File Transfer',
-                calculate_file_size(file_transfer)
+                calculate_file_size(online_proof)
+            ))
+
+        for online_proof in file_transfers:
+            messages.append(create_message(
+                online_proof,
+                'File Transfer',
+                calculate_file_size(online_proof)
+            ))
+        
+        for online_proof in online_proofs:
+            messages.append(create_message(
+                online_proof,
+                'Online Proof',
+                calculate_file_size(online_proof)
             ))
 
         # Online orders
@@ -371,6 +426,12 @@ class MessageCenterView(APIView):
             messages.append(create_message(
                 general_contact,
                 'General Contact',
+            ))
+
+        for online_payment in online_payments:
+            messages.append(create_message(
+                online_payment,
+                'Online Payment',
             ))
 
         messages.sort(key=lambda x: x['Date'], reverse=True)
@@ -416,35 +477,40 @@ class CatalogItemViewSet(ModelViewSet):
         self.perform_update(serializer)
         return Response(serializer.data)
 
+
 class CartViewSet(CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, GenericViewSet):
     queryset = Cart.objects.prefetch_related("items__catalog_item").all()
     serializer_class = CartSerializer
 
     def get_serializer_context(self):
         return {'user_id': self.request.user.id}
-    
+
     @action(detail=False, methods=['get'], url_path='customer-cart')
     def get_customer_cart(self, request):
         user = self.request.user
-        customer_id = request.query_params.get('customer_id')  # Get customer_id from query params
+        customer_id = request.query_params.get(
+            'customer_id')  # Get customer_id from query params
 
         if user.is_staff and not customer_id:
             return Response(
-                {"detail": "customer_id query parameter is required."}, 
+                {"detail": "customer_id query parameter is required."},
                 status=status.HTTP_400_BAD_REQUEST
             )
         elif not user.is_staff:
-            try:    
+            try:
                 customer_id = Customer.objects.only('id').get(user_id=user.id)
             except Customer.DoesNotExist:
                 raise NotFound(f"No Customer found with id {user.id}.")
 
-        cart = Cart.objects.prefetch_related("items__catalog_item").filter(customer_id=customer_id).first()
+        cart = Cart.objects.prefetch_related(
+            "items__catalog_item").filter(customer_id=customer_id).first()
         if not cart:
-            raise NotFound(f"No cart found for customer with id {customer_id}.")
+            raise NotFound(
+                f"No cart found for customer with id {customer_id}.")
 
         serializer = self.get_serializer(cart)
         return Response(serializer.data)
+
 
 class CartItemViewSet(ModelViewSet):
     http_method_names = ['get', 'post', 'patch', 'delete']
@@ -497,6 +563,7 @@ class OrderViewSet(ModelViewSet):
             'id').get(user_id=user.id)
         return Order.objects.filter(customer_id=customer_id)
 
+
 class OnlinePaymentViewSet(ModelViewSet):
     http_method_names = ['get', 'post', 'head', 'options']
 
@@ -507,3 +574,9 @@ class OnlinePaymentViewSet(ModelViewSet):
         if self.request.method == 'POST':
             return [IsAdminUser()]
         return [IsAuthenticated()]
+
+
+class FileExchangeViewSet(ModelViewSet):
+    queryset = models.FileExchange.objects.all()
+    serializer_class = serializers.FileExchangeSerializer
+    permission_classes = [CanTransferFiles]

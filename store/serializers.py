@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.validators import ValidationError
 from io import TextIOWrapper
-from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, HTMLFile, OnlinePayment, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog
+from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, HTMLFile, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog
 from .utils import create_instance_with_files
 
 User = get_user_model()
@@ -24,6 +24,22 @@ catalog_item_fields = [
     'restrict_orders_to_inventory', 'weight_per_piece_lb', 'weight_per_piece_oz',
     'exempt_from_shipping_charges', 'is_this_item_taxable', 'can_item_be_ordered',
     'details_page_per_layout', 'attributes'
+]
+
+online_proof_fields= [
+    "name",
+    "email_address",
+    "created_at",
+    "tracking_number",
+    "proof_status",
+    "recipient_name",
+    "recipient_email",
+    "project_title",
+    "project_details",
+    "proof_due_date",
+    "additional_info",
+    "files",
+    "created_at"
 ]
 
 general_fields = [
@@ -128,6 +144,7 @@ class RequestSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at']
 
 
+
 class CreateRequestSerializer(serializers.ModelSerializer):
     allowed_extensions = ['jpg', 'jpeg', 'png', 'pdf']
     files = serializers.ListField(
@@ -146,6 +163,30 @@ class CreateRequestSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         return create_instance_with_files(Request, validated_data)
+
+class OnlineProofSerializer(serializers.ModelSerializer):
+    files = FileSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = OnlineProof
+        fields = online_proof_fields
+        read_only_fields = ['created_at']
+
+
+class CreateOnlineProofSerializer(serializers.ModelSerializer):
+    files = serializers.ListField(
+        child=serializers.FileField(),
+        write_only=True,
+        required=False
+    )
+
+    class Meta:
+        model = OnlineProof
+        fields = online_proof_fields
+        read_only_fields = ['created_at']
+
+    def create(self, validated_data):
+        return create_instance_with_files(OnlineProof, validated_data)
 
 
 class FileTransferSerializer(serializers.ModelSerializer):
@@ -344,44 +385,6 @@ class HTMLFileSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'link']
 
 
-class PortalContentSerializer(serializers.ModelSerializer):
-    customer_groups = CustomerGroupSerializer(many=True, read_only=True)
-    customers = SimpleCustomerSerializer(many=True, read_only=True)
-    can_user_access = serializers.SerializerMethodField()
-    groups_count = serializers.SerializerMethodField()
-    user_count = serializers.SerializerMethodField()
-    html_file = HTMLFileSerializer()
-
-    class Meta:
-        model = PortalContent
-        fields = ['id', 'html_file',
-                  'customer_groups', 'everyone', 'can_user_access',
-                  'customers', 'groups_count', 'user_count',]
-
-    def get_can_user_access(self, obj):
-        request = self.context['request']
-        user = request.user
-        user = User.objects.get(id=request.user.id)
-
-        if user.is_staff:
-            return True
-
-        try:
-            customer = Customer.objects.get(user=user)
-            customer_id = customer.id
-            customer_ids = obj.get_accessible_customers()
-
-            return customer_id in customer_ids
-        except Customer.DoesNotExist:
-            return False
-
-    def get_groups_count(self, portal_content: PortalContent):
-        return portal_content.customer_groups.count()
-
-    def get_user_count(self, portal_content: PortalContent):
-        return portal_content.customers.count()
-
-
 class CreatePortalContentSerializer(serializers.ModelSerializer):
     class Meta:
         model = PortalContent
@@ -414,33 +417,6 @@ class CreatePortalContentSerializer(serializers.ModelSerializer):
             portal_content.customers.set(customer_data)
 
         return portal_content
-
-
-class PortalSerializer(serializers.ModelSerializer):
-    content = PortalContentSerializer(many=True)
-    can_user_access = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Portal
-        fields = ['id', 'title', 'content', 'can_user_access',
-                  'customers', 'customer_groups']
-
-    def get_can_user_access(self, obj):
-        request = self.context['request']
-        user = request.user
-        user = User.objects.get(id=request.user.id)
-
-        if user.is_staff:
-            return True
-
-        try:
-            customer = Customer.objects.get(user=user)
-            customer_id = customer.id
-            customer_ids = obj.get_accessible_customers()
-
-            return customer_id in customer_ids
-        except Customer.DoesNotExist:
-            return False
 
 
 class CreatePortalSerializer(serializers.ModelSerializer):
@@ -649,6 +625,137 @@ class SimpleCatalogSerializer(serializers.ModelSerializer):
         ]
 
 
+class ViewPortalContentCatalogSerializer(serializers.ModelSerializer):
+    catalog = CatalogSerializer()
+
+    class Meta:
+        model = PortalContentCatalog
+        fields = ['catalog', 'is_active', 'order_approval']
+
+
+class PortalContentSerializer(serializers.ModelSerializer):
+    customer_groups = CustomerGroupSerializer(many=True, read_only=True)
+    customers = SimpleCustomerSerializer(many=True, read_only=True)
+    can_user_access = serializers.SerializerMethodField()
+    groups_count = serializers.SerializerMethodField()
+    user_count = serializers.SerializerMethodField()
+    html_file = HTMLFileSerializer()
+    catalog_assignments = ViewPortalContentCatalogSerializer(many=True)
+
+    class Meta:
+        model = PortalContent
+        fields = ['id', 'html_file',
+                  'customer_groups', 'everyone', 'can_user_access',
+                  'customers', 'groups_count', 'user_count', 'catalog_assignments']
+
+    def get_can_user_access(self, obj):
+        request = self.context['request']
+        user = request.user
+        user = User.objects.get(id=request.user.id)
+
+        if user.is_staff:
+            return True
+
+        try:
+            customer = Customer.objects.get(user=user)
+            customer_id = customer.id
+            customer_ids = obj.get_accessible_customers()
+
+            return customer_id in customer_ids
+        except Customer.DoesNotExist:
+            return False
+
+    def get_groups_count(self, portal_content: PortalContent):
+        return portal_content.customer_groups.count()
+
+    def get_user_count(self, portal_content: PortalContent):
+        return portal_content.customers.count()
+
+
+class PortalSerializer(serializers.ModelSerializer):
+    content = PortalContentSerializer(many=True)
+    can_user_access = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Portal
+        fields = ['id', 'title', 'content', 'can_user_access',
+                  'customers', 'customer_groups']
+
+    def get_can_user_access(self, obj):
+        request = self.context['request']
+        user = request.user
+        user = User.objects.get(id=request.user.id)
+
+        if user.is_staff:
+            return True
+
+        try:
+            customer = Customer.objects.get(user=user)
+            customer_id = customer.id
+            customer_ids = obj.get_accessible_customers()
+
+            return customer_id in customer_ids
+        except Customer.DoesNotExist:
+            return False
+
+
+class BulkPortalContentCatalogSerializer(serializers.ListSerializer):
+    def create(self, validated_data):
+        content_id = self.context['content_id']
+        for item in validated_data:
+            item['portal_content_id'] = content_id
+
+        return PortalContentCatalog.objects.bulk_create([
+            PortalContentCatalog(**item) for item in validated_data
+        ])
+
+    def validate(self, data):
+        # Validate for duplicates in the incoming data
+        seen_pairs = set()
+        for item in data:
+            pair = (self.context['content_id'], item['catalog'].id)
+            if pair in seen_pairs:
+                raise serializers.ValidationError(
+                    f"Duplicate portal_content-catalog pair found: {pair}."
+                )
+            seen_pairs.add(pair)
+
+        # Validate for duplicates in the database
+        existing_pairs = PortalContentCatalog.objects.filter(
+            portal_content_id=self.context['content_id'],
+            catalog__in=[item['catalog'] for item in data]
+        ).values_list('portal_content_id', 'catalog_id')
+
+        for pair in existing_pairs:
+            if pair in seen_pairs:
+                raise serializers.ValidationError(
+                    f"Duplicate pair found in the database: {pair}."
+                )
+
+        return data
+
+
+class PortalContentCatalogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PortalContentCatalog
+        fields = ['catalog', 'is_active', 'order_approval']
+        list_serializer_class = BulkPortalContentCatalogSerializer
+
+    def create(self, validated_data):
+        portal_content_id = self.context['content_id']
+
+        return PortalContentCatalog.objects.create(portal_content_id=portal_content_id, **validated_data)
+
+    def validate(self, data):
+        if PortalContentCatalog.objects.filter(
+            portal_content_id=self.context['content_id'], catalog=data['catalog']
+        ).exists():
+            raise serializers.ValidationError(
+                "This portal_content-catalog combination already exists."
+            )
+        return data
+
+
 class MessageCenterSerializer(serializers.ModelSerializer):
     title_and_tracking = serializers.SerializerMethodField()
 
@@ -841,20 +948,19 @@ class CartSerializer(serializers.ModelSerializer):
         if Cart.objects.filter(customer_id=value).exists():
             raise serializers.ValidationError(
                 "The customer already has an active cart")
-    
+
         return value
-    
+
     def validate(self, attrs):
         customer = attrs.get('customer_id', None)
         user = User.objects.get(id=self.context['user_id'])
         is_staff = user.is_staff
-        
+
         if is_staff and not customer:
             raise serializers.ValidationError(
                 {"customer_id": "A valid integer field is required"})
-        
+
         return attrs
-        
 
     def get_total_price(self, cart: Cart):
         return sum(
@@ -944,7 +1050,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
-    customer = SimpleCustomerSerializer() 
+    customer = SimpleCustomerSerializer()
 
     class Meta:
         model = Order
@@ -997,11 +1103,12 @@ class CreateOrderSerializer(serializers.Serializer):
 
             return order
 
+
 class OnlinePaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = OnlinePayment
         fields = [
-            'id',  
+            'id',
             'name',
             'email',
             'payment_method',
@@ -1020,32 +1127,19 @@ class OnlinePaymentSerializer(serializers.ModelSerializer):
         return value
 
 
-class PortalContentCatalogSerializer(serializers.ModelSerializer):
+class FileExchangeSerializer(serializers.ModelSerializer):
+    created_at = serializers.DateTimeField(read_only=True)
+    file_size = serializers.IntegerField(read_only=True)
+
     class Meta:
-        model = PortalContentCatalog
-        fields = ['portal_content', 'catalog', 'is_active', 'order_approval']
-
-    def create(self, validated_data):
-        # Handle single object creation
-        return PortalContentCatalog.objects.create(**validated_data)
-
-class BulkPortalContentCatalogSerializer(serializers.ListSerializer):
-    def create(self, validated_data):
-        return PortalContentCatalog.objects.bulk_create([
-            PortalContentCatalog(**item) for item in validated_data
-        ])
-    
-    def validate(self, data):
-        # Optional: Perform any validation for bulk data
-        portal_content_catalog_pairs = [
-            (item['portal_content'], item['catalog']) for item in data
+        model = FileExchange
+        fields = [
+            "name",
+            "email_address",
+            "recipient_name",
+            "recipient_email",
+            "details",
+            "file",
+            "file_size",
+            "created_at"
         ]
-        if len(portal_content_catalog_pairs) != len(set(portal_content_catalog_pairs)):
-            raise serializers.ValidationError("Duplicate portal_content-catalog pairs found.")
-        return data
-
-class PortalContentCatalogSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PortalContentCatalog
-        fields = ['portal_content', 'catalog', 'is_active', 'order_approval']
-        list_serializer_class = BulkPortalContentCatalogSerializer
