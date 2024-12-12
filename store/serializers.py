@@ -12,6 +12,7 @@ from rest_framework.validators import ValidationError
 from io import TextIOWrapper
 from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, HTMLFile, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog
 from .utils import create_instance_with_files
+from .signals import file_transferred
 
 User = get_user_model()
 
@@ -1143,3 +1144,8 @@ class FileExchangeSerializer(serializers.ModelSerializer):
             "file_size",
             "created_at"
         ]
+
+    def save(self, **kwargs):
+        file_transfer = super().save(**kwargs)
+        file_transferred.send_robust(self.__class__, request=self.context['request'], file_transfer=file_transfer)
+        return file_transfer

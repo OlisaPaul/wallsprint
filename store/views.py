@@ -590,3 +590,6 @@ class FileExchangeViewSet(ModelViewSet):
     queryset = models.FileExchange.objects.all()
     serializer_class = serializers.FileExchangeSerializer
     permission_classes = [CanTransferFiles]
+
+    def get_serializer_context(self):
+        return {'request': self.request}
