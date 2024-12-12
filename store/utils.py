@@ -11,6 +11,7 @@ from cloudinary.uploader import upload
 from cloudinary.api import resource
 from cloudinary.exceptions import Error
 from .models import File
+from django.http import HttpRequest
 
 def get_bulk_delete_serializer_class(model):
     class BulkDeleteSerializer(serializers.Serializer):
@@ -141,3 +142,8 @@ class CustomModelViewSet(ModelViewSet):
             {"detail": f"Successfully deleted {count} object(s)."},
             status=status.HTTP_200_OK
         )
+
+def get_base_url(request: HttpRequest) -> str:
+    scheme = request.scheme
+    host = request.get_host()  
+    return f"{scheme}://{host}"

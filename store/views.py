@@ -1,4 +1,4 @@
-import csv
+import csv, os
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import render
@@ -17,7 +17,7 @@ from .serializers import AddCartItemSerializer, CartItemSerializer, CartSerializ
 from django.shortcuts import get_object_or_404
 from .permissions import FullDjangoModelPermissions, create_permission_class
 from .mixins import HandleImagesMixin
-from .utils import get_queryset_for_models_with_files
+from .utils import get_queryset_for_models_with_files, get_base_url
 from .utils import bulk_delete_objects, CustomModelViewSet
 from store import models
 from store import serializers
@@ -38,7 +38,7 @@ class CustomerCreationHandler:
         return Customer(user=self.user, **self.customer_data)
 
 
-class ContactInquiryViewSet(ListModelMixin, RetrieveModelMixin, CreateModelMixin, GenericViewSet):
+class ContactInquiryViewSet(CustomModelViewSet):
     queryset = ContactInquiry.objects.all()
     serializer_class = ContactInquirySerializer
 
@@ -67,7 +67,7 @@ class QuoteRequestViewSet(ModelViewSet, HandleImagesMixin):
         return [FullDjangoModelPermissions()]
 
 
-class RequestViewSet(GenericViewSet, DestroyModelMixin, CreateModelMixin, ListModelMixin, RetrieveModelMixin):
+class RequestViewSet(CustomModelViewSet):
     queryset = get_queryset_for_models_with_files(Request)
 
     def get_serializer_class(self):
@@ -91,7 +91,7 @@ class OnlineProofViewSet(ModelViewSet):
     
 
 
-class FileTransferViewSet(GenericViewSet, DestroyModelMixin, CreateModelMixin, ListModelMixin):
+class FileTransferViewSet(CustomModelViewSet):
     queryset = get_queryset_for_models_with_files(FileTransfer)
 
     def get_serializer_class(self):
@@ -381,6 +381,15 @@ class MessageCenterView(APIView):
             return f"{file_size_in_bytes / 1024:.2f} KB"
 
         def create_message(instance, title, attachments='n/a'):
+            files = []
+            if hasattr(instance, 'files') and instance.files.exists():
+                files = [file.path.url if file else '' for file in instance.files.all()]
+            elif hasattr(instance, 'file'):
+                base_url = get_base_url(request)
+                file = instance.file.url
+                url = f'{base_url}{file}'
+                files = [url]
+
             return {
                 'id': instance.id,
                 'Date': instance.created_at,
@@ -388,6 +397,7 @@ class MessageCenterView(APIView):
                 'From': instance.name,
                 'Email': instance.email_address,
                 'Attachments': attachments,
+                "Files": files
             }
 
         # File transfers
