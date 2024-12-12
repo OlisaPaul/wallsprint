@@ -27,7 +27,7 @@ catalog_item_fields = [
     'details_page_per_layout', 'attributes'
 ]
 
-online_proof_fields= [
+online_proof_fields = [
     "name",
     "email_address",
     "created_at",
@@ -45,7 +45,7 @@ online_proof_fields= [
 
 general_fields = [
     'id', 'name', 'email_address', 'phone_number', 'address', 'fax_number',
-    'company', 'city_state_zip', 'country', 'additional_details',
+    'company', 'city_state_zip', 'country', 'additional_details', 'portal',
     'files'
 ]
 
@@ -111,8 +111,15 @@ class CSVUploadSerializer(serializers.Serializer):
         return file_data
 
 
+class TitlePortalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Portal
+        fields = ['title']
+
+
 class QuoteRequestSerializer(serializers.ModelSerializer):
     files = FileSerializer(many=True, read_only=True)
+    portal = TitlePortalSerializer()
 
     class Meta:
         model = QuoteRequest
@@ -138,12 +145,12 @@ class CreateQuoteRequestSerializer(serializers.ModelSerializer):
 
 class RequestSerializer(serializers.ModelSerializer):
     files = FileSerializer(many=True, read_only=True)
+    portal = TitlePortalSerializer()
 
     class Meta:
         model = Request
         fields = image_fields + ['this_is_an']
         read_only_fields = ['created_at']
-
 
 
 class CreateRequestSerializer(serializers.ModelSerializer):
@@ -164,6 +171,7 @@ class CreateRequestSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         return create_instance_with_files(Request, validated_data)
+
 
 class OnlineProofSerializer(serializers.ModelSerializer):
     files = FileSerializer(many=True, read_only=True)
@@ -192,6 +200,7 @@ class CreateOnlineProofSerializer(serializers.ModelSerializer):
 
 class FileTransferSerializer(serializers.ModelSerializer):
     files = FileSerializer(many=True, read_only=True)
+    portal = TitlePortalSerializer()
 
     class Meta:
         model = FileTransfer
@@ -1147,5 +1156,6 @@ class FileExchangeSerializer(serializers.ModelSerializer):
 
     def save(self, **kwargs):
         file_transfer = super().save(**kwargs)
-        file_transferred.send_robust(self.__class__, request=self.context['request'], file_transfer=file_transfer)
+        file_transferred.send_robust(
+            self.__class__, request=self.context['request'], file_transfer=file_transfer)
         return file_transfer
