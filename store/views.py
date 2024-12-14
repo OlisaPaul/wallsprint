@@ -347,6 +347,7 @@ class MessageCenterViewSet(ModelViewSet):
 
 
 class MessageCenterView(APIView):
+    permission_classes = [create_permission_class('message_center')]
     def get(self, request):
         messages = []
 

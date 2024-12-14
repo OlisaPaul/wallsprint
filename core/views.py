@@ -1,4 +1,5 @@
 from django.db.models import Count
+from rest_framework.permissions import AllowAny,  IsAuthenticated, IsAdminUser
 from django.contrib.auth.models import Group, Permission
 from django.shortcuts import render
 from rest_framework import viewsets, permissions, status
@@ -224,6 +225,8 @@ class StaffViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
 
 
 class GenerateTokenForUser(APIView):
+    permission_classes = [IsAdminUser]
+
     def post(self, request):
         user_id = request.data.get('user_id')
         token = generate_jwt_for_user(user_id)
