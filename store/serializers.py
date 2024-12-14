@@ -55,7 +55,7 @@ image_fields = general_fields + \
 
 customer_fields = ['id', 'company', 'address', 'city_state_zip',
                    'phone_number', 'fax_number', 'pay_tax',
-                   'third_party_identifier', 'credit_balance']
+                   'third_party_identifier', 'credit_balance', 'user_id']
 
 
 def create_file_fields(num_files, allowed_extensions):

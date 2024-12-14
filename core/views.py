@@ -4,13 +4,14 @@ from django.shortcuts import render
 from rest_framework import viewsets, permissions, status
 from rest_framework import mixins
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework.decorators import action
 from .serializers import (AddUsersToGroupSerializer, GroupSerializer, PermissionSerializer, AddUserToGroupSerializer, CreateGroupSerializer,
                           UserListSerializer, UserSerializer, UpdateGroupSerializer, UserCreateSerializer, InviteStaffSerializer, UpdateStaffSerializer,
-                          UpdateCurrentUserSerializer  
-                        )
+                          UpdateCurrentUserSerializer
+                          )
 from .models import User
-from .utils import bulk_delete_objects
+from .utils import bulk_delete_objects, generate_jwt_for_user
 
 # Create your views here.
 
@@ -149,7 +150,8 @@ class PermissionViewSet(viewsets.ReadOnlyModelViewSet):
 
 class StaffViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
     http_method_names = ['post', 'put', 'get', 'delete']
-    queryset = User.objects.prefetch_related('groups__permissions').filter(is_staff=True)
+    queryset = User.objects.prefetch_related(
+        'groups__permissions').filter(is_staff=True)
     serializer_class = InviteStaffSerializer
     permission_classes = [permissions.IsAdminUser]
 
@@ -219,3 +221,11 @@ class StaffViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
         serializer = UserListSerializer(
             self.queryset, many=True, context={'group_id': group_id})
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class GenerateTokenForUser(APIView):
+    def post(self, request):
+        user_id = request.data.get('user_id')
+        token = generate_jwt_for_user(user_id)
+
+        return Response(token)

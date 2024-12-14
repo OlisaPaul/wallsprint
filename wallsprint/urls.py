@@ -22,7 +22,7 @@ from django.contrib.auth.views import LoginView
 from rest_framework.routers import DefaultRouter
 import debug_toolbar
 from core.forms import AuthenticationForm
-from core.views import GroupViewSet, PermissionViewSet, StaffViewSet
+from core.views import GroupViewSet, PermissionViewSet, StaffViewSet, GenerateTokenForUser
 
 
 router = DefaultRouter()
@@ -46,7 +46,10 @@ urlpatterns = [
     path('api/v1/auth/customer/', include('djoser.urls')),
     path('api/v1/auth/customer/', include('djoser.urls.jwt')),
     path('__debug__/', include(debug_toolbar.urls)),
+    path('api/v1/auth/generate-token-for-user/', GenerateTokenForUser.as_view(),
+         name='generate-token-for-user'),
 ] 
 
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.MEDIA_URL,
+                          document_root=settings.MEDIA_ROOT)
