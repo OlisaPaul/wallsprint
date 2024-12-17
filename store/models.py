@@ -287,8 +287,8 @@ class Portal(models.Model):
         return accessible_customer_ids
 
 
-class HTMLFile(models.Model):
-    link = models.FileField(upload_to='html_files/')
+class Page(models.Model):
+    content = models.TextField(default='')
     title = models.CharField(max_length=255)
 
     def __str__(self):
@@ -368,9 +368,11 @@ class Catalog(models.Model):
 
 
 class PortalContent(models.Model):
+    title = models.CharField(max_length=255)
+    content=models.TextField(null=True)
     portal = models.ForeignKey(
         Portal, on_delete=models.CASCADE, related_name='content')
-    html_file = models.ForeignKey(HTMLFile, on_delete=models.CASCADE)
+    page = models.ForeignKey(Page, on_delete=models.CASCADE, null=True)
     customer_groups = models.ManyToManyField(
         CustomerGroup, blank=True, related_name='accessible_content')
     customers = models.ManyToManyField(
@@ -395,7 +397,7 @@ class PortalContent(models.Model):
     )
 
     def __str__(self):
-        return self.html_file.title
+        return self.page.title
 
     def clean(self):
         if self.everyone and (self.customer_groups or self.customers):

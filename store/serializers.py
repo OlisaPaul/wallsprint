@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.validators import ValidationError
 from io import TextIOWrapper
-from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, HTMLFile, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog
+from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog
 from .utils import create_instance_with_files
 from .signals import file_transferred
 
@@ -389,34 +389,39 @@ class BulkCreateCustomerSerializer(serializers.ModelSerializer):
         return value
 
 
-class HTMLFileSerializer(serializers.ModelSerializer):
+class PageSerializer(serializers.ModelSerializer):
     class Meta:
-        model = HTMLFile
-        fields = ['id', 'title', 'link']
+        model = Page
+        fields = ['id', 'title', 'content']
 
 
 class CreatePortalContentSerializer(serializers.ModelSerializer):
     class Meta:
         model = PortalContent
-        fields = ['id', 'html_file', 'location',
+        fields = ['id', 'title', 'location',
                   'page_redirect', 'include_in_site_map', 'display_in_site_navigation',
-                  'customer_groups', 'customers', 'everyone'
+                  'customer_groups', 'customers', 'everyone', 'content'
                   ]
-
-    def create(self, validated_data):
-        portal_id = self.context['portal_id']
-        customer_group_data = []
-        customer_data = []
-        everyone = validated_data.get('everyone')
-
-        customer_group_data = validated_data.pop('customer_groups', None)
-        customer_data = validated_data.pop('customers', None)
-
+    
+    def validate(self, data):
+        customer_group_data = data.get('customer_groups', None)
+        customer_data = data.get('customers', None)
+        everyone = data.get('everyone', None)
         is_customer_or_customer_data = customer_group_data or customer_data
 
         if is_customer_or_customer_data and everyone:
             raise ValidationError(
                 "You cannot select 'everyone' and also specify 'customer_groups' or 'customers'. Choose one option only.")
+        
+        return data
+
+    @transaction.atomic()
+    def create(self, validated_data):
+        portal_id = self.context['portal_id']
+        customer_group_data = []
+        customer_data = []
+        customer_group_data = validated_data.pop('customer_groups', None)
+        customer_data = validated_data.pop('customers', None)
 
         portal_content = PortalContent.objects.create(
             portal_id=portal_id, **validated_data)
@@ -534,7 +539,7 @@ class CreatePortalSerializer(serializers.ModelSerializer):
                 portal_content = PortalContent.objects.create(
                     portal=portal,
                     everyone=source_content.everyone,
-                    html_file=source_content.html_file,
+                    page=source_content.page,
                 )
 
                 portal_content.customer_groups.set(
@@ -649,14 +654,14 @@ class PortalContentSerializer(serializers.ModelSerializer):
     can_user_access = serializers.SerializerMethodField()
     groups_count = serializers.SerializerMethodField()
     user_count = serializers.SerializerMethodField()
-    html_file = HTMLFileSerializer()
+    # page = PageSerializer()
     catalog_assignments = ViewPortalContentCatalogSerializer(many=True)
 
     class Meta:
         model = PortalContent
-        fields = ['id', 'html_file',
+        fields = ['id', 'title',
                   'customer_groups', 'everyone', 'can_user_access',
-                  'customers', 'groups_count', 'user_count', 'catalog_assignments']
+                  'customers', 'groups_count', 'user_count', 'catalog_assignments', 'content']
 
     def get_can_user_access(self, obj):
         request = self.context['request']

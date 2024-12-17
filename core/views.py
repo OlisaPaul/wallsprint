@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 from rest_framework.decorators import action
 from .serializers import (AddUsersToGroupSerializer, GroupSerializer, PermissionSerializer, AddUserToGroupSerializer, CreateGroupSerializer,
                           UserListSerializer, UserSerializer, UpdateGroupSerializer, UserCreateSerializer, InviteStaffSerializer, UpdateStaffSerializer,
-                          UpdateCurrentUserSerializer
+                          UpdateCurrentUserSerializer, AcceptInvitationSerializer
                           )
 from .models import User
 from .utils import bulk_delete_objects, generate_jwt_for_user
@@ -156,11 +156,16 @@ class StaffViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
     serializer_class = InviteStaffSerializer
     permission_classes = [permissions.IsAdminUser]
 
+    def get_serializer_context(self):
+        return {'request': self.request}
+
     def get_serializer_class(self):
         if self.action == 'invite_user':
             return InviteStaffSerializer
         elif self.action == 'me':
             return UpdateCurrentUserSerializer
+        elif self.action == 'accept_invitation':
+            return AcceptInvitationSerializer
         elif self.request.method == 'POST':
             return UserCreateSerializer
         elif self.request.method == 'PUT':
@@ -182,11 +187,20 @@ class StaffViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response(serializer.data)
+        
+    @action(detail=False, methods=["PUT",], url_path='accept-invitation')
+    def accept_invitation(self, request):
+        user = User.objects.get(id=request.user.id)
+        serializer = AcceptInvitationSerializer(user, data=request.data, context={'request': self.request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+    
 
     @action(detail=False, methods=['post'], url_path='invite-user')
     def invite_user(self, request):
         """Endpoint to send an invitation and assign groups to the user."""
-        serializer = InviteStaffSerializer(data=request.data)
+        serializer = InviteStaffSerializer(data=request.data, context={'request': self.request})
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 

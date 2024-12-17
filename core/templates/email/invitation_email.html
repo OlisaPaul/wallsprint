@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Welcome to Walls Printing Team!</title>
+    <title>Invitation to Join Springboard</title>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -51,38 +51,46 @@
   <body>
     <div class="container">
       <div class="header">
-        <h2>Welcome to Walls Printing Team!</h2>
+        <h2>You've Been Invited to Join Springboard!</h2>
       </div>
       <div class="content">
-        <p>Dear {{ user.name }},</p>
-
-        <p>You've been invited to join the Walls Printing team!</p>
-
         <p>
-          To get started, please click on the following link to create your
-          account and set your password:
+          Dear User,
         </p>
         <p>
-          <a href="{{ invitation_link }}" class="button">Create Your Account</a>
+          You have been invited by <strong>{{ inviter_name }}</strong>
+          (<a href="mailto:{{ inviter_email }}">{{ inviter_email }}</a>)
+          to join the Springboard.
         </p>
-
-        <p>Your temporary credentials are:</p>
-        <ul>
-          <li><strong>Email:</strong> {{ user.email }}</li>
-          <li><strong>Password:</strong> {{ temporary_password }}</li>
-        </ul>
-
+        <p>To get started, please follow these simple steps:</p>
+        <ol>
+          <li>
+            <strong>Accept Your Invitation:</strong>
+            <a
+              href="{{ invitation_link }}"
+              >Click here</a
+            >
+            to accept this invitation, or copy and paste the following URL into
+            your browser:
+            <br />
+            <a href="{{ invitation_link }}">{{ invitation_link }}</a>
+          </li>
+          <li>
+            <strong>Complete Your Setup:</strong> After accepting the
+            invitation, you’ll be guided to create a secure password and finish
+            setting up your profile.
+          </li>
+        </ol>
         <p>
-          <strong>Important:</strong> Please change your password after logging
-          in for security purposes.
+          <strong>Note:</strong> This unique link will expire in 14 days, so be
+          sure to complete the setup before then.
         </p>
-
-        <p>We look forward to having you on the team!</p>
-
         <p>
-          Best regards,<br />
-          Walls Printing Team
+          If you have any questions or need help, please reach out to
+          <strong>{{ inviter_name }}</strong> at
+          <a href="mailto:{{ inviter_email }}">{{ inviter_email }}</a>.
         </p>
+        <p>Best regards,<br />Springboard Team</p>
       </div>
     </div>
   </body>

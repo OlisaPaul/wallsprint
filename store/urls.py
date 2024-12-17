@@ -18,7 +18,7 @@ router.register('catalogs', views.CatalogViewSet, basename='catalogs'),
 router.register("orders", views.OrderViewSet, basename='orders')
 # router.register(r'catalog-items', views.CatalogItemViewSet, basename='catalog-item')
 router.register('portals', views.PortalViewSet, basename='portals'),
-router.register('html-files', views.HTMLFileViewSet, basename='html-files'),
+router.register('pages', views.HTMLFileViewSet, basename='pages'),
 router.register('customers', views.CustomerViewSet, basename='customers'),
 router.register('customer-groups', views.CustomerGroupViewSet,
                 basename='customer-groups'),

@@ -16,6 +16,7 @@ from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 from .signals import group_created
 from .models import User
+from .utils import generate_jwt_for_user
 
 load_dotenv()
 
@@ -58,8 +59,8 @@ class UpdateCurrentUserSerializer(BaseUserSerializer):
         fields = ['id', 'email', 'name', 'username', 'is_active', 'status',
                   'is_staff', 'is_superuser', 'groups',  "groups_count", 'permissions']
         read_only_fields = (settings.LOGIN_FIELD, 'email', 'is_active', 'status',
-                        'is_staff', 'is_superuser', 'groups', "groups_count", 'permissions')
- 
+                            'is_staff', 'is_superuser', 'groups', "groups_count", 'permissions')
+
     def get_groups_count(self, obj):
         return obj.groups.count()
 
@@ -77,6 +78,31 @@ class UpdateCurrentUserSerializer(BaseUserSerializer):
 
         return [perm.name for perm in permissions]
 
+
+class AcceptInvitationSerializer(BaseUserSerializer):
+    password = serializers.CharField(write_only=True)
+
+    class Meta(BaseUserSerializer.Meta):
+        fields = ['name', 'password']
+    
+    def validate(self, attrs):
+        request=self.context['request']
+        user = User.objects.get(pk=request.user.id)
+
+        if user.username:
+            raise serializers.ValidationError('Invitation already accepted')
+
+    @transaction.atomic()
+    def update(self, instance, validated_data):
+        password = validated_data.get('password')
+        user = super().update(instance, validated_data)
+        
+        if password:
+            user.set_password(password)
+            user.username = user.email
+            user.save()
+
+        return user
 
 
 class UserSerializer(BaseUserSerializer):
@@ -169,7 +195,8 @@ class UserCreateSerializer(BaseUserCreateSerializer):
 
     @transaction.atomic()
     def create(self, validated_data):
-        validated_data = {**validated_data, 'is_staff': True, 'status': 'active'}
+        validated_data = {**validated_data,
+                          'is_staff': True, 'status': 'active'}
         user = super().create(validated_data)
         subject = "Welcome to Walls Printing!"
         template = "email/welcome_email.html"
@@ -193,7 +220,7 @@ class UserCreateSerializer(BaseUserCreateSerializer):
 
 class InviteStaffSerializer(BaseUserCreateSerializer):
     class Meta(BaseUserCreateSerializer.Meta):
-        fields = ['email', 'groups', 'name']
+        fields = ['email']
 
     def validate(self, attrs):
         temporary_password = generate_random_password()
@@ -204,15 +231,17 @@ class InviteStaffSerializer(BaseUserCreateSerializer):
 
     @transaction.atomic()
     def create(self, validated_data):
-        temporary_password = self.password
-
+        request = self.context['request']
+        inviter = User.objects.get(pk=request.user.id)
         validated_data = {**validated_data, 'is_staff': True}
         user = super().create(validated_data)
+        token = generate_jwt_for_user(user.id)
+
         subject = "Invitation to Join the Walls Printing Team"
         context = {
-            "user": user,
-            "temporary_password": temporary_password,
-            "invitation_link": os.getenv("STAFF_LOGIN_URL")
+            "inviter_email": inviter.email,
+            "inviter_name": inviter.name,
+            "invitation_link": f'{os.getenv("CLIENT_INVITATION_URL")}{token['access']}'
         }
         template = 'email/invitation_email.html'
 
@@ -248,12 +277,11 @@ class UpdateStaffSerializer(ModelSerializer):
         if validated_data['status']:
             is_active = not (validated_data['status'] == 'inactive')
             validated_data = {**validated_data, 'is_active': is_active}
-        
 
         user = super().update(instance, validated_data)
 
         return user
-    
+
 
 class CreateGroupSerializer(ModelSerializer):
     user_ids = serializers.PrimaryKeyRelatedField(

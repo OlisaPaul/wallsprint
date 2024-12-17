@@ -1,4 +1,5 @@
-import csv, os
+import csv
+import os
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import render
@@ -80,6 +81,7 @@ class RequestViewSet(CustomModelViewSet):
             return [AllowAny()]
         return [FullDjangoModelPermissions()]
 
+
 class OnlineProofViewSet(ModelViewSet):
     queryset = get_queryset_for_models_with_files(models.OnlineProof)
     permission_classes = [create_permission_class('store.online_proofing')]
@@ -88,7 +90,6 @@ class OnlineProofViewSet(ModelViewSet):
         if self.request.method == "POST":
             return serializers.CreateOnlineProofSerializer
         return serializers.OnlineProofSerializer
-    
 
 
 class FileTransferViewSet(CustomModelViewSet):
@@ -231,21 +232,26 @@ class CustomerGroupViewSet(CustomModelViewSet):
 
 
 class PortalViewSet(CustomModelViewSet):
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAuthenticated()]
+        return [create_permission_class('portals')()]
+    
     queryset = Portal.objects.prefetch_related(
-        'content__customer_groups', 'content__customers', 'content__html_file', 'content__catalog_assignments').all()
+        'content__customer_groups', 'content__customers', 'content__page', 'content__catalog_assignments').all()
 
     def get_queryset(self):
         user = self.request.user
         if user.is_staff:
             return Portal.objects.prefetch_related(
                 'content__customer_groups', 'content__customers',
-                'content__html_file').all()
+                'content__page').all()
 
         try:
             customer = Customer.objects.get(user=user)
             return Portal.objects.prefetch_related(
                 'content__customer_groups', 'content__customers',
-                'content__html_file').filter(
+                'content__page').filter(
                 Q(customers=customer) | Q(customer_groups__customers=customer)
             ).distinct()
         except Customer.DoesNotExist:
@@ -287,16 +293,22 @@ class PortalViewSet(CustomModelViewSet):
 
 
 class PortalContentViewSet(CustomModelViewSet):
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAuthenticated()]
+        return [create_permission_class('portals')()]
+        
+     
     def get_queryset(self):
-        return models.PortalContent.objects.filter(portal_id=self.kwargs['portal_pk']).select_related('html_file', 'portal').prefetch_related('customers', 'customer_groups')
+        return models.PortalContent.objects.filter(portal_id=self.kwargs['portal_pk']).select_related('page', 'portal').prefetch_related('customers', 'customer_groups')
 
     def get_serializer_context(self):
         return {'portal_id': self.kwargs['portal_pk'], 'request': self.request}
 
     def get_serializer_class(self):
-        if self.request.method == 'POST':
-            return serializers.CreatePortalContentSerializer
-        return serializers.PortalContentSerializer
+        if self.request.method == 'GET':
+            return serializers.PortalContentSerializer
+        return serializers.CreatePortalContentSerializer
 
 
 class PortalContentCatalogViewSet(ModelViewSet):
@@ -325,8 +337,8 @@ class PortalContentCatalogViewSet(ModelViewSet):
 
 
 class HTMLFileViewSet(CustomModelViewSet):
-    queryset = models.HTMLFile.objects.all()
-    serializer_class = serializers.HTMLFileSerializer
+    queryset = models.Page.objects.all()
+    serializer_class = serializers.PageSerializer
 
 
 class CatalogViewSet(CustomModelViewSet):
@@ -348,6 +360,7 @@ class MessageCenterViewSet(ModelViewSet):
 
 class MessageCenterView(APIView):
     permission_classes = [create_permission_class('message_center')]
+
     def get(self, request):
         messages = []
 
@@ -384,7 +397,8 @@ class MessageCenterView(APIView):
         def create_message(instance, title, attachments='n/a'):
             files = []
             if hasattr(instance, 'files') and instance.files.exists():
-                files = [file.path.url if file else '' for file in instance.files.all()]
+                files = [
+                    file.path.url if file else '' for file in instance.files.all()]
             elif hasattr(instance, 'file'):
                 base_url = get_base_url(request)
                 file = instance.file.url
@@ -415,7 +429,7 @@ class MessageCenterView(APIView):
                 'File Transfer',
                 calculate_file_size(online_proof)
             ))
-        
+
         for online_proof in online_proofs:
             messages.append(create_message(
                 online_proof,
