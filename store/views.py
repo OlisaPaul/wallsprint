@@ -209,8 +209,14 @@ class CustomerViewSet(CustomModelViewSet):
 
     @action(detail=False, methods=["GET", "PUT"], permission_classes=[IsAuthenticated])
     def me(self, request):
-        customer = Customer.objects.get(
-            user_id=request.user.id)
+        try:
+            customer = Customer.objects.get(
+                user_id=request.user.id)
+        except Customer.DoesNotExist:
+            return Response(
+                {"detail": "Customer profile not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         if request.method == "GET":
             serializer = CustomerSerializer(customer)
             return Response(serializer.data)
@@ -362,6 +368,7 @@ class MessageCenterView(APIView):
     permission_classes = [create_permission_class('message_center')]
 
     def get(self, request):
+        base_url = get_base_url(request)
         messages = []
 
         start_date = request.query_params.get('start_date')
@@ -384,6 +391,8 @@ class MessageCenterView(APIView):
         online_proofs = models.OnlineProof.objects.filter(date_filter)
         file_transfers = models.FileExchange.objects.filter(date_filter)
 
+        route = '/contact-us/' if general_contacts else '/requests/'
+
         def calculate_file_size(instance):
             file_size_in_bytes = sum(
                 [file.file_size for file in instance.files.all() if file.file_size]) if not isinstance(instance, models.FileExchange) else instance.file_size
@@ -400,7 +409,6 @@ class MessageCenterView(APIView):
                 files = [
                     file.path.url if file else '' for file in instance.files.all()]
             elif hasattr(instance, 'file'):
-                base_url = get_base_url(request)
                 file = instance.file.url
                 url = f'{base_url}{file}'
                 files = [url]
@@ -412,6 +420,7 @@ class MessageCenterView(APIView):
                 'From': instance.name,
                 'Email': instance.email_address,
                 'Attachments': attachments,
+                'Path': f'{base_url}/api/v1/store{route}{instance.id}',
                 "Files": files
             }
 
@@ -461,6 +470,7 @@ class OrderView(APIView):
     permission_classes = [create_permission_class('message_center')]
 
     def get(self, request):
+        base_url = get_base_url(request)
         messages = []
 
         start_date = request.query_params.get('start_date')
@@ -480,6 +490,7 @@ class OrderView(APIView):
             Request).filter(date_filter)
         
 
+
         def calculate_file_size(instance):
             file_size_in_bytes = sum(
                 [file.file_size for file in instance.files.all() if file.file_size]) if not isinstance(instance, models.FileExchange) else instance.file_size
@@ -490,13 +501,12 @@ class OrderView(APIView):
                 return f"{file_size_in_bytes / (1024 * 1024):.2f} MB"
             return f"{file_size_in_bytes / 1024:.2f} KB"
 
-        def create_message(instance, title, attachments='n/a'):
+        def create_message(instance, title, attachments='n/a', route=''):
             files = []
             if hasattr(instance, 'files') and instance.files.exists():
                 files = [
                     file.path.url if file else '' for file in instance.files.all()]
             elif hasattr(instance, 'file'):
-                base_url = get_base_url(request)
                 file = instance.file.url
                 url = f'{base_url}{file}'
                 files = [url]
@@ -508,6 +518,7 @@ class OrderView(APIView):
                 'From': instance.name,
                 'Email': instance.email_address,
                 'Attachments': attachments,
+                'Path': f'{base_url}/api/v1/store{route}{instance.id}',
                 "Files": files
             }
 
