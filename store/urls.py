@@ -46,8 +46,12 @@ message_centre_url = [
     path('message-center/', views.MessageCenterView.as_view(), name='message-center'),
 ]
 
+recent_order_url = [
+    path('recent-orders/', views.OrderView.as_view(), name='recent-orders'),
+]
+
 
 # URLConf
 urlpatterns = router.urls + portals_router.urls + \
     catalogs_router.urls + message_centre_url + carts_router.urls +\
-    contents_router.urls
+    contents_router.urls + recent_order_url

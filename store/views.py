@@ -415,36 +415,29 @@ class MessageCenterView(APIView):
                 "Files": files
             }
 
-        # File transfers
-        for online_proof in online_file_transfers:
-            messages.append(create_message(
-                online_proof,
-                'Online File Transfer',
-                calculate_file_size(online_proof)
-            ))
 
-        for online_proof in file_transfers:
-            messages.append(create_message(
-                online_proof,
-                'File Transfer',
-                calculate_file_size(online_proof)
-            ))
+        # for online_proof in file_transfers:
+        #     messages.append(create_message(
+        #         online_proof,
+        #         'File Transfer',
+        #         calculate_file_size(online_proof)
+        #     ))
 
-        for online_proof in online_proofs:
-            messages.append(create_message(
-                online_proof,
-                'Online Proof',
-                calculate_file_size(online_proof)
-            ))
+        # for online_proof in online_proofs:
+        #     messages.append(create_message(
+        #         online_proof,
+        #         'Online Proof',
+        #         calculate_file_size(online_proof)
+        #     ))
 
         # Online orders
         for online_order in online_orders:
-            title = 'Online Order' if online_order.this_is_an == 'Order Request' else 'Estimate Request'
-            messages.append(create_message(
-                online_order,
-                title,
-                calculate_file_size(online_order)
-            ))
+            if online_order.this_is_an == 'Estimate Request':
+                messages.append(create_message(
+                    online_order,
+                    'Estimate Request',
+                    calculate_file_size(online_order)
+                ))
 
         # General contacts
         for general_contact in general_contacts:
@@ -453,11 +446,86 @@ class MessageCenterView(APIView):
                 'General Contact',
             ))
 
-        for online_payment in online_payments:
+        # for online_payment in online_payments:
+        #     messages.append(create_message(
+        #         online_payment,
+        #         'Online Payment',
+        #     ))
+
+        messages.sort(key=lambda x: x['Date'], reverse=True)
+
+        return Response(messages)
+
+
+class OrderView(APIView):
+    permission_classes = [create_permission_class('message_center')]
+
+    def get(self, request):
+        messages = []
+
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+
+        date_filter = Q()
+        if start_date:
+            start_date = parse_datetime(start_date)
+            date_filter &= Q(created_at__gte=start_date)
+        if end_date:
+            end_date = parse_datetime(end_date)
+            date_filter &= Q(created_at__lte=end_date)
+
+        online_file_transfers = get_queryset_for_models_with_files(
+            FileTransfer).filter(date_filter)
+        online_orders = get_queryset_for_models_with_files(
+            Request).filter(date_filter)
+        
+
+        def calculate_file_size(instance):
+            file_size_in_bytes = sum(
+                [file.file_size for file in instance.files.all() if file.file_size]) if not isinstance(instance, models.FileExchange) else instance.file_size
+
+            if not file_size_in_bytes:
+                return '0KB'
+            if file_size_in_bytes >= 1024 * 1024:
+                return f"{file_size_in_bytes / (1024 * 1024):.2f} MB"
+            return f"{file_size_in_bytes / 1024:.2f} KB"
+
+        def create_message(instance, title, attachments='n/a'):
+            files = []
+            if hasattr(instance, 'files') and instance.files.exists():
+                files = [
+                    file.path.url if file else '' for file in instance.files.all()]
+            elif hasattr(instance, 'file'):
+                base_url = get_base_url(request)
+                file = instance.file.url
+                url = f'{base_url}{file}'
+                files = [url]
+
+            return {
+                'id': instance.id,
+                'Date': instance.created_at,
+                'title_and_tracking': title,
+                'From': instance.name,
+                'Email': instance.email_address,
+                'Attachments': attachments,
+                "Files": files
+            }
+
+        # File transfers
+        for online_proof in online_file_transfers:
             messages.append(create_message(
-                online_payment,
-                'Online Payment',
+                online_proof,
+                'Online File Transfer',
+                calculate_file_size(online_proof)
             ))
+
+        for online_order in online_orders:
+            if online_order.this_is_an == 'Order Request':
+                messages.append(create_message(
+                    online_order,
+                    'Order Request',
+                    calculate_file_size(online_order)
+                ))
 
         messages.sort(key=lambda x: x['Date'], reverse=True)
 
