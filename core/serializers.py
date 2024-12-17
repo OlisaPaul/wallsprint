@@ -235,13 +235,14 @@ class InviteStaffSerializer(BaseUserCreateSerializer):
         inviter = User.objects.get(pk=request.user.id)
         validated_data = {**validated_data, 'is_staff': True}
         user = super().create(validated_data)
-        token = generate_jwt_for_user(user.id)
+        token_dict = generate_jwt_for_user(user.id)
+        token = token_dict['access']
 
         subject = "Invitation to Join the Walls Printing Team"
         context = {
             "inviter_email": inviter.email,
             "inviter_name": inviter.name,
-            "invitation_link": f'{os.getenv("CLIENT_INVITATION_URL")}{token['access']}'
+            "invitation_link": f'{os.getenv("CLIENT_INVITATION_URL")}{token}'
         }
         template = 'email/invitation_email.html'
 
