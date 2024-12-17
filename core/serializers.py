@@ -91,6 +91,8 @@ class AcceptInvitationSerializer(BaseUserSerializer):
 
         if user.username:
             raise serializers.ValidationError('Invitation already accepted')
+        
+        return attrs
 
     @transaction.atomic()
     def update(self, instance, validated_data):
