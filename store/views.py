@@ -391,8 +391,6 @@ class MessageCenterView(APIView):
         online_proofs = models.OnlineProof.objects.filter(date_filter)
         file_transfers = models.FileExchange.objects.filter(date_filter)
 
-        route = '/contact-us/' if general_contacts else '/requests/'
-
         def calculate_file_size(instance):
             file_size_in_bytes = sum(
                 [file.file_size for file in instance.files.all() if file.file_size]) if not isinstance(instance, models.FileExchange) else instance.file_size
@@ -403,7 +401,7 @@ class MessageCenterView(APIView):
                 return f"{file_size_in_bytes / (1024 * 1024):.2f} MB"
             return f"{file_size_in_bytes / 1024:.2f} KB"
 
-        def create_message(instance, title, attachments='n/a'):
+        def create_message(instance, title, attachments='n/a', route=''):
             files = []
             if hasattr(instance, 'files') and instance.files.exists():
                 files = [
@@ -445,7 +443,8 @@ class MessageCenterView(APIView):
                 messages.append(create_message(
                     online_order,
                     'Estimate Request',
-                    calculate_file_size(online_order)
+                    calculate_file_size(online_order),
+                    route='/requests/'
                 ))
 
         # General contacts
@@ -453,6 +452,7 @@ class MessageCenterView(APIView):
             messages.append(create_message(
                 general_contact,
                 'General Contact',
+                route='/contact-us/'
             ))
 
         # for online_payment in online_payments:
@@ -527,7 +527,8 @@ class OrderView(APIView):
             messages.append(create_message(
                 online_proof,
                 'Online File Transfer',
-                calculate_file_size(online_proof)
+                calculate_file_size(online_proof),
+                route='/file-transfers/'
             ))
 
         for online_order in online_orders:
@@ -535,7 +536,8 @@ class OrderView(APIView):
                 messages.append(create_message(
                     online_order,
                     'Order Request',
-                    calculate_file_size(online_order)
+                    calculate_file_size(online_order),
+                    route='/requests/'
                 ))
 
         messages.sort(key=lambda x: x['Date'], reverse=True)
