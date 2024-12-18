@@ -222,7 +222,7 @@ class UserCreateSerializer(BaseUserCreateSerializer):
 
 class InviteStaffSerializer(BaseUserCreateSerializer):
     class Meta(BaseUserCreateSerializer.Meta):
-        fields = ['email']
+        fields = ['email', 'groups']
 
     def validate(self, attrs):
         temporary_password = generate_random_password()
