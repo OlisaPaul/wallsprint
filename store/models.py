@@ -222,8 +222,21 @@ class FileTransfer(CommonFields):
     file_type = models.CharField(
         max_length=50,
         choices=[
-            ('PC', 'PC'),
-            ('MACINTOSH', 'MACINTOSH'),
+            ('Multiple (compressed)', 'MULTIPLE (COMPRESSED)'),
+            ('Acrobat (pdf)', 'ACROBAT (PDF)'),
+            ('CorelDraw', 'CORELDRAW'),
+            ('Excel', 'EXCEL'),
+            ('Fonts', 'FONTS'),
+            ('Freehand', 'FREEHAND'),
+            ('Illustrator', 'ILLUSTRATOR'),
+            ('InDesign', 'INDESIGN'),
+            ('Pagemaker', 'PAGEMAKER'),
+            ('Photoshop', 'PHOTOSHOP'),
+            ('PowerPoint', 'POWERPOINT'),
+            ('Publisher', 'PUBLISHER'),
+            ('Word', 'WORD'),
+            ('QuartXPress', 'QUARKXPRESS'),
+            ('Other', 'OTHER'),
         ],
     )
     files = GenericRelation(
@@ -231,21 +244,8 @@ class FileTransfer(CommonFields):
     application_type = models.CharField(
         max_length=255,
         choices=[
-            ('MULTIPLE', 'MULTIPLE (COMPRESSED)'),
-            ('ACROBAT', 'ACROBAT (PDF)'),
-            ('CORELDRAW', 'CORELDRAW'),
-            ('EXCEL', 'EXCEL'),
-            ('FONTS', 'FONTS'),
-            ('FREEHAND', 'FREEHAND'),
-            ('ILLUSTRATOR', 'ILLUSTRATOR'),
-            ('INDESIGN', 'INDESIGN'),
-            ('PAGEMAKER', 'PAGEMAKER'),
-            ('PHOTOSHOP', 'PHOTOSHOP'),
-            ('POWERPOINT', 'POWERPOINT'),
-            ('PUBLISHER', 'PUBLISHER'),
-            ('WORD', 'WORD'),
-            ('QUARKXPRESS', 'QUARKXPRESS'),
-            ('OTHER', 'OTHER'),
+            ('PC', 'PC'),
+            ('Macintosh', 'MACINTOSH'),
         ],
     )
     other_application_type = models.CharField(
