@@ -28,7 +28,7 @@ class RoleBasedAccessMiddleware(MiddlewareMixin):
 
         if 'auth' in path:
             user = request.user
-
+            
             if not request.user.is_authenticated:
                 if not any(substring in path for substring in ['create', 'reset_password']):
                     return JsonResponse({"detail": "Authentication credentials were not provided."}, status=401)
@@ -38,7 +38,7 @@ class RoleBasedAccessMiddleware(MiddlewareMixin):
                         data = request.POST
                     else:
                         decoded_body = request.body.decode('utf-8').replace('\r\n', '')
-                        print(f"Decoded Body: {decoded_body}")  # Check the cleaned-up body
+                        print(f"Decoded Body: {decoded_body}") 
 
                         data = json.loads(decoded_body)
                     email = data.get('email')
@@ -47,6 +47,7 @@ class RoleBasedAccessMiddleware(MiddlewareMixin):
                         return JsonResponse({"detail": "email is required"}, status=400)
                     
                     user = User.objects.get(email=email)
+                    print(user.is_staff)
                 else:
                     return None
                    
@@ -56,7 +57,7 @@ class RoleBasedAccessMiddleware(MiddlewareMixin):
                     {"detail": "Only customers are allowed to access this endpoint."},
                     status=403
                 )
-            elif not user.is_staff:
+            elif not 'customer' in path and not user.is_staff:
                 return JsonResponse(
                     {"detail": "Only staff are allowed to access this endpoint."},
                     status=403
