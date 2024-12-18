@@ -1,3 +1,4 @@
+import os
 from django.db.models import Count
 from rest_framework.permissions import AllowAny,  IsAuthenticated, IsAdminUser
 from django.contrib.auth.models import Group, Permission
@@ -7,13 +8,15 @@ from rest_framework import mixins
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.decorators import action
+from dotenv import load_dotenv
 from .serializers import (AddUsersToGroupSerializer, GroupSerializer, PermissionSerializer, AddUserToGroupSerializer, CreateGroupSerializer,
                           UserListSerializer, UserSerializer, UpdateGroupSerializer, UserCreateSerializer, InviteStaffSerializer, UpdateStaffSerializer,
-                          UpdateCurrentUserSerializer, AcceptInvitationSerializer
+                          UpdateCurrentUserSerializer, AcceptInvitationSerializer, ResendStaffInvitationSerializer, send_email
                           )
 from .models import User
 from .utils import bulk_delete_objects, generate_jwt_for_user
 
+load_dotenv()
 # Create your views here.
 
 
@@ -162,6 +165,8 @@ class StaffViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
     def get_serializer_class(self):
         if self.action == 'invite_user':
             return InviteStaffSerializer
+        if self.action == 'resend_invitation':
+            return ResendStaffInvitationSerializer
         elif self.action == 'me':
             return UpdateCurrentUserSerializer
         elif self.action == 'accept_invitation':
@@ -206,6 +211,34 @@ class StaffViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
 
         return Response(
             {"message": f"Invitation sent to {user.email}."},
+            status=status.HTTP_201_CREATED
+        )
+    
+    @action(detail=False, methods=['post'], url_path='resend-invitation')
+    def resend_invitation(self, request):
+        """Endpoint to resend invitation to a user."""
+        context = {'request': self.request, 'resend': True}
+        serializer = ResendStaffInvitationSerializer(data=request.data, context=context)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data.get('email')
+        inviter = User.objects.get(pk=self.request.user.id)
+        user = User.objects.get(email=email)
+        token_dict = generate_jwt_for_user(user.id)
+        token = token_dict['access']
+
+        subject = "Invitation to Join the Walls Printing Team"
+        context = {
+            "inviter_email": inviter.email,
+            "inviter_name": inviter.name,
+            "invitation_link": f'{os.getenv("CLIENT_INVITATION_URL")}{token}'
+        }
+        template = 'email/invitation_email.html'
+
+        send_email(user=user, context=context,
+                   subject=subject, template=template)
+
+        return Response(
+            {"message": f"Invitation sent to {email}."},
             status=status.HTTP_201_CREATED
         )
 

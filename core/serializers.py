@@ -257,6 +257,20 @@ class InviteStaffSerializer(BaseUserCreateSerializer):
         return user
 
 
+class ResendStaffInvitationSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        try:
+            user = User.objects.get(email=value)
+            if user.username:
+                raise serializers.ValidationError("Invitation already accepted")
+        except User.DoesNotExist:
+            raise serializers.ValidationError("No existing user with email")
+        
+        return value
+
+
 class UserListSerializer(serializers.ModelSerializer):
     is_in_group = serializers.SerializerMethodField()
 
