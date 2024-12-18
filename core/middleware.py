@@ -26,7 +26,7 @@ class RoleBasedAccessMiddleware(MiddlewareMixin):
             except AuthenticationFailed as e:
                 print(f"Authentication failed: {e}")
 
-        if 'auth' in path:
+        if 'auth' in path and not 'confirm' in path:
             user = request.user
             
             if not request.user.is_authenticated:
@@ -47,7 +47,6 @@ class RoleBasedAccessMiddleware(MiddlewareMixin):
                         return JsonResponse({"detail": "email is required"}, status=400)
                     
                     user = User.objects.get(email=email)
-                    print(user.is_staff)
                 else:
                     return None
                    
