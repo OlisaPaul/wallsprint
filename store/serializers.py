@@ -225,6 +225,45 @@ class CreateFileTransferSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         return create_instance_with_files(FileTransfer, validated_data)
 
+def validate_status_transition(instance, new_status):
+    # Define the allowed status progression
+    allowed_transitions = {
+        'New': ['Pending'],
+        'Pending': ['New', 'Processing'],
+        'Processing': ['New', 'Pending', 'Completed'],
+        'Completed': ['New', 'Pending', 'Processing']
+    }
+
+    # Get the current instance's status
+    if instance:
+        current_status = instance.status
+
+        # Check if the transition is valid
+        if current_status in allowed_transitions and new_status not in allowed_transitions[current_status]:
+            raise serializers.ValidationError(
+                f"Invalid status transition from {current_status} to {new_status}. "
+                f"You can only change it to one of {allowed_transitions[current_status]}."
+            )
+
+    return new_status
+
+class UpdateFileTransferSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FileTransfer
+        fields = ['status']
+    
+    def validate_status(self, value):
+        return validate_status_transition(self.instance, value)
+
+
+class UpdateRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Request
+        fields = ['status']
+    
+    def validate_status(self, value):
+        return validate_status_transition(self.instance, value)
+
 
 class SimpleCustomerGroupSerializer(serializers.ModelSerializer):
     class Meta:

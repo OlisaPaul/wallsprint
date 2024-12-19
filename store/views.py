@@ -74,6 +74,8 @@ class RequestViewSet(CustomModelViewSet):
     def get_serializer_class(self):
         if self.request.method == "POST":
             return CreateRequestSerializer
+        if self.request.method in ['PUT', 'PATCH']:
+            return serializers.UpdateRequestSerializer
         return RequestSerializer
 
     def get_permissions(self):
@@ -98,6 +100,8 @@ class FileTransferViewSet(CustomModelViewSet):
     def get_serializer_class(self):
         if self.request.method == "POST":
             return CreateFileTransferSerializer
+        if self.request.method in ['PUT', 'PATCH']:
+            return serializers.UpdateFileTransferSerializer
         return FileTransferSerializer
 
     def get_permissions(self):
