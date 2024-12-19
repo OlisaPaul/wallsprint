@@ -362,3 +362,6 @@ class CustomTokenCreateSerializer(TokenCreateSerializer):
 
         attrs['user'] = user
         return attrs
+
+class GenerateTokenSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField(required=True, help_text="ID of the user to generate a token for")

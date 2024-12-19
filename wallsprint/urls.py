@@ -31,6 +31,9 @@ router.register(r'api/v1/auth/permissions',
                 PermissionViewSet, basename='permission')
 router.register(r'api/v1/auth/staffs',
                 StaffViewSet, basename='staffs')
+router.register(r'api/v1/auth/generate-token-for-user',
+                GenerateTokenForUser, basename='generate-token-for-user')
+
 
 urlpatterns = [
     re_path(r'^accounts/login/$',
@@ -46,8 +49,6 @@ urlpatterns = [
     path('api/v1/auth/customer/', include('djoser.urls')),
     path('api/v1/auth/customer/', include('djoser.urls.jwt')),
     path('__debug__/', include(debug_toolbar.urls)),
-    path('api/v1/auth/generate-token-for-user/', GenerateTokenForUser.as_view(),
-         name='generate-token-for-user'),
 ] 
 
 if settings.DEBUG:

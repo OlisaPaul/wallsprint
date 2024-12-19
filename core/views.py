@@ -11,7 +11,7 @@ from rest_framework.decorators import action
 from dotenv import load_dotenv
 from .serializers import (AddUsersToGroupSerializer, GroupSerializer, PermissionSerializer, AddUserToGroupSerializer, CreateGroupSerializer,
                           UserListSerializer, UserSerializer, UpdateGroupSerializer, UserCreateSerializer, InviteStaffSerializer, UpdateStaffSerializer,
-                          UpdateCurrentUserSerializer, AcceptInvitationSerializer, ResendStaffInvitationSerializer, send_email
+                          UpdateCurrentUserSerializer, AcceptInvitationSerializer, ResendStaffInvitationSerializer, GenerateTokenSerializer, send_email
                           )
 from .models import User
 from .utils import bulk_delete_objects, generate_jwt_for_user
@@ -192,20 +192,21 @@ class StaffViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response(serializer.data)
-        
+
     @action(detail=False, methods=["PUT",], url_path='accept-invitation')
     def accept_invitation(self, request):
         user = User.objects.get(id=request.user.id)
-        serializer = AcceptInvitationSerializer(user, data=request.data, context={'request': self.request})
+        serializer = AcceptInvitationSerializer(
+            user, data=request.data, context={'request': self.request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
-    
 
     @action(detail=False, methods=['post'], url_path='invite-user')
     def invite_user(self, request):
         """Endpoint to send an invitation and assign groups to the user."""
-        serializer = InviteStaffSerializer(data=request.data, context={'request': self.request})
+        serializer = InviteStaffSerializer(
+            data=request.data, context={'request': self.request})
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
@@ -213,12 +214,13 @@ class StaffViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
             {"message": f"Invitation sent to {user.email}."},
             status=status.HTTP_201_CREATED
         )
-    
+
     @action(detail=False, methods=['post'], url_path='resend-invitation')
     def resend_invitation(self, request):
         """Endpoint to resend invitation to a user."""
         context = {'request': self.request, 'resend': True}
-        serializer = ResendStaffInvitationSerializer(data=request.data, context=context)
+        serializer = ResendStaffInvitationSerializer(
+            data=request.data, context=context)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data.get('email')
         inviter = User.objects.get(pk=self.request.user.id)
@@ -271,11 +273,22 @@ class StaffViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class GenerateTokenForUser(APIView):
+class GenerateTokenForUser(viewsets.ViewSet): 
+    http_method_names = ['post']
     permission_classes = [IsAdminUser]
+    serializer_class = GenerateTokenSerializer
 
-    def post(self, request):
-        user_id = request.data.get('user_id')
-        token = generate_jwt_for_user(user_id)
+    def create(self, request):
+        serializer = GenerateTokenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)  # Validate data and raise exception for invalid input
 
-        return Response(token)
+        user_id = serializer.validated_data['user_id']
+        try:
+            token = generate_jwt_for_user(user_id)
+        except User.DoesNotExist:
+            return Response(
+                {"user_id": ["User does not exist"]},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response({"token": token}, status=status.HTTP_200_OK)
