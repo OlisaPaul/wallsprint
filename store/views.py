@@ -365,7 +365,13 @@ class MessageCenterViewSet(ModelViewSet):
 
 
 class MessageCenterView(APIView):
-    permission_classes = [create_permission_class('message_center')]
+    
+
+    def get_permissions(self):
+        permissions = super().get_permissions()
+        permissions.append(create_permission_class('message_center')())
+
+        return permissions
 
     def get(self, request):
         base_url = get_base_url(request)
@@ -519,6 +525,7 @@ class OrderView(APIView):
                 'Email': instance.email_address,
                 'Attachments': attachments,
                 'Path': f'{base_url}/api/v1/store{route}{instance.id}',
+                'Status': instance.status,
                 "Files": files
             }
 

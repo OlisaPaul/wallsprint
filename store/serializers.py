@@ -149,7 +149,7 @@ class RequestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Request
-        fields = image_fields + ['this_is_an']
+        fields = image_fields + ['this_is_an', 'status']
         read_only_fields = ['created_at']
 
 
@@ -205,7 +205,7 @@ class FileTransferSerializer(serializers.ModelSerializer):
     class Meta:
         model = FileTransfer
         fields = general_fields + ["file_type",
-                                   "application_type", "other_application_type"]
+                                   "application_type", "other_application_type", "status"]
         read_only_fields = ['created_at']
 
 

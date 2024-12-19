@@ -139,6 +139,11 @@ class OnlineProof(models.Model):
 
 
 class Request(CommonFields):
+    NEW = 'New'
+    PENDING = 'Pending'
+    COMPLETED = 'Completed'
+    PROCESSING = 'Processing'
+
     artwork_provided = models.CharField(
         max_length=50,
         choices=[
@@ -169,6 +174,16 @@ class Request(CommonFields):
             ('Order Request', 'Order Request'),
             ('Estimate Request', 'Estimate Request'),
         ],
+    )
+    status = models.CharField(
+        max_length=50,
+        choices=[
+            (NEW, NEW),
+            (PENDING, PENDING),
+            (PROCESSING, PROCESSING),
+            (COMPLETED, COMPLETED),
+        ],
+        default=NEW
     )
 
 
@@ -218,6 +233,11 @@ class CustomerGroup(models.Model):
 
 
 class FileTransfer(CommonFields):
+    NEW = 'New'
+    PENDING = 'Pending'
+    COMPLETED = 'Completed'
+    PROCESSING = 'Processing'
+
     additional_details = models.TextField(blank=True, null=True)
     file_type = models.CharField(
         max_length=50,
@@ -250,6 +270,16 @@ class FileTransfer(CommonFields):
     )
     other_application_type = models.CharField(
         max_length=255, blank=True, null=True)
+    status = models.CharField(
+        max_length=50,
+        choices=[
+            (NEW, NEW),
+            (PENDING, PENDING),
+            (PROCESSING, PROCESSING),
+            (COMPLETED, COMPLETED),
+        ],
+        default=NEW
+    )
 
     class Meta:
         permissions = [
