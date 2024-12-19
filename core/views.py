@@ -291,4 +291,4 @@ class GenerateTokenForUser(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        return Response({"token": token}, status=status.HTTP_200_OK)
+        return Response(token, status=status.HTTP_200_OK)
