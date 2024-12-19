@@ -523,7 +523,7 @@ class OrderView(APIView):
         for online_proof in online_file_transfers:
             messages.append(create_message(
                 online_proof,
-                'Online File Transfer',
+                'Design-Ready Order',
                 calculate_file_size(online_proof),
                 route='/file-transfers/'
             ))
@@ -532,7 +532,7 @@ class OrderView(APIView):
             if online_order.this_is_an == 'Order Request':
                 messages.append(create_message(
                     online_order,
-                    'Order Request',
+                    'New Design Order',
                     calculate_file_size(online_order),
                     route='/requests/'
                 ))
