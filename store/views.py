@@ -242,7 +242,7 @@ class PortalViewSet(CustomModelViewSet):
         if self.request.method == 'GET':
             return [IsAuthenticated()]
         return [create_permission_class('portals')()]
-    
+
     queryset = Portal.objects.prefetch_related(
         'content__customer_groups', 'content__customers', 'content__page', 'content__catalog_assignments').all()
 
@@ -303,8 +303,7 @@ class PortalContentViewSet(CustomModelViewSet):
         if self.request.method == 'GET':
             return [IsAuthenticated()]
         return [create_permission_class('portals')()]
-        
-     
+
     def get_queryset(self):
         return models.PortalContent.objects.filter(portal_id=self.kwargs['portal_pk']).select_related('page', 'portal').prefetch_related('customers', 'customer_groups')
 
@@ -365,13 +364,7 @@ class MessageCenterViewSet(ModelViewSet):
 
 
 class MessageCenterView(APIView):
-    
-
-    def get_permissions(self):
-        permissions = super().get_permissions()
-        permissions.append(create_permission_class('message_center')())
-
-        return permissions
+    permission_classes = [create_permission_class('store.message_center')]
 
     def get(self, request):
         base_url = get_base_url(request)
@@ -428,7 +421,6 @@ class MessageCenterView(APIView):
                 "Files": files
             }
 
-
         # for online_proof in file_transfers:
         #     messages.append(create_message(
         #         online_proof,
@@ -473,7 +465,7 @@ class MessageCenterView(APIView):
 
 
 class OrderView(APIView):
-    permission_classes = [create_permission_class('message_center')]
+    permission_classes = [OrderPermissions]
 
     def get(self, request):
         base_url = get_base_url(request)
@@ -494,8 +486,6 @@ class OrderView(APIView):
             FileTransfer).filter(date_filter)
         online_orders = get_queryset_for_models_with_files(
             Request).filter(date_filter)
-        
-
 
         def calculate_file_size(instance):
             file_size_in_bytes = sum(
