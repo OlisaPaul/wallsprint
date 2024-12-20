@@ -23,6 +23,20 @@ from rest_framework.routers import DefaultRouter
 import debug_toolbar
 from core.forms import AuthenticationForm
 from core.views import GroupViewSet, PermissionViewSet, StaffViewSet, GenerateTokenForUser
+from drf_yasg.views import get_schema_view
+from drf_yasg import openapi
+
+schema_view = get_schema_view(
+    openapi.Info(
+        title="Your API",
+        default_version='v1',
+        description="Your API description",
+        terms_of_service="https://www.yourapp.com/terms/",
+        contact=openapi.Contact(email="contact@yourapp.com"),
+        license=openapi.License(name="BSD License"),
+    ),
+    public=True,
+)
 
 
 router = DefaultRouter()
@@ -49,6 +63,9 @@ urlpatterns = [
     path('api/v1/auth/customer/', include('djoser.urls')),
     path('api/v1/auth/customer/', include('djoser.urls.jwt')),
     path('__debug__/', include(debug_toolbar.urls)),
+    path('api/v1/swagger/', schema_view.with_ui('swagger', cache_timeout=0)),
+    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0)),
+    path('test/', include('django.contrib.auth.urls')),
 ] 
 
 if settings.DEBUG:

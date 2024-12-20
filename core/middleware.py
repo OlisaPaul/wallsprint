@@ -17,16 +17,32 @@ class RoleBasedAccessMiddleware(MiddlewareMixin):
         view_name = resolve(path).view_name
 
         # Attempt token validation explicitly
-        jwt_auth = JWTAuthentication()
-        if request.headers.get('Authorization'):
-            try:
-                user, token = jwt_auth.authenticate(request)
-                print(f"Authenticated user: {user}")
-                request.user = user  # Forcefully set user for the request
-            except AuthenticationFailed as e:
-                print(f"Authentication failed: {e}")
-
+        
         if 'auth' in path and not 'confirm' in path:
+            jwt_auth = JWTAuthentication()
+            if request.headers.get('Authorization'):
+                print(request.headers.get('Authorization'))
+                try:
+                    if jwt_auth.authenticate(request):
+                        user, token = jwt_auth.authenticate(request)
+                        print(f"Authenticated user: {user}")
+                        request.user = user 
+                    else:
+                        return JsonResponse({
+                            "detail": "Given token not valid for any token type",
+                            "code": "token_not_valid",
+                            "messages": [
+                                {
+                                    "token_class": "AccessToken",
+                                    "token_type": "access",
+                                    "message": "Token is invalid or expired"
+                                }
+                            ]
+                        }, status=401)
+                except AuthenticationFailed as e:
+                    print(f"Authentication failed: {e}")
+
+        
             user = request.user
             
             if not request.user.is_authenticated:

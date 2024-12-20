@@ -41,6 +41,15 @@ catalogs_router.register(
 carts_router = routers.NestedDefaultRouter(router, "carts", lookup='cart')
 carts_router.register("items", views.CartItemViewSet, basename="cart-items")
 
+requests_router = routers.NestedDefaultRouter(
+    router, 'requests', lookup='request')
+requests_router.register(
+    'notes', views.NoteViewSet, basename='request-notes')
+
+file_transfers_router = routers.NestedDefaultRouter(
+    router, 'file-transfers', lookup='file_transfer')
+file_transfers_router.register(
+    'notes', views.NoteViewSet, basename='file-transfer-notes')
 
 message_centre_url = [
     path('message-center/', views.MessageCenterView.as_view(), name='message-center'),
@@ -54,4 +63,5 @@ recent_order_url = [
 # URLConf
 urlpatterns = router.urls + portals_router.urls + \
     catalogs_router.urls + message_centre_url + carts_router.urls +\
-    contents_router.urls + recent_order_url
+    contents_router.urls + recent_order_url + \
+    requests_router.urls + file_transfers_router.urls

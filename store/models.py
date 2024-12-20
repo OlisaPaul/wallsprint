@@ -137,6 +137,19 @@ class OnlineProof(models.Model):
             ('online_proofing', "Online Proofing")
         ]
 
+class Note(models.Model):
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='notes')
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey('content_type', 'object_id')
+
+    def __str__(self):
+        return f"Note by {self.author.name} - {self.created_at}"
+
+    class Meta:
+        ordering = ['-created_at']
 
 class Request(CommonFields):
     NEW = 'New'
@@ -185,6 +198,7 @@ class Request(CommonFields):
         ],
         default=NEW
     )
+    notes = GenericRelation(Note, related_query_name='requests')
 
 
 class File(models.Model):
@@ -280,6 +294,7 @@ class FileTransfer(CommonFields):
         ],
         default=NEW
     )
+    notes = GenericRelation(Note, related_query_name='file_transfers')
 
     class Meta:
         permissions = [
@@ -583,7 +598,6 @@ class AttributeOption(models.Model):
             self.pricing_tiers = sorted(
                 self.pricing_tiers, key=lambda x: x.get('quantity', 0))
         super().save(*args, **kwargs)
-
 
 
 class PrintReadyFiles(models.Model):

@@ -25,6 +25,7 @@ pillow = "*"
 django-cors-headers = "*"
 django-phonenumber-field = "*"
 phonenumbers = "*"
+drf-yasg = "*"
 
 [dev-packages]
 

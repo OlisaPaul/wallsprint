@@ -54,7 +54,8 @@ INSTALLED_APPS = [
     'debug_toolbar',
     'core',
     'store',
-    'corsheaders'
+    'corsheaders',
+    'drf_yasg',
 ]
 
 MIDDLEWARE = [
@@ -76,7 +77,7 @@ ROOT_URLCONF = 'wallsprint.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -237,3 +238,13 @@ LOGGING = {
 
 DOMAIN = 'wallsprint.netlify.app'
 SITE_NAME = 'Wallsprint'
+
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header',
+        },
+    },
+}

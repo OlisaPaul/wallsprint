@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.validators import ValidationError
 from io import TextIOWrapper
-from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog
+from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog, Note
 from .utils import create_instance_with_files
 from .signals import file_transferred
 
@@ -142,14 +142,29 @@ class CreateQuoteRequestSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         return create_instance_with_files(QuoteRequest, validated_data)
 
+class NoteAuthorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'name', 'email']
+
+class NoteSerializer(serializers.ModelSerializer):
+    author = NoteAuthorSerializer(read_only=True)
+
+    class Meta:
+        model = Note
+        fields = ['id', 'content', 'created_at', 'author']
+        read_only_fields = ['created_at', 'author']
+
+
 
 class RequestSerializer(serializers.ModelSerializer):
     files = FileSerializer(many=True, read_only=True)
     portal = TitlePortalSerializer()
+    notes = NoteSerializer(many=True, read_only=True)
 
     class Meta:
         model = Request
-        fields = image_fields + ['this_is_an', 'status']
+        fields = image_fields + ['this_is_an', 'status', 'notes']
         read_only_fields = ['created_at']
 
 
@@ -1164,7 +1179,7 @@ class OnlinePaymentSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'name',
-            'email',
+            'email_address',
             'payment_method',
             'invoice_number',
             'po_number',

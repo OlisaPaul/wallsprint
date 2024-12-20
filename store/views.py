@@ -13,8 +13,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny,  IsAuthenticated, IsAdminUser
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, DestroyModelMixin
-from .models import Cart, CartItem, CatalogItem, ContactInquiry, PortalContentCatalog, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, Portal, Order, OrderItem
-from .serializers import AddCartItemSerializer, CartItemSerializer, CartSerializer, CatalogItemSerializer, ContactInquirySerializer, CreateOrderSerializer, OrderSerializer, PortalContentCatalogSerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCartItemSerializer, UpdateCustomerSerializer, UpdateOrderSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, PortalSerializer, customer_fields, CreateOrUpdateCatalogItemSerializer
+from .models import Cart, CartItem, CatalogItem, ContactInquiry, PortalContentCatalog, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, Portal, Order, OrderItem, Note, ContentType
+from .serializers import AddCartItemSerializer, CartItemSerializer, CartSerializer, CatalogItemSerializer, ContactInquirySerializer, CreateOrderSerializer, OrderSerializer, PortalContentCatalogSerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCartItemSerializer, UpdateCustomerSerializer, UpdateOrderSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, PortalSerializer, customer_fields, CreateOrUpdateCatalogItemSerializer, NoteSerializer
 from django.shortcuts import get_object_or_404
 from .permissions import FullDjangoModelPermissions, create_permission_class
 from .mixins import HandleImagesMixin
@@ -69,7 +69,7 @@ class QuoteRequestViewSet(ModelViewSet, HandleImagesMixin):
 
 
 class RequestViewSet(CustomModelViewSet):
-    queryset = get_queryset_for_models_with_files(Request)
+    queryset = get_queryset_for_models_with_files(Request).prefetch_related('notes')
 
     def get_serializer_class(self):
         if self.request.method == "POST":
@@ -309,10 +309,12 @@ class PortalContentViewSet(CustomModelViewSet):
         return [create_permission_class('portals')()]
 
     def get_queryset(self):
-        return models.PortalContent.objects.filter(portal_id=self.kwargs['portal_pk']).select_related('page', 'portal').prefetch_related('customers', 'customer_groups')
+        portal_id = self.kwargs.get('portal_pk')
+        return models.PortalContent.objects.filter(portal_id=portal_id).select_related('page', 'portal').prefetch_related('customers', 'customer_groups')
 
     def get_serializer_context(self):
-        return {'portal_id': self.kwargs['portal_pk'], 'request': self.request}
+        portal_id = self.kwargs.get('portal_pk')
+        return {'portal_id': portal_id, 'request': self.request}
 
     def get_serializer_class(self):
         if self.request.method == 'GET':
@@ -324,10 +326,11 @@ class PortalContentCatalogViewSet(ModelViewSet):
     serializer_class = PortalContentCatalogSerializer
 
     def get_serializer_context(self):
-        return {'content_id': self.kwargs['content_pk']}
+        content_id = self.kwargs.get('content_pk')
+        return {'content_id': content_id}
 
     def get_queryset(self):
-        content_id = self.kwargs['content_pk']
+        content_id = self.kwargs.get('content_pk')
         return PortalContentCatalog.objects.filter(portal_content_id=content_id)
 
     def create(self, request, *args, **kwargs):
@@ -557,10 +560,12 @@ class CatalogItemViewSet(ModelViewSet):
         return CatalogItemSerializer
 
     def get_queryset(self):
-        return CatalogItem.objects.filter(catalog_id=self.kwargs['catalog_pk']).prefetch_related('attributes__options')
+        catalog_id = self.kwargs.get('catalog_pk')
+        return CatalogItem.objects.filter(catalog_id=catalog_id).prefetch_related('attributes__options')
 
     def get_serializer_context(self):
-        return {'catalog_id': self.kwargs['catalog_pk']}
+        catalog_id = self.kwargs.get('catalog_pk')
+        return {'catalog_id': catalog_id}
 
     def create(self, request, *args, **kwargs):
         """
@@ -630,10 +635,12 @@ class CartItemViewSet(ModelViewSet):
         return CartItemSerializer
 
     def get_queryset(self):
-        return CartItem.objects.filter(cart_id=self.kwargs['cart_pk']).select_related("catalog_item")
+        cart_id = self.kwargs.get('cart_pk')
+        return CartItem.objects.filter(cart_id=cart_id).select_related("catalog_item")
 
     def get_serializer_context(self):
-        return {"cart_id": self.kwargs["cart_pk"], 'user_id': self.request.user.id}
+        cart_id = self.kwargs.get('cart_pk')
+        return {"cart_id": cart_id, 'user_id': self.request.user.id}
 
 
 class OrderViewSet(ModelViewSet):
@@ -690,3 +697,38 @@ class FileExchangeViewSet(ModelViewSet):
 
     def get_serializer_context(self):
         return {'request': self.request}
+
+
+class NoteViewSet(ModelViewSet):
+    serializer_class = serializers.NoteSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        if 'request_pk' in self.kwargs:
+            request_pk = self.kwargs.get('request_pk')
+            return Note.objects.filter(
+                content_type=ContentType.objects.get_for_model(Request),
+                object_id=request_pk
+            )
+        elif 'file_transfer_pk' in self.kwargs:
+            file_transfer_pk = self.kwargs.get('file_transfer_pk')
+            return Note.objects.filter(
+                content_type=ContentType.objects.get_for_model(FileTransfer),
+                object_id=file_transfer_pk
+            )
+        return Note.objects.none()
+
+    def perform_create(self, serializer):
+
+        if 'request_pk' in self.kwargs:
+            content_type = ContentType.objects.get_for_model(Request)
+            object_id = self.kwargs.get('request_pk')
+        elif 'file_transfer_pk' in self.kwargs:
+            content_type = ContentType.objects.get_for_model(FileTransfer)
+            object_id = self.kwargs.get('file_transfer_pk')
+        
+        serializer.save(
+            author=self.request.user,
+            content_type=content_type,
+            object_id=object_id
+        )
