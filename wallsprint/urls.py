@@ -28,11 +28,11 @@ from drf_yasg import openapi
 
 schema_view = get_schema_view(
     openapi.Info(
-        title="Your API",
+        title="Wallsprint API",
         default_version='v1',
-        description="Your API description",
-        terms_of_service="https://www.yourapp.com/terms/",
-        contact=openapi.Contact(email="contact@yourapp.com"),
+        description="This API provides access to Wallsprint's core and store functionalities, including user authentication, group and permission management, and staff operations.",
+        terms_of_service="https://www.wallsprint.com/terms/",
+        contact=openapi.Contact(email="contact@wallsprint.com"),
         license=openapi.License(name="BSD License"),
     ),
     public=True,
