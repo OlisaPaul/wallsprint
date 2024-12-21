@@ -376,7 +376,7 @@ class StaffNotificationSerializer(serializers.ModelSerializer):
     user = SimpleStaffSerializer()
     class Meta:
         model = StaffNotification
-        fields = ['user']
+        fields = ['id', 'user']
 
 class CreateStaffNotificationSerializer(serializers.ModelSerializer):
     class Meta:
