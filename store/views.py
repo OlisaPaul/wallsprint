@@ -493,6 +493,8 @@ class OrderView(APIView):
             FileTransfer).filter(date_filter)
         online_orders = get_queryset_for_models_with_files(
             QuoteRequest).filter(date_filter)
+        request_orders = get_queryset_for_models_with_files(
+            Request).filter(date_filter)
 
         def calculate_file_size(instance):
             file_size_in_bytes = sum(
@@ -536,11 +538,19 @@ class OrderView(APIView):
             ))
 
         for online_order in online_orders:
-            if online_order.this_is_an == 'Order Request':
+            messages.append(create_message(
+                online_order,
+                'New Design Order',
+                calculate_file_size(online_order),
+                route='/quote-requests/'
+            ))
+
+        for request_order in request_orders:
+            if request_order.this_is_an == 'Order Request':
                 messages.append(create_message(
-                    online_order,
+                    request_order,
                     'New Design Order',
-                    calculate_file_size(online_order),
+                    calculate_file_size(request_order),
                     route='/requests/'
                 ))
 
