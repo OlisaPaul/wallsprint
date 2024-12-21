@@ -12,7 +12,7 @@ from rest_framework.decorators import action
 from dotenv import load_dotenv
 from .serializers import (AddUsersToGroupSerializer, GroupSerializer, PermissionSerializer, AddUserToGroupSerializer, CreateGroupSerializer,
                           UserListSerializer, UserSerializer, UpdateGroupSerializer, UserCreateSerializer, InviteStaffSerializer, UpdateStaffSerializer,
-                          UpdateCurrentUserSerializer, AcceptInvitationSerializer, ResendStaffInvitationSerializer, GenerateTokenSerializer, send_email, StaffNotificationSerializer
+                          UpdateCurrentUserSerializer, AcceptInvitationSerializer, ResendStaffInvitationSerializer, GenerateTokenSerializer, send_email, StaffNotificationSerializer, CreateStaffNotificationSerializer
                           )
 from .models import User, StaffNotification
 from .utils import bulk_delete_objects, generate_jwt_for_user
@@ -299,6 +299,11 @@ class StaffNotificationViewSet(CustomModelViewSet):
     serializer_class = StaffNotificationSerializer
     queryset = StaffNotification.objects.all()
     permission_classes = [IsAdminUser]
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CreateStaffNotificationSerializer
+        return StaffNotificationSerializer
 
     def create(self, request, *args, **kwargs):
         if isinstance(request.data, list):
