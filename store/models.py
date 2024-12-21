@@ -109,6 +109,16 @@ class QuoteRequest(CommonFields):
         blank=True,
         null=True
     )
+    status = models.CharField(
+        max_length=50,
+        choices=[
+            ('New', 'New'),
+            ('Pending', 'Pending'),
+            ('Processing', 'Processing'),
+            ('Completed', 'Completed'),
+        ],
+        default='New'
+    )
 
     def __str__(self):
         return f"{self.name} - {self.project_name}"
