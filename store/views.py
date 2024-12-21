@@ -492,7 +492,7 @@ class OrderView(APIView):
         online_file_transfers = get_queryset_for_models_with_files(
             FileTransfer).filter(date_filter)
         online_orders = get_queryset_for_models_with_files(
-            Request).filter(date_filter)
+            QuoteRequest).filter(date_filter)
 
         def calculate_file_size(instance):
             file_size_in_bytes = sum(
