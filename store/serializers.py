@@ -258,9 +258,9 @@ def validate_status_transition(instance, new_status):
         # Check if the transition is valid
         if current_status in allowed_transitions and new_status not in allowed_transitions[current_status]:
             raise serializers.ValidationError(
-                f"Invalid status transition from {
-                    current_status} to {new_status}. "
-                f"You can only change it to one of {
+                f"Invalid status transition from { \
+                    current_status} to {new_status}. " \
+                f"You can only change it to one of { \
                     allowed_transitions[current_status]}."
             )
 
