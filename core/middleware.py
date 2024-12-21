@@ -21,11 +21,9 @@ class RoleBasedAccessMiddleware(MiddlewareMixin):
         if 'auth' in path and not 'confirm' in path:
             jwt_auth = JWTAuthentication()
             if request.headers.get('Authorization'):
-                print(request.headers.get('Authorization'))
                 try:
                     if jwt_auth.authenticate(request):
                         user, token = jwt_auth.authenticate(request)
-                        print(f"Authenticated user: {user}")
                         request.user = user 
                     else:
                         return JsonResponse({

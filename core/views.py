@@ -2,6 +2,7 @@ import os
 from django.db.models import Count
 from rest_framework.permissions import AllowAny,  IsAuthenticated, IsAdminUser
 from django.contrib.auth.models import Group, Permission
+
 from django.shortcuts import render
 from rest_framework import viewsets, permissions, status
 from rest_framework import mixins
@@ -11,9 +12,9 @@ from rest_framework.decorators import action
 from dotenv import load_dotenv
 from .serializers import (AddUsersToGroupSerializer, GroupSerializer, PermissionSerializer, AddUserToGroupSerializer, CreateGroupSerializer,
                           UserListSerializer, UserSerializer, UpdateGroupSerializer, UserCreateSerializer, InviteStaffSerializer, UpdateStaffSerializer,
-                          UpdateCurrentUserSerializer, AcceptInvitationSerializer, ResendStaffInvitationSerializer, GenerateTokenSerializer, send_email
+                          UpdateCurrentUserSerializer, AcceptInvitationSerializer, ResendStaffInvitationSerializer, GenerateTokenSerializer, send_email, StaffNotificationSerializer
                           )
-from .models import User
+from .models import User, StaffNotification
 from .utils import bulk_delete_objects, generate_jwt_for_user
 
 load_dotenv()
@@ -292,3 +293,19 @@ class GenerateTokenForUser(viewsets.ViewSet):
             )
 
         return Response(token, status=status.HTTP_200_OK)
+
+
+class StaffNotificationViewSet(viewsets.ModelViewSet):
+    serializer_class = StaffNotificationSerializer
+    queryset = StaffNotification.objects.all()
+    permission_classes = [IsAdminUser]
+
+    def create(self, request, *args, **kwargs):
+        if isinstance(request.data, list):
+            serializer = self.get_serializer(data=request.data, many=True)
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        else:
+            return super().create(request, *args, **kwargs)

@@ -137,10 +137,12 @@ class OnlineProof(models.Model):
             ('online_proofing', "Online Proofing")
         ]
 
+
 class Note(models.Model):
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
-    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='notes')
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='notes')
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey('content_type', 'object_id')
@@ -150,6 +152,7 @@ class Note(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
 
 class Request(CommonFields):
     NEW = 'New'
@@ -414,7 +417,7 @@ class Catalog(models.Model):
 
 class PortalContent(models.Model):
     title = models.CharField(max_length=255)
-    content=models.TextField(null=True)
+    content = models.TextField(null=True)
     portal = models.ForeignKey(
         Portal, on_delete=models.CASCADE, related_name='content')
     page = models.ForeignKey(Page, on_delete=models.CASCADE, null=True)

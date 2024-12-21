@@ -2,6 +2,7 @@ import django
 from django.db import models
 from django.db.models import Q
 from django.contrib import auth
+from django.conf import settings
 from django.contrib.auth.models import (
     BaseUserManager, PermissionsMixin, AbstractBaseUser, UserManager, AbstractUser
 )
@@ -187,9 +188,11 @@ class CustomUserManager(UserManager):
         )
 
 
-# class User(AbstractUser):
-#     email = models.EmailField(unique=True)
-#     objects = CustomUserManager()
+class StaffNotification(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, limit_choices_to={
+            'is_staff': True}
+    )
 
-#     class Meta(AbstractCUser.Meta):
-#         swappable = 'AUTH_USER_MODEL'
+    def __str__(self):
+        return self.user.email

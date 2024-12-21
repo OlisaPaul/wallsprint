@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 from .signals import group_created
-from .models import User
+from .models import User, StaffNotification
 from .utils import generate_jwt_for_user
 
 load_dotenv()
@@ -365,3 +365,19 @@ class CustomTokenCreateSerializer(TokenCreateSerializer):
 
 class GenerateTokenSerializer(serializers.Serializer):
     user_id = serializers.IntegerField(required=True, help_text="ID of the user to generate a token for")
+
+class SimpleStaffSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'name', 'email']
+
+class StaffNotificationSerializer(serializers.ModelSerializer):
+    user = SimpleStaffSerializer()
+    class Meta:
+        model = StaffNotification
+        fields = ['user']
+
+    def validate_user(self, value):
+        if not value.is_staff:
+            raise serializers.ValidationError("User must be a staff member.")
+        return value

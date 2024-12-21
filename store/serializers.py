@@ -142,10 +142,12 @@ class CreateQuoteRequestSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         return create_instance_with_files(QuoteRequest, validated_data)
 
+
 class NoteAuthorSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'name', 'email']
+
 
 class NoteSerializer(serializers.ModelSerializer):
     author = NoteAuthorSerializer(read_only=True)
@@ -154,7 +156,6 @@ class NoteSerializer(serializers.ModelSerializer):
         model = Note
         fields = ['id', 'content', 'created_at', 'author']
         read_only_fields = ['created_at', 'author']
-
 
 
 class RequestSerializer(serializers.ModelSerializer):
@@ -240,6 +241,7 @@ class CreateFileTransferSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         return create_instance_with_files(FileTransfer, validated_data)
 
+
 def validate_status_transition(instance, new_status):
     # Define the allowed status progression
     allowed_transitions = {
@@ -256,17 +258,20 @@ def validate_status_transition(instance, new_status):
         # Check if the transition is valid
         if current_status in allowed_transitions and new_status not in allowed_transitions[current_status]:
             raise serializers.ValidationError(
-                f"Invalid status transition from {current_status} to {new_status}. "
-                f"You can only change it to one of {allowed_transitions[current_status]}."
+                f"Invalid status transition from {
+                    current_status} to {new_status}. "
+                f"You can only change it to one of {
+                    allowed_transitions[current_status]}."
             )
 
     return new_status
+
 
 class UpdateFileTransferSerializer(serializers.ModelSerializer):
     class Meta:
         model = FileTransfer
         fields = ['status']
-    
+
     def validate_status(self, value):
         return validate_status_transition(self.instance, value)
 
@@ -275,7 +280,7 @@ class UpdateRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = Request
         fields = ['status']
-    
+
     def validate_status(self, value):
         return validate_status_transition(self.instance, value)
 
@@ -456,7 +461,7 @@ class CreatePortalContentSerializer(serializers.ModelSerializer):
                   'page_redirect', 'include_in_site_map', 'display_in_site_navigation',
                   'customer_groups', 'customers', 'everyone', 'content', 'logo', 'payment_proof', 'order_history'
                   ]
-    
+
     def validate(self, data):
         customer_group_data = data.get('customer_groups', None)
         customer_data = data.get('customers', None)
@@ -466,7 +471,7 @@ class CreatePortalContentSerializer(serializers.ModelSerializer):
         if is_customer_or_customer_data and everyone:
             raise ValidationError(
                 "You cannot select 'everyone' and also specify 'customer_groups' or 'customers'. Choose one option only.")
-        
+
         return data
 
     @transaction.atomic()
@@ -1218,3 +1223,4 @@ class FileExchangeSerializer(serializers.ModelSerializer):
         file_transferred.send_robust(
             self.__class__, request=self.context['request'], file_transfer=file_transfer)
         return file_transfer
+
