@@ -454,7 +454,7 @@ class CreatePortalContentSerializer(serializers.ModelSerializer):
         model = PortalContent
         fields = ['id', 'title', 'location',
                   'page_redirect', 'include_in_site_map', 'display_in_site_navigation',
-                  'customer_groups', 'customers', 'everyone', 'content'
+                  'customer_groups', 'customers', 'everyone', 'content', 'logo', 'payment_proof', 'order_history'
                   ]
     
     def validate(self, data):
@@ -715,7 +715,7 @@ class PortalContentSerializer(serializers.ModelSerializer):
         model = PortalContent
         fields = ['id', 'title',
                   'customer_groups', 'everyone', 'can_user_access',
-                  'customers', 'groups_count', 'user_count', 'catalog_assignments', 'content']
+                  'customers', 'groups_count', 'user_count', 'catalog_assignments', 'content', 'logo', 'payment_proof', 'order_history']
 
     def get_can_user_access(self, obj):
         request = self.context['request']
