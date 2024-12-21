@@ -16,7 +16,7 @@ from .serializers import (AddUsersToGroupSerializer, GroupSerializer, Permission
                           )
 from .models import User, StaffNotification
 from .utils import bulk_delete_objects, generate_jwt_for_user
-
+from .utils import CustomModelViewSet
 load_dotenv()
 # Create your views here.
 
@@ -295,7 +295,7 @@ class GenerateTokenForUser(viewsets.ViewSet):
         return Response(token, status=status.HTTP_200_OK)
 
 
-class StaffNotificationViewSet(viewsets.ModelViewSet):
+class StaffNotificationViewSet(CustomModelViewSet):
     serializer_class = StaffNotificationSerializer
     queryset = StaffNotification.objects.all()
     permission_classes = [IsAdminUser]

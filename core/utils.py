@@ -5,7 +5,8 @@ from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework import status
 from .models import User
-
+from rest_framework.viewsets import ModelViewSet
+from rest_framework.decorators import action
 def get_bulk_delete_serializer_class(model):
     class BulkDeleteSerializer(serializers.Serializer):
         ids = serializers.ListField(
@@ -50,5 +51,37 @@ def generate_jwt_for_user(user_id):
         'refresh': str(refresh),
     }
         
+class CustomModelViewSet(ModelViewSet):
+    """
+    A custom ModelViewSet that adds a bulk delete endpoint.
+    """
+    @action(detail=False, methods=['delete'], url_path='delete-multiple')
+    def bulk_delete(self, request, *args, **kwargs):
+        """
+        Delete multiple objects by providing a list of IDs.
+        """
+        ids = request.data.get('ids', [])
+        if not isinstance(ids, list) or not ids:
+            return Response(
+                {"detail": "Invalid input. Provide a list of IDs to delete."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
+        queryset = self.filter_queryset(self.get_queryset())
 
+        # Filter objects to be deleted
+        objects_to_delete = queryset.filter(id__in=ids)
+        count = objects_to_delete.count()
+
+        if count == 0:
+            return Response(
+                {"detail": "No matching objects found for the provided IDs."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        objects_to_delete.delete()
+
+        return Response(
+            {"detail": f"Successfully deleted {count} object(s)."},
+            status=status.HTTP_200_OK
+        )
