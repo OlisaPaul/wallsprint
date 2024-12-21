@@ -12,7 +12,8 @@ from rest_framework.decorators import action
 from dotenv import load_dotenv
 from .serializers import (AddUsersToGroupSerializer, GroupSerializer, PermissionSerializer, AddUserToGroupSerializer, CreateGroupSerializer,
                           UserListSerializer, UserSerializer, UpdateGroupSerializer, UserCreateSerializer, InviteStaffSerializer, UpdateStaffSerializer,
-                          UpdateCurrentUserSerializer, AcceptInvitationSerializer, ResendStaffInvitationSerializer, GenerateTokenSerializer, send_email, StaffNotificationSerializer, CreateStaffNotificationSerializer
+                          UpdateCurrentUserSerializer, AcceptInvitationSerializer, ResendStaffInvitationSerializer, GenerateTokenSerializer, send_email, StaffNotificationSerializer, CreateStaffNotificationSerializer,
+                          SimpleStaffSerializer
                           )
 from .models import User, StaffNotification
 from .utils import bulk_delete_objects, generate_jwt_for_user
@@ -160,6 +161,17 @@ class StaffViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
     serializer_class = InviteStaffSerializer
     permission_classes = [permissions.IsAdminUser]
 
+    @action(detail=False, methods=['get'], url_path='not-in-notification')
+    def not_in_notification(self, request):
+        """Endpoint to get list of staff not in StaffNotification model."""
+        staff_in_notification = StaffNotification.objects.values_list(
+            'user_id', flat=True)
+        staff_not_in_notification = User.objects.filter(
+            is_staff=True).exclude(id__in=staff_in_notification)
+        serializer = SimpleStaffSerializer(
+            staff_not_in_notification, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
     def get_serializer_context(self):
         return {'request': self.request}
 
@@ -274,14 +286,15 @@ class StaffViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class GenerateTokenForUser(viewsets.ViewSet): 
+class GenerateTokenForUser(viewsets.ViewSet):
     http_method_names = ['post']
     permission_classes = [IsAdminUser]
     serializer_class = GenerateTokenSerializer
 
     def create(self, request):
         serializer = GenerateTokenSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)  # Validate data and raise exception for invalid input
+        # Validate data and raise exception for invalid input
+        serializer.is_valid(raise_exception=True)
 
         user_id = serializer.validated_data['user_id']
         try:
