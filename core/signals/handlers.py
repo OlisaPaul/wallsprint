@@ -38,8 +38,7 @@ def send_notification_email(instance, model_name):
     client_name = instance.name
     send_mail(
         subject=f'Your {model_name} is being processed',
-        message=f'Hello {client_name},\n\nYour {
-            model_name} has been received and is currently being processed. We will update you shortly.\n\nThank you!',
+        message=f'Hello {client_name},\n\nYour {model_name} has been received and is currently being processed. We will update you shortly.\n\nThank you!',
         from_email='your_email@example.com',
         recipient_list=[client_email],
         fail_silently=False,
