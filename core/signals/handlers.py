@@ -1,7 +1,7 @@
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.contrib.auth.models import Group
-from store.models import Customer, Request, FileTransfer, Order, ContactInquiry
+from store.models import Customer, Request, FileTransfer, Order, ContactInquiry, QuoteRequest
 from ..models import ExtendedGroup, StaffNotification
 from django.core.mail import send_mail
 
@@ -45,6 +45,11 @@ def send_notification_email(instance, model_name):
     )
 
 
+@receiver(post_save, sender=QuoteRequest)
+def notify_on_request_creation(sender, instance, created, **kwargs):
+    if created:
+        send_notification_email(instance, 'Quote Request')
+
 @receiver(post_save, sender=Request)
 def notify_on_request_creation(sender, instance, created, **kwargs):
     if created:
@@ -54,7 +59,7 @@ def notify_on_request_creation(sender, instance, created, **kwargs):
 @receiver(post_save, sender=FileTransfer)
 def notify_on_file_transfer_creation(sender, instance, created, **kwargs):
     if created:
-        send_notification_email(instance, 'FileTransfer')
+        send_notification_email(instance, 'File Transfer')
 
 
 @receiver(post_save, sender=Order)
@@ -66,4 +71,4 @@ def notify_on_order_creation(sender, instance, created, **kwargs):
 @receiver(post_save, sender=ContactInquiry)
 def notify_on_contact_inquiry_creation(sender, instance, created, **kwargs):
     if created:
-        send_notification_email(instance, 'ContactInquiry')
+        send_notification_email(instance, 'Contact Inquiry')
