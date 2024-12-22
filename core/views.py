@@ -153,6 +153,22 @@ class PermissionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Permission.objects.exclude(name__startswith="Can ")
     serializer_class = PermissionSerializer
 
+    @action(detail=False, url_path='web-content-permissions')
+    def web_content_permissions(self, request):
+        codenames = ['portals', 'catalog_items',
+                     'website_users', 'customers', 'message_center']
+        permissions = self.queryset.filter(codename__in=codenames)
+        serializer = self.get_serializer(permissions, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, url_path='online-proof-permissions')
+    def online_proof_permissions(self, request):
+        codenames = ['online_proofing', 'order',
+                     'print_ready_files', 'transfer_files']
+        permissions = self.queryset.filter(codename__in=codenames)
+        serializer = self.get_serializer(permissions, many=True)
+        return Response(serializer.data)
+
 
 class StaffViewSet(viewsets.ModelViewSet, viewsets.GenericViewSet):
     http_method_names = ['post', 'put', 'get', 'delete']
