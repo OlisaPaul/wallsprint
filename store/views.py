@@ -393,6 +393,8 @@ class MessageCenterView(APIView):
         online_orders = get_queryset_for_models_with_files(
             Request).filter(date_filter)
         general_contacts = ContactInquiry.objects.filter(date_filter)
+        online_requests = get_queryset_for_models_with_files(
+            QuoteRequest).filter(date_filter)
         online_payments = models.OnlinePayment.objects.filter(date_filter)
         online_proofs = models.OnlineProof.objects.filter(date_filter)
         file_transfers = models.FileExchange.objects.filter(date_filter)
@@ -441,6 +443,14 @@ class MessageCenterView(APIView):
         #         'Online Proof',
         #         calculate_file_size(online_proof)
         #     ))
+
+        for online_request in online_requests:
+            messages.append(create_message(
+                online_request,
+                'Quote Request',
+                calculate_file_size(online_request),
+                route='/quote-requests/'
+            ))
 
         # Online orders
         for online_order in online_orders:
@@ -492,8 +502,6 @@ class OrderView(APIView):
         online_file_transfers = get_queryset_for_models_with_files(
             FileTransfer).filter(date_filter)
         online_orders = get_queryset_for_models_with_files(
-            QuoteRequest).filter(date_filter)
-        request_orders = get_queryset_for_models_with_files(
             Request).filter(date_filter)
 
         def calculate_file_size(instance):
@@ -537,15 +545,7 @@ class OrderView(APIView):
                 route='/file-transfers/'
             ))
 
-        for online_order in online_orders:
-            messages.append(create_message(
-                online_order,
-                'New Design Order',
-                calculate_file_size(online_order),
-                route='/quote-requests/'
-            ))
-
-        for request_order in request_orders:
+        for request_order in online_orders:
             if request_order.this_is_an == 'Order Request':
                 messages.append(create_message(
                     request_order,
