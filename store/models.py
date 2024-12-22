@@ -532,6 +532,11 @@ class CatalogItem(models.Model):
 
     def __str__(self):
         return self.title
+    
+    class Meta:
+        permissions = [
+            ('catalog_items', "Catalog Items")
+        ]
 
 
 class Attribute(models.Model):
