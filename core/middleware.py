@@ -69,12 +69,12 @@ class RoleBasedAccessMiddleware(MiddlewareMixin):
             # Check if the path belongs to "customer" or "staff" endpoints
             if 'customer' in path and user.is_staff:
                 return JsonResponse(
-                    {"detail": "Only customers are allowed to access this endpoint."},
+                    {"detail": "Only customers are allowed to access this page."},
                     status=403
                 )
             elif not 'customer' in path and not user.is_staff:
                 return JsonResponse(
-                    {"detail": "Only staff are allowed to access this endpoint."},
+                    {"detail": "Only staff are allowed to access this page."},
                     status=403
                 )
 
