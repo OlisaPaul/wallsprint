@@ -17,6 +17,7 @@ from rest_framework.serializers import ModelSerializer
 from .signals import group_created
 from .models import User, StaffNotification
 from .utils import generate_jwt_for_user
+from django.contrib.auth.password_validation import validate_password
 
 load_dotenv()
 
@@ -84,21 +85,21 @@ class AcceptInvitationSerializer(BaseUserSerializer):
 
     class Meta(BaseUserSerializer.Meta):
         fields = ['name', 'password']
-    
+
     def validate(self, attrs):
-        request=self.context['request']
+        request = self.context['request']
         user = User.objects.get(pk=request.user.id)
 
         if user.username:
             raise serializers.ValidationError('Invitation already accepted')
-        
+
         return attrs
 
     @transaction.atomic()
     def update(self, instance, validated_data):
         password = validated_data.get('password')
         user = super().update(instance, validated_data)
-        
+
         if password:
             user.set_password(password)
             user.username = user.email
@@ -195,6 +196,26 @@ class UserCreateSerializer(BaseUserCreateSerializer):
         self.group_ids = attrs.pop('group_ids', [])
         return super().validate(attrs)
 
+    def validate_username(self, value):
+        if User.objects.filter(username__iexact=value).exists():
+            raise serializers.ValidationError("Username already exists.")
+
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError(
+                "Username cannot be an email that already exists.")
+
+        return value
+
+    def validate_password(self, value):
+        validate_password(value)
+
+        name = self.initial_data.get('name', '').lower()
+        if name and name in value.lower():
+            raise serializers.ValidationError(
+                "Password cannot contain your name.")
+
+        return value
+
     @transaction.atomic()
     def create(self, validated_data):
         validated_data = {**validated_data,
@@ -264,10 +285,11 @@ class ResendStaffInvitationSerializer(serializers.Serializer):
         try:
             user = User.objects.get(email=value)
             if user.username:
-                raise serializers.ValidationError("Invitation already accepted")
+                raise serializers.ValidationError(
+                    "Invitation already accepted")
         except User.DoesNotExist:
             raise serializers.ValidationError("No existing user with email")
-        
+
         return value
 
 
@@ -363,8 +385,11 @@ class CustomTokenCreateSerializer(TokenCreateSerializer):
         attrs['user'] = user
         return attrs
 
+
 class GenerateTokenSerializer(serializers.Serializer):
-    user_id = serializers.IntegerField(required=True, help_text="ID of the user to generate a token for")
+    user_id = serializers.IntegerField(
+        required=True, help_text="ID of the user to generate a token for")
+
 
 class SimpleStaffSerializer(serializers.ModelSerializer):
     class Meta:
@@ -374,9 +399,11 @@ class SimpleStaffSerializer(serializers.ModelSerializer):
 
 class StaffNotificationSerializer(serializers.ModelSerializer):
     user = SimpleStaffSerializer()
+
     class Meta:
         model = StaffNotification
         fields = ['id', 'user']
+
 
 class CreateStaffNotificationSerializer(serializers.ModelSerializer):
     class Meta:

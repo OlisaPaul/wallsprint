@@ -361,4 +361,3 @@ class LogoutView(APIView):
             return Response(status=204)
         except Exception as e:
             return Response(status=400)
-    
