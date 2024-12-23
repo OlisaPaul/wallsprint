@@ -229,7 +229,7 @@ class CreateFileTransferSerializer(serializers.ModelSerializer):
     files = serializers.ListField(
         child=serializers.FileField(),
         write_only=True,
-        required=False
+        required=True
     )
 
     class Meta:
