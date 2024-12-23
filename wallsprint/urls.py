@@ -23,7 +23,7 @@ from rest_framework.routers import DefaultRouter
 import debug_toolbar
 from core import views
 from core.forms import AuthenticationForm
-from core.views import GroupViewSet, PermissionViewSet, StaffViewSet, GenerateTokenForUser
+from core.views import GroupViewSet, PermissionViewSet, StaffViewSet, GenerateTokenForUser, LogoutView
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 
@@ -69,7 +69,8 @@ urlpatterns = [
     path('api/v1/swagger/', schema_view.with_ui('swagger', cache_timeout=0)),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0)),
     path('test/', include('django.contrib.auth.urls')),
-] 
+    path('api/v1/auth/logout/', LogoutView.as_view(), name='logout'),
+]
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL,

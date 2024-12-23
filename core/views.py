@@ -1,3 +1,4 @@
+import hashlib
 import os
 from django.db.models import Count
 from rest_framework.permissions import AllowAny,  IsAuthenticated, IsAdminUser
@@ -15,9 +16,10 @@ from .serializers import (AddUsersToGroupSerializer, GroupSerializer, Permission
                           UpdateCurrentUserSerializer, AcceptInvitationSerializer, ResendStaffInvitationSerializer, GenerateTokenSerializer, send_email, StaffNotificationSerializer, CreateStaffNotificationSerializer,
                           SimpleStaffSerializer
                           )
-from .models import User, StaffNotification
+from .models import User, StaffNotification, BlacklistedToken
 from .utils import bulk_delete_objects, generate_jwt_for_user
 from .utils import CustomModelViewSet
+from rest_framework_simplejwt.tokens import RefreshToken
 load_dotenv()
 # Create your views here.
 
@@ -343,3 +345,20 @@ class StaffNotificationViewSet(CustomModelViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
         else:
             return super().create(request, *args, **kwargs)
+
+
+class LogoutView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request):
+        def hash_token(token):
+            return hashlib.sha256(token.encode()).hexdigest()
+        try:
+            auth_header = request.headers.get('Authorization')
+            token = auth_header.split(' ')[1]
+            hashed_token = hash_token(token)
+            BlacklistedToken.objects.create(token_hash=hashed_token)
+            return Response(status=204)
+        except Exception as e:
+            return Response(status=400)
+    

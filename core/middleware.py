@@ -6,6 +6,8 @@ from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.response import Response
+from .models import BlacklistedToken
+import hashlib
 
 
 User = get_user_model()
@@ -17,14 +19,14 @@ class RoleBasedAccessMiddleware(MiddlewareMixin):
         view_name = resolve(path).view_name
 
         # Attempt token validation explicitly
-        
+
         if 'auth' in path and not 'confirm' in path:
             jwt_auth = JWTAuthentication()
             if request.headers.get('Authorization'):
                 try:
                     if jwt_auth.authenticate(request):
                         user, token = jwt_auth.authenticate(request)
-                        request.user = user 
+                        request.user = user
                     else:
                         return JsonResponse({
                             "detail": "Given token not valid for any token type",
@@ -40,9 +42,8 @@ class RoleBasedAccessMiddleware(MiddlewareMixin):
                 except AuthenticationFailed as e:
                     print(f"Authentication failed: {e}")
 
-        
             user = request.user
-            
+
             if not request.user.is_authenticated:
                 if not any(substring in path for substring in ['create', 'reset_password']):
                     return JsonResponse({"detail": "Authentication credentials were not provided."}, status=401)
@@ -51,19 +52,20 @@ class RoleBasedAccessMiddleware(MiddlewareMixin):
                     if request.content_type.startswith("multipart/form-data"):
                         data = request.POST
                     else:
-                        decoded_body = request.body.decode('utf-8').replace('\r\n', '')
-                        print(f"Decoded Body: {decoded_body}") 
+                        decoded_body = request.body.decode(
+                            'utf-8').replace('\r\n', '')
+                        print(f"Decoded Body: {decoded_body}")
 
                         data = json.loads(decoded_body)
                     email = data.get('email')
 
                     if not email:
                         return JsonResponse({"detail": "email is required"}, status=400)
-                    
+
                     user = User.objects.get(email=email)
                 else:
                     return None
-                   
+
             # Check if the path belongs to "customer" or "staff" endpoints
             if 'customer' in path and user.is_staff:
                 return JsonResponse(
@@ -79,3 +81,16 @@ class RoleBasedAccessMiddleware(MiddlewareMixin):
             return None
 
         return None  # Allow the request to proceed
+
+def hash_token(token):
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+class TokenBlacklistMiddleware(MiddlewareMixin):
+    def process_request(self, request):
+        auth_header = request.headers.get('Authorization')
+        if auth_header:
+            token = auth_header.split(' ')[1]  # Assuming 'Bearer <token>'
+            hashed_token = hash_token(token)
+            if BlacklistedToken.objects.filter(token_hash=hashed_token).exists():
+                return JsonResponse({'detail': 'Token is blacklisted'}, status=401)

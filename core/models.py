@@ -122,7 +122,8 @@ class AbstractCUser(AbstractBaseUser, PermissionsMixin):
         ),
     )
     date_joined = models.DateTimeField(_('date joined'), default=timezone.now)
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    status = models.CharField(
+        max_length=10, choices=STATUS_CHOICES, default='pending')
 
     objects = CUserManager()
 
@@ -171,10 +172,11 @@ class Group(BaseGroup):
         verbose_name_plural = _('groups')
         proxy = True
 
+
 class ExtendedGroup(models.Model):
     group = models.OneToOneField(BaseGroup, on_delete=models.CASCADE)
     date_created = models.DateTimeField(default=timezone.now)
-    
+
     def __str__(self):
         return f"{self.group.name} - Created on {self.date_created}"
 
@@ -196,3 +198,11 @@ class StaffNotification(models.Model):
 
     def __str__(self):
         return self.user.email
+
+
+class BlacklistedToken(models.Model):
+    token_hash = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.token_hash
