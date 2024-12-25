@@ -428,6 +428,11 @@ class CreateCustomerGroupSerializer(serializers.ModelSerializer):
         model = CustomerGroup
         fields = ['id', 'title', 'customers']
 
+    def validate_title(self, attrs):
+        title = attrs.lower()
+        if CustomerGroup.objects.filter(name__iexact=title).exists():
+            raise serializers.ValidationError("Group name already exists")
+        return attrs
 
 class BulkCreateCustomerSerializer(serializers.ModelSerializer):
     name = serializers.CharField(max_length=255, write_only=True)
