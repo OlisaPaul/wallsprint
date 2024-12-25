@@ -26,6 +26,7 @@ from store import serializers
 CanTransferFiles = create_permission_class('store.transfer_files')
 PortalPermissions = create_permission_class('store.portals')
 CustomerServicePermissions = create_permission_class('store.customers')
+WebsiteUsersPermissions = create_permission_class('store.website_users')
 OrderPermissions = create_permission_class('store.order')
 
 
@@ -113,7 +114,7 @@ class FileTransferViewSet(CustomModelViewSet):
 class CustomerViewSet(CustomModelViewSet):
     queryset = Customer.objects.select_related(
         'user').prefetch_related('groups').all()
-    permission_classes = [CustomerServicePermissions]
+    permission_classes = [WebsiteUsersPermissions]
 
     def get_serializer_class(self):
         if self.action == 'bulk_upload':
@@ -233,7 +234,7 @@ class CustomerViewSet(CustomModelViewSet):
 
 class CustomerGroupViewSet(CustomModelViewSet):
     queryset = CustomerGroup.objects.prefetch_related('customers').all()
-    permission_classes = [CustomerServicePermissions]
+    permission_classes = [WebsiteUsersPermissions]
 
     def get_serializer_class(self):
         if self.request.method == "GET":
