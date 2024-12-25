@@ -28,7 +28,7 @@ PortalPermissions = create_permission_class('store.portals')
 CustomerServicePermissions = create_permission_class('store.customers')
 WebsiteUsersPermissions = create_permission_class('store.website_users')
 OrderPermissions = create_permission_class('store.order')
-
+MessageCenterPermissions = create_permission_class('store.message_center')
 
 class CustomerCreationHandler:
     def __init__(self, user, customer_data):
@@ -47,7 +47,7 @@ class ContactInquiryViewSet(CustomModelViewSet):
     def get_permissions(self):
         if self.request.method == "POST":
             return [AllowAny()]
-        return [FullDjangoModelPermissions()]
+        return [MessageCenterPermissions()]
 
 
 class ImageViewSet(ListModelMixin, GenericViewSet):
@@ -66,7 +66,7 @@ class QuoteRequestViewSet(ModelViewSet, HandleImagesMixin):
     def get_permissions(self):
         if self.request.method == "POST":
             return [AllowAny()]
-        return [FullDjangoModelPermissions()]
+        return [MessageCenterPermissions()]
 
 
 class RequestViewSet(CustomModelViewSet):
