@@ -430,7 +430,7 @@ class CreateCustomerGroupSerializer(serializers.ModelSerializer):
 
     def validate_title(self, attrs):
         title = attrs.lower()
-        if CustomerGroup.objects.filter(name__iexact=title).exists():
+        if CustomerGroup.objects.filter(title__iexact=title).exists():
             raise serializers.ValidationError("Group name already exists")
         return attrs
 

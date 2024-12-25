@@ -252,7 +252,7 @@ class Customer(models.Model):
 
 class CustomerGroup(models.Model):
     title = models.CharField(max_length=255, unique=True)
-    customers = models.ManyToManyField(Customer, related_name='groups')
+    customers = models.ManyToManyField(Customer, related_name='groups', blank=True)
     date_created = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
