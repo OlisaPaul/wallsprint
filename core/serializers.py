@@ -353,11 +353,11 @@ class UpdateGroupSerializer(ModelSerializer):
         model = Group
         fields = ['name', 'permissions', 'users']
 
-    def validate_name(self, attrs):
-        name = attrs.lower()
-        if Group.objects.filter(name__iexact=name).exists():
-            raise serializers.ValidationError("Group name already exists")
-        return attrs
+    # def validate_name(self, attrs):
+    #     name = attrs.lower()
+    #     if Group.objects.filter(name__iexact=name).exists():
+    #         raise serializers.ValidationError("Group name already exists")
+    #     return attrs
 
 
 class AddUserToGroupSerializer(ModelSerializer):

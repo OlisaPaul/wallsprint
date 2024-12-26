@@ -239,7 +239,7 @@ class CustomerGroupViewSet(CustomModelViewSet):
     def get_serializer_class(self):
         if self.request.method == "GET":
             return CustomerGroupSerializer
-        if self.request.method == "PUT":
+        if self.request.method in ["PUT", "PATCH"]:
             return serializers.UpdateCustomerGroupSerializer   
         return CreateCustomerGroupSerializer
 

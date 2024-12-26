@@ -62,7 +62,10 @@ class RoleBasedAccessMiddleware(MiddlewareMixin):
                     if not email:
                         return JsonResponse({"detail": "email is required"}, status=400)
 
-                    user = User.objects.get(email=email)
+                    try:
+                        user = User.objects.get(email=email)
+                    except User.DoesNotExist:
+                        return JsonResponse({"detail": "User not found"}, status=404)
                 else:
                     return None
 
