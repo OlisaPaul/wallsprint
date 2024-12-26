@@ -1,4 +1,3 @@
-import hashlib
 import os
 import random
 import secrets
@@ -17,7 +16,7 @@ from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 from .signals import group_created
 from .models import User, StaffNotification, BlacklistedToken
-from .utils import generate_jwt_for_user
+from .utils import generate_jwt_for_user, blacklist_token
 from django.contrib.auth.password_validation import validate_password
 
 load_dotenv()
@@ -87,20 +86,11 @@ class AcceptInvitationSerializer(BaseUserSerializer):
     class Meta(BaseUserSerializer.Meta):
         fields = ['name', 'password']
 
-    def create(self, validated_data):
-        def hash_token(token):
-            return hashlib.sha256(token.encode()).hexdigest()
-        
-        auth_header = self.context.request.headers.get('Authorization')
-        token = auth_header.split(' ')[1]
-        hashed_token = hash_token(token)
-        BlacklistedToken.objects.create(token_hash=hashed_token)
-       
-        return super().create(validated_data)
-
     def validate(self, attrs):
         request = self.context['request']
         user = User.objects.get(pk=request.user.id)
+
+        blacklist_token(request)
 
         if user.username:
             raise serializers.ValidationError('Invitation already accepted')
