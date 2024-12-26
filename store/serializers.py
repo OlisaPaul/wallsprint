@@ -434,6 +434,11 @@ class CreateCustomerGroupSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Group name already exists")
         return attrs
 
+class UpdateCustomerGroupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerGroup
+        fields = ['id', 'title', 'customers']
+
 class BulkCreateCustomerSerializer(serializers.ModelSerializer):
     name = serializers.CharField(max_length=255, write_only=True)
     email = serializers.EmailField(write_only=True)
