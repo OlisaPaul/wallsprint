@@ -70,6 +70,7 @@ urlpatterns = [
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0)),
     path('test/', include('django.contrib.auth.urls')),
     path('api/v1/auth/logout/', LogoutView.as_view(), name='logout'),
+    path('api/v1/auth/customer/logout/', LogoutView.as_view(), name='customer-logout'),
 ]
 
 if settings.DEBUG:
