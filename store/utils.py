@@ -66,27 +66,23 @@ def create_instance_with_files(model_class, validated_data):
             file_size = None
             cloudinary_path = None
 
-            # Check if the file is an InMemoryUploadedFile
             if isinstance(file, InMemoryUploadedFile):
-                file_size = file.size  # Get size from the uploaded file object
+                file_size = file.size
                 try:
-                    # Upload file to Cloudinary
                     upload_result = upload(file)
-                    cloudinary_path = upload_result.get("public_id")  # Get public ID for storage
+                    cloudinary_path = upload_result.get("public_id")
                 except Error as e:
                     print(f"Error uploading file {file}: {e}")
-                    continue  # Skip this file if upload fails
+                    continue
             else:
-                # Assume the file is a Cloudinary public ID or URL
                 try:
                     file_metadata = resource(file)
                     file_size = file_metadata.get("bytes")
-                    cloudinary_path = file  # Use the provided path
+                    cloudinary_path = file
                 except Error as e:
                     print(f"Error fetching metadata for {file}: {e}")
-                    continue  # Skip this file if metadata fetch fails
+                    continue
 
-            # Create the File instance
             File.objects.create(
                 path=cloudinary_path,
                 file_size=file_size,
