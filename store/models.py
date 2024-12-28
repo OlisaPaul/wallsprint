@@ -73,6 +73,20 @@ class CommonFields(models.Model):
         abstract = True
 
 
+class BillingInfo(models.Model):
+    first_name = models.CharField(max_length=255)
+    last_name = models.CharField(max_length=255)
+    email_address = models.EmailField()
+    phone_number = models.CharField(max_length=20)
+    fax_number = models.CharField(max_length=20, blank=True, null=True)
+    company = models.CharField(max_length=255, blank=True, null=True)
+    address = models.CharField(max_length=255)
+    address_line_2 = models.CharField(max_length=255, blank=True, null=True)
+    state = models.CharField(max_length=100)
+    city = models.CharField(max_length=100)
+    zip_code = models.CharField(max_length=20)
+
+
 class ContactInquiry(CommonFields):
     questions = models.TextField()
     comments = models.TextField(blank=True)
@@ -170,6 +184,9 @@ class Request(CommonFields):
     COMPLETED = 'Completed'
     PROCESSING = 'Processing'
 
+    billing_info = models.ForeignKey(
+        BillingInfo, on_delete=models.SET_NULL, related_name='requests', null=True, blank=True
+    )
     artwork_provided = models.CharField(
         max_length=50,
         choices=[
@@ -252,7 +269,8 @@ class Customer(models.Model):
 
 class CustomerGroup(models.Model):
     title = models.CharField(max_length=255, unique=True)
-    customers = models.ManyToManyField(Customer, related_name='groups', blank=True)
+    customers = models.ManyToManyField(
+        Customer, related_name='groups', blank=True)
     date_created = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -308,6 +326,9 @@ class FileTransfer(CommonFields):
         default=NEW
     )
     notes = GenericRelation(Note, related_query_name='file_transfers')
+    billing_info = models.ForeignKey(
+        BillingInfo, on_delete=models.CASCADE, related_name='file_transfers', null=True, blank=True
+    )
 
     class Meta:
         permissions = [
@@ -532,7 +553,7 @@ class CatalogItem(models.Model):
 
     def __str__(self):
         return self.title
-    
+
     class Meta:
         permissions = [
             ('catalog_items', "Catalog Items")

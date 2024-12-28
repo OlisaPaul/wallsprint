@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.validators import ValidationError
 from io import TextIOWrapper
-from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog, Note
+from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog, Note, BillingInfo
 from .utils import create_instance_with_files
 from .signals import file_transferred
 
@@ -111,6 +111,16 @@ class CSVUploadSerializer(serializers.Serializer):
         return file_data
 
 
+class BillingInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BillingInfo
+        fields = [
+            'first_name', 'last_name', 'email_address', 'phone_number',
+            'fax_number', 'company', 'address', 'address_line_2',
+            'state', 'city', 'zip_code'
+        ]
+
+
 class TitlePortalSerializer(serializers.ModelSerializer):
     class Meta:
         model = Portal
@@ -162,10 +172,11 @@ class RequestSerializer(serializers.ModelSerializer):
     files = FileSerializer(many=True, read_only=True)
     portal = TitlePortalSerializer()
     notes = NoteSerializer(many=True, read_only=True)
+    billing_info = BillingInfoSerializer()
 
     class Meta:
         model = Request
-        fields = image_fields + ['this_is_an', 'status', 'notes']
+        fields = image_fields + ['this_is_an', 'status', 'notes', 'billing_info']
         read_only_fields = ['created_at']
 
 
@@ -215,13 +226,15 @@ class CreateOnlineProofSerializer(serializers.ModelSerializer):
 
 
 class FileTransferSerializer(serializers.ModelSerializer):
+    billing_info = BillingInfoSerializer()
+    notes = NoteSerializer(many=True, read_only=True)
     files = FileSerializer(many=True, read_only=True)
     portal = TitlePortalSerializer()
 
     class Meta:
         model = FileTransfer
         fields = general_fields + ["file_type",
-                                   "application_type", "other_application_type", "status"]
+                                   "application_type", "other_application_type", "status", "notes", "billing_info"]
         read_only_fields = ['created_at']
 
 
@@ -434,10 +447,12 @@ class CreateCustomerGroupSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Group name already exists")
         return attrs
 
+
 class UpdateCustomerGroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomerGroup
         fields = ['id', 'title', 'customers']
+
 
 class BulkCreateCustomerSerializer(serializers.ModelSerializer):
     name = serializers.CharField(max_length=255, write_only=True)
@@ -1231,4 +1246,3 @@ class FileExchangeSerializer(serializers.ModelSerializer):
         file_transferred.send_robust(
             self.__class__, request=self.context['request'], file_transfer=file_transfer)
         return file_transfer
-

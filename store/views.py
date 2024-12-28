@@ -13,8 +13,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny,  IsAuthenticated, IsAdminUser
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, DestroyModelMixin
-from .models import Cart, CartItem, CatalogItem, ContactInquiry, PortalContentCatalog, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, Portal, Order, OrderItem, Note, ContentType
-from .serializers import AddCartItemSerializer, CartItemSerializer, CartSerializer, CatalogItemSerializer, ContactInquirySerializer, CreateOrderSerializer, OrderSerializer, PortalContentCatalogSerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCartItemSerializer, UpdateCustomerSerializer, UpdateOrderSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, PortalSerializer, customer_fields, CreateOrUpdateCatalogItemSerializer, NoteSerializer
+from .models import Cart, CartItem, CatalogItem, ContactInquiry, PortalContentCatalog, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, Portal, Order, OrderItem, Note, ContentType, BillingInfo
+from .serializers import AddCartItemSerializer, CartItemSerializer, CartSerializer, CatalogItemSerializer, ContactInquirySerializer, CreateOrderSerializer, OrderSerializer, PortalContentCatalogSerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCartItemSerializer, UpdateCustomerSerializer, UpdateOrderSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, PortalSerializer, customer_fields, CreateOrUpdateCatalogItemSerializer, NoteSerializer, BillingInfoSerializer
 from django.shortcuts import get_object_or_404
 from .permissions import FullDjangoModelPermissions, create_permission_class
 from .mixins import HandleImagesMixin
@@ -29,6 +29,7 @@ CustomerServicePermissions = create_permission_class('store.customers')
 WebsiteUsersPermissions = create_permission_class('store.website_users')
 OrderPermissions = create_permission_class('store.order')
 MessageCenterPermissions = create_permission_class('store.message_center')
+
 
 class CustomerCreationHandler:
     def __init__(self, user, customer_data):
@@ -70,7 +71,8 @@ class QuoteRequestViewSet(ModelViewSet, HandleImagesMixin):
 
 
 class RequestViewSet(CustomModelViewSet):
-    queryset = get_queryset_for_models_with_files(Request).prefetch_related('notes')
+    queryset = get_queryset_for_models_with_files(
+        Request).prefetch_related('notes')
 
     def get_serializer_class(self):
         if self.request.method == "POST":
@@ -240,7 +242,7 @@ class CustomerGroupViewSet(CustomModelViewSet):
         if self.request.method == "GET":
             return CustomerGroupSerializer
         if self.request.method in ["PUT", "PATCH"]:
-            return serializers.UpdateCustomerGroupSerializer   
+            return serializers.UpdateCustomerGroupSerializer
         return CreateCustomerGroupSerializer
 
 
@@ -739,9 +741,40 @@ class NoteViewSet(ModelViewSet):
         elif 'file_transfer_pk' in self.kwargs:
             content_type = ContentType.objects.get_for_model(FileTransfer)
             object_id = self.kwargs.get('file_transfer_pk')
-        
+
         serializer.save(
             author=self.request.user,
             content_type=content_type,
             object_id=object_id
         )
+
+
+class RequestBillingInfoViewSet(ModelViewSet):
+    serializer_class = BillingInfoSerializer
+
+    def perform_create(self, serializer):
+        request_id = self.kwargs.get('request_pk')
+        request_instance = get_object_or_404(Request, id=request_id)
+        billing_info = serializer.save()
+        request_instance.billing_info = billing_info
+        request_instance.save()
+
+    def get_queryset(self):
+        request_id = self.kwargs.get('request_pk')
+        return BillingInfo.objects.filter(requests__id=request_id)
+
+
+class FileTransferBillingInfoViewSet(ModelViewSet):
+    serializer_class = BillingInfoSerializer
+
+    def perform_create(self, serializer):
+        file_transfer_id = self.kwargs.get('file_transfer_pk')
+        file_transfer_instance = get_object_or_404(
+            FileTransfer, id=file_transfer_id)
+        billing_info = serializer.save()
+        file_transfer_instance.billing_info = billing_info
+        file_transfer_instance.save()
+
+    def get_queryset(self):
+        file_transfer_id = self.kwargs.get('file_transfer_pk')
+        return BillingInfo.objects.filter(file_transfers__id=file_transfer_id)

@@ -23,16 +23,20 @@ router.register('customers', views.CustomerViewSet, basename='customers'),
 router.register('customer-groups', views.CustomerGroupViewSet,
                 basename='customer-groups'),
 router.register('requests', views.RequestViewSet, basename='requests'),
-router.register('portal-content-catalogs', views.PortalContentCatalogViewSet, basename='portal-content-catalogs'),
-router.register('online-payments', views.OnlinePaymentViewSet, basename='online-payments'),
+router.register('portal-content-catalogs',
+                views.PortalContentCatalogViewSet, basename='portal-content-catalogs'),
+router.register('online-payments', views.OnlinePaymentViewSet,
+                basename='online-payments'),
 router.register('contact-us', views.ContactInquiryViewSet,
                 basename='contact-us'),
 portals_router = routers.NestedDefaultRouter(
     router, 'portals', lookup='portal')
 portals_router.register(
     'contents', views.PortalContentViewSet, basename='portal-contents')
-contents_router = routers.NestedDefaultRouter(portals_router, r'contents', lookup='content')
-contents_router.register(r'catalogs', views.PortalContentCatalogViewSet, basename='content-catalogs')
+contents_router = routers.NestedDefaultRouter(
+    portals_router, r'contents', lookup='content')
+contents_router.register(
+    r'catalogs', views.PortalContentCatalogViewSet, basename='content-catalogs')
 
 catalogs_router = routers.NestedDefaultRouter(
     router, 'catalogs', lookup='catalog')
@@ -50,6 +54,15 @@ file_transfers_router = routers.NestedDefaultRouter(
     router, 'file-transfers', lookup='file_transfer')
 file_transfers_router.register(
     'notes', views.NoteViewSet, basename='file-transfer-notes')
+
+# Nested routers for billing info
+requests_router.register(
+    'billing-info', views.RequestBillingInfoViewSet, basename='request-billing-info'
+)
+
+file_transfers_router.register(
+    'billing-info', views.FileTransferBillingInfoViewSet, basename='file-transfer-billing-info'
+)
 
 message_centre_url = [
     path('message-center/', views.MessageCenterView.as_view(), name='message-center'),
