@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.validators import ValidationError
 from io import TextIOWrapper
-from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog, Note, BillingInfo
+from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog, Note, BillingInfo, Shipment
 from .utils import create_instance_with_files
 from .signals import file_transferred
 
@@ -111,6 +111,16 @@ class CSVUploadSerializer(serializers.Serializer):
         return file_data
 
 
+class ShipmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Shipment
+        fields = [
+            'first_name', 'last_name', 'email_address', 'phone_number',
+            'fax_number', 'company', 'address', 'address_line_2',
+            'state', 'city', 'zip_code', 'status', 'send_notifications',
+            'tracking_number', 'shipment_cost'
+        ]
+
 class BillingInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = BillingInfo
@@ -169,6 +179,7 @@ class NoteSerializer(serializers.ModelSerializer):
 
 
 class RequestSerializer(serializers.ModelSerializer):
+    shipments = ShipmentSerializer(many=True, read_only=True)
     files = FileSerializer(many=True, read_only=True)
     portal = TitlePortalSerializer()
     notes = NoteSerializer(many=True, read_only=True)
@@ -176,7 +187,8 @@ class RequestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Request
-        fields = image_fields + ['this_is_an', 'status', 'notes', 'billing_info']
+        fields = image_fields + ['this_is_an', 'status',
+                                 'notes', 'billing_info', 'shipments']
         read_only_fields = ['created_at']
 
 
@@ -226,6 +238,7 @@ class CreateOnlineProofSerializer(serializers.ModelSerializer):
 
 
 class FileTransferSerializer(serializers.ModelSerializer):
+    shipments = ShipmentSerializer(many=True, read_only=True)
     billing_info = BillingInfoSerializer()
     notes = NoteSerializer(many=True, read_only=True)
     files = FileSerializer(many=True, read_only=True)
@@ -234,7 +247,7 @@ class FileTransferSerializer(serializers.ModelSerializer):
     class Meta:
         model = FileTransfer
         fields = general_fields + ["file_type",
-                                   "application_type", "other_application_type", "status", "notes", "billing_info"]
+                                   "application_type", "other_application_type", "status", "notes", "billing_info", "shipments"]
         read_only_fields = ['created_at']
 
 
@@ -271,8 +284,10 @@ def validate_status_transition(instance, new_status):
         # Check if the transition is valid
         if current_status in allowed_transitions and new_status not in allowed_transitions[current_status]:
             raise serializers.ValidationError(
-                f"Invalid status transition from {current_status} to {new_status}." 
-                f"You can only change it to one of {allowed_transitions[current_status]}."
+                f"Invalid status transition from {
+                    current_status} to {new_status}."
+                f"You can only change it to one of {
+                    allowed_transitions[current_status]}."
             )
 
     return new_status

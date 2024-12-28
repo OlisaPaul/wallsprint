@@ -87,6 +87,38 @@ class BillingInfo(models.Model):
     zip_code = models.CharField(max_length=20)
 
 
+class Shipment(models.Model):
+    STATUS_CHOICES = [
+        ('New', 'New'),
+        ('Quote', 'Quote'),
+        ('Shipped', 'Shipped'),
+    ]
+
+    first_name = models.CharField(max_length=255)
+    last_name = models.CharField(max_length=255)
+    email_address = models.EmailField()
+    phone_number = models.CharField(max_length=20)
+    fax_number = models.CharField(max_length=20, blank=True, null=True)
+    company = models.CharField(max_length=255, blank=True, null=True)
+    address = models.CharField(max_length=255)
+    address_line_2 = models.CharField(max_length=255, blank=True, null=True)
+    state = models.CharField(max_length=100)
+    city = models.CharField(max_length=100)
+    zip_code = models.CharField(max_length=20)
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default='New')
+    send_notifications = models.BooleanField(default=False)
+    tracking_number = models.CharField(max_length=255, blank=True, null=True)
+    shipment_cost = models.DecimalField(
+        max_digits=10, decimal_places=2, blank=True, null=True)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey('content_type', 'object_id')
+
+    def __str__(self):
+        return f"Shipment to {self.first_name} {self.last_name} - {self.status}"
+
+
 class ContactInquiry(CommonFields):
     questions = models.TextField()
     comments = models.TextField(blank=True)
@@ -152,6 +184,7 @@ class OnlineProof(models.Model):
     additional_info = models.TextField(blank=True, null=True)
     files = GenericRelation(
         "File", related_query_name='online_proofs', null=True)
+    shipments = GenericRelation(Shipment, related_query_name='file_transfers')
 
     def __str__(self):
         return f"Proof Approval for {self.project_title or 'Untitled Project'} - {self.recipient_name}"
@@ -187,6 +220,7 @@ class Request(CommonFields):
     billing_info = models.ForeignKey(
         BillingInfo, on_delete=models.SET_NULL, related_name='requests', null=True, blank=True
     )
+    shipments = GenericRelation(Shipment, related_query_name='requests')
     artwork_provided = models.CharField(
         max_length=50,
         choices=[

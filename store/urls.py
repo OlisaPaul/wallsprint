@@ -57,11 +57,19 @@ file_transfers_router.register(
 
 # Nested routers for billing info
 requests_router.register(
-    'billing-info', views.RequestBillingInfoViewSet, basename='request-billing-info'
+    'billing-info', views.BillingInfoViewSet, basename='request-billing-info'
 )
 
 file_transfers_router.register(
-    'billing-info', views.FileTransferBillingInfoViewSet, basename='file-transfer-billing-info'
+    'billing-info', views.BillingInfoViewSet, basename='file-transfer-billing-info'
+)
+
+requests_router.register(
+    'shipments', views.ShipmentViewSet, basename='request-shipments'
+)
+
+file_transfers_router.register(
+    'shipments', views.ShipmentViewSet, basename='file-transfer-shipments'
 )
 
 message_centre_url = [
