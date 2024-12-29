@@ -72,6 +72,14 @@ file_transfers_router.register(
     'shipments', views.ShipmentViewSet, basename='file-transfer-shipments'
 )
 
+requests_router.register(
+    'transactions', views.TransactionViewSet, basename='request-transactions'
+)
+
+file_transfers_router.register(
+    'transactions', views.TransactionViewSet, basename='file-transfer-transactions'
+)
+
 message_centre_url = [
     path('message-center/', views.MessageCenterView.as_view(), name='message-center'),
 ]

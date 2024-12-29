@@ -119,6 +119,25 @@ class Shipment(models.Model):
         return f"Shipment to {self.first_name} {self.last_name} - {self.status}"
 
 
+class Transaction(models.Model):
+    PAYMENT = 'payment'
+    REFUND = 'refund'
+    TRANSACTION_TYPE_CHOICES = [
+        (PAYMENT, 'Payment'),
+        (REFUND, 'Refund'),
+    ]
+
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    type = models.CharField(max_length=10, choices=TRANSACTION_TYPE_CHOICES)
+    description = models.TextField(blank=True, null=True)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey('content_type', 'object_id')
+
+    def __str__(self):
+        return f"{self.type.capitalize()} of {self.amount}"
+
+
 class ContactInquiry(CommonFields):
     questions = models.TextField()
     comments = models.TextField(blank=True)
@@ -263,6 +282,7 @@ class Request(CommonFields):
         default=NEW
     )
     notes = GenericRelation(Note, related_query_name='requests')
+    transactions = GenericRelation(Transaction, related_query_name='requests')
 
 
 class File(models.Model):
@@ -363,6 +383,9 @@ class FileTransfer(CommonFields):
     billing_info = models.ForeignKey(
         BillingInfo, on_delete=models.CASCADE, related_name='file_transfers', null=True, blank=True
     )
+    transactions = GenericRelation(
+        Transaction, related_query_name='file_transfers')
+    shipments = GenericRelation(Shipment, related_query_name='file_transfers')
 
     class Meta:
         permissions = [

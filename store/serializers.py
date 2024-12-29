@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.validators import ValidationError
 from io import TextIOWrapper
-from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog, Note, BillingInfo, Shipment
+from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog, Note, BillingInfo, Shipment, Transaction
 from .utils import create_instance_with_files
 from .signals import file_transferred
 
@@ -121,6 +121,20 @@ class ShipmentSerializer(serializers.ModelSerializer):
             'tracking_number', 'shipment_cost'
         ]
 
+class TransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Transaction
+        fields = ['amount', 'type', 'description']
+
+    def validate(self, data):
+        if data['type'] == 'refund':
+            content_type = self.context['content_type']
+            object_id = self.context['object_id']
+            if not Transaction.objects.filter(content_type=content_type, object_id=object_id, type='payment').exists():
+                raise serializers.ValidationError({"type": "Refund cannot be made without an existing payment."})
+        return data
+
+
 class BillingInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = BillingInfo
@@ -179,6 +193,7 @@ class NoteSerializer(serializers.ModelSerializer):
 
 
 class RequestSerializer(serializers.ModelSerializer):
+    transactions = TransactionSerializer(many=True, read_only=True)
     shipments = ShipmentSerializer(many=True, read_only=True)
     files = FileSerializer(many=True, read_only=True)
     portal = TitlePortalSerializer()
@@ -188,7 +203,7 @@ class RequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = Request
         fields = image_fields + ['this_is_an', 'status',
-                                 'notes', 'billing_info', 'shipments']
+                                 'notes', 'billing_info', 'shipments', 'transactions']
         read_only_fields = ['created_at']
 
 
@@ -240,6 +255,7 @@ class CreateOnlineProofSerializer(serializers.ModelSerializer):
 class FileTransferSerializer(serializers.ModelSerializer):
     shipments = ShipmentSerializer(many=True, read_only=True)
     billing_info = BillingInfoSerializer()
+    transactions = TransactionSerializer(many=True, read_only=True)
     notes = NoteSerializer(many=True, read_only=True)
     files = FileSerializer(many=True, read_only=True)
     portal = TitlePortalSerializer()
@@ -247,7 +263,7 @@ class FileTransferSerializer(serializers.ModelSerializer):
     class Meta:
         model = FileTransfer
         fields = general_fields + ["file_type",
-                                   "application_type", "other_application_type", "status", "notes", "billing_info", "shipments"]
+                                   "application_type", "other_application_type", "status", "notes", "billing_info", "shipments", "transactions"]
         read_only_fields = ['created_at']
 
 
