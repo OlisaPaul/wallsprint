@@ -121,6 +121,7 @@ class ShipmentSerializer(serializers.ModelSerializer):
             'tracking_number', 'shipment_cost'
         ]
 
+
 class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
@@ -131,7 +132,8 @@ class TransactionSerializer(serializers.ModelSerializer):
             content_type = self.context['content_type']
             object_id = self.context['object_id']
             if not Transaction.objects.filter(content_type=content_type, object_id=object_id, type='payment').exists():
-                raise serializers.ValidationError({"type": "Refund cannot be made without an existing payment."})
+                raise serializers.ValidationError(
+                    {"type": "Refund cannot be made without an existing payment."})
         return data
 
 
@@ -300,8 +302,10 @@ def validate_status_transition(instance, new_status):
         # Check if the transition is valid
         if current_status in allowed_transitions and new_status not in allowed_transitions[current_status]:
             raise serializers.ValidationError(
-                f"Invalid status transition from {current_status} to {new_status}."
-                f"You can only change it to one of {allowed_transitions[current_status]}."
+                f"Invalid status transition from {
+                    current_status} to {new_status}."
+                f"You can only change it to one of {
+                    allowed_transitions[current_status]}."
             )
 
     return new_status
@@ -700,6 +704,12 @@ class CatalogSerializer(serializers.ModelSerializer):
             'description',
             'display_items_on_same_page',
         ]
+
+    def validate_title(self, value):
+        if Catalog.objects.filter(title__iexact=value).exists():
+            raise serializers.ValidationError(
+                "A catalog with this title already exists.")
+        return value
 
     def validate_recipient_emails(self, value):
         """
@@ -1275,3 +1285,26 @@ class FileExchangeSerializer(serializers.ModelSerializer):
         file_transferred.send_robust(
             self.__class__, request=self.context['request'], file_transfer=file_transfer)
         return file_transfer
+
+
+class CopyCatalogSerializer(serializers.Serializer):
+    title = serializers.CharField(max_length=255)
+    copy_items = serializers.BooleanField(default=False)
+
+    def validate_title(self, value):
+        if Catalog.objects.filter(title__iexact=value).exists():
+            raise serializers.ValidationError(
+                "A catalog with this title already exists.")
+        return value
+
+
+class CopyCatalogItemSerializer(serializers.Serializer):
+    title = serializers.CharField(max_length=255)
+    catalog = serializers.PrimaryKeyRelatedField(
+        queryset=Catalog.objects.all())
+
+    def validate_title(self, value):
+        if CatalogItem.objects.filter(title__iexact=value).exists():
+            raise serializers.ValidationError(
+                "A catalog item with this title already exists.")
+        return value

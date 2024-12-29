@@ -14,7 +14,7 @@ from rest_framework.permissions import AllowAny,  IsAuthenticated, IsAdminUser
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, DestroyModelMixin
 from .models import Cart, CartItem, CatalogItem, ContactInquiry, PortalContentCatalog, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, Portal, Order, OrderItem, Note, ContentType, BillingInfo, Shipment, Transaction
-from .serializers import AddCartItemSerializer, CartItemSerializer, CartSerializer, CatalogItemSerializer, ContactInquirySerializer, CreateOrderSerializer, OrderSerializer, PortalContentCatalogSerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCartItemSerializer, UpdateCustomerSerializer, UpdateOrderSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, PortalSerializer, customer_fields, CreateOrUpdateCatalogItemSerializer, NoteSerializer, BillingInfoSerializer, ShipmentSerializer, TransactionSerializer
+from .serializers import AddCartItemSerializer, CartItemSerializer, CartSerializer, CatalogItemSerializer, ContactInquirySerializer, CreateOrderSerializer, OrderSerializer, PortalContentCatalogSerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCartItemSerializer, UpdateCustomerSerializer, UpdateOrderSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, PortalSerializer, customer_fields, CreateOrUpdateCatalogItemSerializer, NoteSerializer, BillingInfoSerializer, ShipmentSerializer, TransactionSerializer, CopyCatalogSerializer, CopyCatalogItemSerializer
 from django.shortcuts import get_object_or_404
 from .permissions import FullDjangoModelPermissions, create_permission_class
 from .mixins import HandleImagesMixin
@@ -361,7 +361,47 @@ class HTMLFileViewSet(CustomModelViewSet):
 
 class CatalogViewSet(CustomModelViewSet):
     queryset = models.Catalog.objects.all()
-    serializer_class = serializers.CatalogSerializer
+
+    def get_serializer_class(self):
+        if self.action == 'copy':
+            return CopyCatalogSerializer
+        return serializers.CatalogSerializer
+
+    @action(detail=True, methods=['post'])
+    def copy(self, request, pk=None):
+        """
+        Copy a catalog with a new title and optionally its items.
+        """
+        print(request.data)
+        catalog = self.get_object()
+        serializer = CopyCatalogSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        new_title = serializer.validated_data['title']
+        copy_items = serializer.validated_data['copy_items']
+        print(copy_items)
+
+        # Create a new catalog with the provided title
+        new_catalog = models.Catalog.objects.create(
+            title=new_title,
+            parent_catalog=catalog.parent_catalog,
+            specify_low_inventory_message=catalog.specify_low_inventory_message,
+            recipient_emails=catalog.recipient_emails,
+            subject=catalog.subject,
+            message_text=catalog.message_text,
+            description=catalog.description,
+            display_items_on_same_page=catalog.display_items_on_same_page
+        )
+
+        # Optionally copy catalog items
+        if copy_items:
+            for item in catalog.catalog_items.all():
+                item.pk = None  # Reset primary key to create a new object
+                item.catalog = new_catalog
+                item.save()
+
+        response_serializer = self.get_serializer(new_catalog)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 
 class MessageCenterViewSet(ModelViewSet):
@@ -571,6 +611,8 @@ class CatalogItemViewSet(ModelViewSet):
     """
 
     def get_serializer_class(self):
+        if self.action == 'copy':
+            return CopyCatalogItemSerializer
         if self.request.method in ['POST', 'PUT']:
             return CreateOrUpdateCatalogItemSerializer
         return CatalogItemSerializer
@@ -604,6 +646,48 @@ class CatalogItemViewSet(ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return Response(serializer.data)
+
+    @transaction.atomic()
+    @action(detail=True, methods=['post'])
+    def copy(self, request, pk=None, catalog_pk=None):
+        """
+        Copy a catalog item with a new title and assign it to a parent catalog.
+        """
+        catalog_item = self.get_object()
+        serializer = CopyCatalogItemSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        new_title = serializer.validated_data['title']
+        catalog = serializer.validated_data['catalog']
+
+        # Create a new catalog item with the provided title and parent catalog
+        new_catalog_item = CatalogItem.objects.create(
+            title=new_title,
+            catalog=catalog,
+            item_sku=catalog_item.item_sku,
+            description=catalog_item.description,
+            short_description=catalog_item.short_description,
+            default_quantity=catalog_item.default_quantity,
+            pricing_grid=catalog_item.pricing_grid,
+            thumbnail=catalog_item.thumbnail,
+            preview_image=catalog_item.preview_image,
+            preview_file=catalog_item.preview_file,
+            available_inventory=catalog_item.available_inventory,
+            minimum_inventory=catalog_item.minimum_inventory,
+            track_inventory_automatically=catalog_item.track_inventory_automatically,
+            restrict_orders_to_inventory=catalog_item.restrict_orders_to_inventory,
+            weight_per_piece_lb=catalog_item.weight_per_piece_lb,
+            weight_per_piece_oz=catalog_item.weight_per_piece_oz,
+            exempt_from_shipping_charges=catalog_item.exempt_from_shipping_charges,
+            is_this_item_taxable=catalog_item.is_this_item_taxable,
+            can_item_be_ordered=catalog_item.can_item_be_ordered,
+            details_page_per_layout=catalog_item.details_page_per_layout,
+        )
+
+        new_catalog_item.attributes.set(catalog_item.attributes.all())
+
+        response_serializer = self.get_serializer(new_catalog_item)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 
 class CartViewSet(CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, GenericViewSet):

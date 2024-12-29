@@ -581,7 +581,7 @@ class CatalogItem(models.Model):
     catalog = models.ForeignKey(
         'Catalog', null=True, blank=True, on_delete=models.SET_NULL, related_name='catalog_items'
     )
-    item_sku = models.CharField(max_length=100, unique=True)
+    item_sku = models.CharField(max_length=100)
     description = models.TextField()
     short_description = models.CharField(max_length=255, blank=True)
     default_quantity = models.PositiveIntegerField(default=1)
