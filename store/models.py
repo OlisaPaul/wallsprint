@@ -180,6 +180,7 @@ class QuoteRequest(CommonFields):
             ('New', 'New'),
             ('Pending', 'Pending'),
             ('Processing', 'Processing'),
+            ('Shipped', 'Shipped'),
             ('Completed', 'Completed'),
         ],
         default='New'
@@ -235,6 +236,7 @@ class Request(CommonFields):
     PENDING = 'Pending'
     COMPLETED = 'Completed'
     PROCESSING = 'Processing'
+    SHIPPED = 'Shipped'
 
     billing_info = models.ForeignKey(
         BillingInfo, on_delete=models.SET_NULL, related_name='requests', null=True, blank=True
@@ -278,6 +280,7 @@ class Request(CommonFields):
             (PENDING, PENDING),
             (PROCESSING, PROCESSING),
             (COMPLETED, COMPLETED),
+            (SHIPPED, SHIPPED),
         ],
         default=NEW
     )
@@ -336,6 +339,7 @@ class FileTransfer(CommonFields):
     PENDING = 'Pending'
     COMPLETED = 'Completed'
     PROCESSING = 'Processing'
+    SHIPPED = 'Shipped'
 
     additional_details = models.TextField(blank=True, null=True)
     file_type = models.CharField(
@@ -376,6 +380,7 @@ class FileTransfer(CommonFields):
             (PENDING, PENDING),
             (PROCESSING, PROCESSING),
             (COMPLETED, COMPLETED),
+            (SHIPPED, SHIPPED),
         ],
         default=NEW
     )

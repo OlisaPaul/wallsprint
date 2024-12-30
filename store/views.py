@@ -869,8 +869,12 @@ class FileExchangeViewSet(ModelViewSet):
 
 
 class NoteViewSet(ModelViewSet):
-    serializer_class = serializers.NoteSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.request.method == 'GET':
+            return serializers.NoteSerializer
+        return serializers.CreateNoteSerializer 
 
     def get_queryset(self):
         if 'request_pk' in self.kwargs:

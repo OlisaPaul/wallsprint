@@ -193,6 +193,10 @@ class NoteSerializer(serializers.ModelSerializer):
         fields = ['id', 'content', 'created_at', 'author']
         read_only_fields = ['created_at', 'author']
 
+class CreateNoteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Note
+        fields = ['id', 'content']
 
 class RequestSerializer(serializers.ModelSerializer):
     transactions = TransactionSerializer(many=True, read_only=True)
@@ -292,7 +296,8 @@ def validate_status_transition(instance, new_status):
         'New': ['Pending'],
         'Pending': ['New', 'Processing'],
         'Processing': ['New', 'Pending', 'Completed'],
-        'Completed': ['New', 'Pending', 'Processing']
+        'Completed': ['New', 'Pending', 'Processing', 'Shipped'],
+        'Shipped': ['New', 'Pending', 'Processing', 'Completed']
     }
 
     # Get the current instance's status
@@ -809,7 +814,7 @@ class PortalContentSerializer(serializers.ModelSerializer):
 
 
 class PortalSerializer(serializers.ModelSerializer):
-    content = PortalContentSerializer(many=True)
+    content = PortalContentSerializer(many=True, read_only=True)
     can_user_access = serializers.SerializerMethodField()
 
     class Meta:
