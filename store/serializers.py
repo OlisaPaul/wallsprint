@@ -1308,3 +1308,48 @@ class CopyCatalogItemSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "A catalog item with this title already exists.")
         return value
+
+
+class CopyPortalSerializer(serializers.Serializer):
+    title = serializers.CharField(max_length=255)
+    copy_logo = serializers.BooleanField(default=False)
+    copy_users_and_groups = serializers.BooleanField(default=False)
+    copy_catalogs_and_items = serializers.BooleanField(default=False)
+    copy_proofing_categories = serializers.BooleanField(default=False)
+    new_logo = serializers.ImageField(required=False, allow_null=True)
+    new_catalog = serializers.CharField(max_length=255, required=False)
+    new_proofing_category = serializers.CharField(
+        max_length=255, required=False)
+    users = serializers.PrimaryKeyRelatedField(queryset=Customer.objects.all(), many=True, required=False)
+    groups = serializers.PrimaryKeyRelatedField(queryset=CustomerGroup.objects.all(), many=True, required=False)
+
+    def validate_title(self, value):
+        if Portal.objects.filter(title__iexact=value).exists():
+            raise serializers.ValidationError(
+                "A portal with this title already exists.")
+        return value
+
+    def validate(self, data):
+        if data['copy_logo'] and data.get('new_logo'):
+            raise serializers.ValidationError(
+                "You cannot select both 'copy_logo' and provide a 'new_logo'.")
+
+        if data['copy_catalogs_and_items'] and data.get('new_catalog'):
+            raise serializers.ValidationError(
+                "You cannot select both 'copy_catalogs_and_items' and provide a 'new_catalog'.")
+        if not data['copy_catalogs_and_items'] and not data.get('new_catalog'):
+            raise serializers.ValidationError("You must provide a 'new_catalog' if 'copy_catalogs_and_items' is false.")
+        if data.get('new_catalog') and Catalog.objects.filter(title__iexact=data['new_catalog']).exists():
+            raise serializers.ValidationError("A catalog with this title already exists.")
+
+        if data['copy_proofing_categories'] and data.get('new_proofing_category'):
+            raise serializers.ValidationError(
+                "You cannot select both 'copy_proofing_categories' and provide a 'new_proofing_category'.")
+        if not data['copy_proofing_categories'] and not data.get('new_proofing_category'):
+            raise serializers.ValidationError("You must provide a 'new_proofing_category' if 'copy_proofing_categories' is false.")
+
+        
+        if data['copy_users_and_groups'] and (data.get('users') or data.get('groups')):
+            raise serializers.ValidationError("You cannot provide 'users' or 'groups' when 'copy_users_and_groups' is true.")
+        
+        return data

@@ -13,8 +13,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny,  IsAuthenticated, IsAdminUser
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, DestroyModelMixin
-from .models import Cart, CartItem, CatalogItem, ContactInquiry, PortalContentCatalog, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, Portal, Order, OrderItem, Note, ContentType, BillingInfo, Shipment, Transaction
-from .serializers import AddCartItemSerializer, CartItemSerializer, CartSerializer, CatalogItemSerializer, ContactInquirySerializer, CreateOrderSerializer, OrderSerializer, PortalContentCatalogSerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCartItemSerializer, UpdateCustomerSerializer, UpdateOrderSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, PortalSerializer, customer_fields, CreateOrUpdateCatalogItemSerializer, NoteSerializer, BillingInfoSerializer, ShipmentSerializer, TransactionSerializer, CopyCatalogSerializer, CopyCatalogItemSerializer
+from .models import Cart, CartItem, CatalogItem, ContactInquiry, PortalContentCatalog, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, Portal, Order, OrderItem, Note, ContentType, BillingInfo, Shipment, Transaction, PortalContent, Catalog
+from .serializers import AddCartItemSerializer, CartItemSerializer, CartSerializer, CatalogItemSerializer, ContactInquirySerializer, CreateOrderSerializer, OrderSerializer, PortalContentCatalogSerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCartItemSerializer, UpdateCustomerSerializer, UpdateOrderSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, PortalSerializer, customer_fields, CreateOrUpdateCatalogItemSerializer, NoteSerializer, BillingInfoSerializer, ShipmentSerializer, TransactionSerializer, CopyCatalogSerializer, CopyCatalogItemSerializer, CopyPortalSerializer
 from django.shortcuts import get_object_or_404
 from .permissions import FullDjangoModelPermissions, create_permission_class
 from .mixins import HandleImagesMixin
@@ -279,6 +279,8 @@ class PortalViewSet(CustomModelViewSet):
         return [IsAuthenticated()]
 
     def get_serializer_class(self):
+        if self.action == 'copy':
+            return CopyPortalSerializer
         if self.request.method == 'POST':
             return serializers.CreatePortalSerializer
         return PortalSerializer
@@ -306,6 +308,73 @@ class PortalViewSet(CustomModelViewSet):
             portal['content'] = content
 
         return Response(portals)
+
+    @action(detail=True, methods=['post'])
+    def copy(self, request, pk=None):
+        """
+        Copy a portal with specified options.
+        """
+        portal = self.get_object()
+        serializer = CopyPortalSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        new_title = serializer.validated_data['title']
+        copy_logo = serializer.validated_data['copy_logo']
+        copy_users_and_groups = serializer.validated_data['copy_users_and_groups']
+        copy_catalogs_and_items = serializer.validated_data['copy_catalogs_and_items']
+        copy_proofing_categories = serializer.validated_data['copy_proofing_categories']
+        new_logo = serializer.validated_data.get('new_logo')
+        new_catalog_name = serializer.validated_data.get('new_catalog')
+        new_proofing_category_name = serializer.validated_data.get(
+            'new_proofing_category')
+        users = serializer.validated_data.get('users')
+        groups = serializer.validated_data.get('groups')
+
+        # Create a new portal
+        new_portal = Portal.objects.create(
+            title=new_title,
+            logo=portal.logo if copy_logo else new_logo,
+            copy_from_portal_id=portal.id
+        )
+
+        if copy_users_and_groups:
+            new_portal.customers.set(portal.customers.all())
+            new_portal.customer_groups.set(portal.customer_groups.all())
+        elif users:
+            new_portal.customers.set(users)
+        elif groups:
+            new_portal.customer_groups.set(groups)
+
+        for content in portal.content.all():
+            new_content = PortalContent.objects.create(
+                portal=new_portal,
+                title=content.title,
+                content=content.content,
+                page=content.page,
+                everyone=content.everyone,
+                display_in_site_navigation=content.display_in_site_navigation,
+                include_in_site_map=content.include_in_site_map,
+                page_redirect=content.page_redirect,
+                location=content.location,
+                logo=content.logo,
+                payment_proof=content.payment_proof,
+                order_history=content.order_history
+            )
+
+            if copy_catalogs_and_items:
+                new_content.catalogs.set(content.catalogs.all())
+            else:
+                if new_catalog_name:
+                    new_catalog = Catalog.objects.create(
+                        title=new_catalog_name)
+                    # new_content.catalogs.add(new_catalog)
+
+            if copy_proofing_categories:
+                # Implement logic to copy proofing categories if needed
+                pass
+
+        response_serializer = self.get_serializer(new_portal)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 
 class PortalContentViewSet(CustomModelViewSet):
