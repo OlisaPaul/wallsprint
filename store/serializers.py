@@ -311,8 +311,8 @@ def validate_status_transition(instance, new_status):
             raise serializers.ValidationError(
                 f"Invalid status transition from \
                     {current_status} to {new_status}."
-                f"You can only change it to one of {
-                    allowed_transitions[current_status]}."
+                f"You can only change it to one of \
+                    {allowed_transitions[current_status]}."
             )
 
     return new_status
