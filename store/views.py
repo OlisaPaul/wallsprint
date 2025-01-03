@@ -301,9 +301,10 @@ class PortalViewSet(CustomModelViewSet):
         portals = serializer.data
         for portal in portals:
             content = portal.get('content')
+            nav_view = True if request.user.is_staff else content.get('display_in_site_navigation')
             content = [
                 item for item in content
-                if (item.get('can_user_access') or item['everyone'])
+                if (nav_view and (item.get('can_user_access') or item['everyone']))
             ]
             portal['content'] = content
 

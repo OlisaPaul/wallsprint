@@ -509,6 +509,27 @@ class Catalog(models.Model):
 
 
 class PortalContent(models.Model):
+    NO_REDIRECT = 'no_redirect'
+    EXTERNAL = 'external'
+    INTERNAL = 'internal'
+    FILE = 'file'
+    DEFAULT = 'default'
+    THREE_HUNDRED_ONE = '301'
+    THREE_HUNDRED_TWO = '302'
+
+    REDIRECT_CHOICES = [
+        (NO_REDIRECT, 'No Redirect'),
+        (EXTERNAL, 'To a page on another website'),
+        (INTERNAL, 'To another page on your site'),
+        (FILE, 'To a downloadable file'),
+    ]
+
+    REDIRECT_CODE_CHOICES = [
+        (DEFAULT, 'Default'),
+        (THREE_HUNDRED_ONE, '301'),
+        (THREE_HUNDRED_TWO, '302'),
+    ]
+
     title = models.CharField(max_length=255)
     content = models.TextField(null=True)
     portal = models.ForeignKey(
@@ -521,16 +542,20 @@ class PortalContent(models.Model):
     everyone = models.BooleanField(default=False)
     display_in_site_navigation = models.BooleanField(default=True)
     include_in_site_map = models.BooleanField(default=True)
-    page_redirect = models.CharField(max_length=50,
-                                     choices=[
-                                         ('no_redirect', 'No Redirect'),
-                                         ('external', 'To a page on another website'),
-                                         ('internal', 'To another page on your site'),
-                                         ('file', 'To a downloadable file'),
-                                     ],
-                                     default='no_redirect')
+    page_redirect = models.CharField(
+        max_length=50,
+        choices=REDIRECT_CHOICES,
+        default=NO_REDIRECT
+    )
     location = models.OneToOneField(
         PortalSection, on_delete=models.CASCADE, null=True, blank=True, related_name='content')
+    redirect_page = models.ForeignKey(
+        'self', on_delete=models.CASCADE, null=True, blank=True, related_name='redirect_content')
+    redirect_file = models.FileField(
+        upload_to='redirect_files/', null=True, blank=True)
+    redirect_url = models.URLField(null=True, blank=True)
+    redirect_code = models.CharField(
+        max_length=50, choices=REDIRECT_CODE_CHOICES, default=DEFAULT)
     catalogs = models.ManyToManyField(
         Catalog,
         through='PortalContentCatalog',
@@ -541,7 +566,7 @@ class PortalContent(models.Model):
     order_history = models.BooleanField(default=False)
 
     def __str__(self):
-        return self.page.title
+        return self.title
 
     def clean(self):
         if self.everyone and (self.customer_groups or self.customers):

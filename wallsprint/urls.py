@@ -71,6 +71,7 @@ urlpatterns = [
     path('test/', include('django.contrib.auth.urls')),
     path('api/v1/auth/logout/', LogoutView.as_view(), name='logout'),
     path('api/v1/auth/customer/logout/', LogoutView.as_view(), name='customer-logout'),
+    path('playground/', include('playground.urls')),
 ]
 
 if settings.DEBUG:

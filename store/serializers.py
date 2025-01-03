@@ -193,10 +193,12 @@ class NoteSerializer(serializers.ModelSerializer):
         fields = ['id', 'content', 'created_at', 'author']
         read_only_fields = ['created_at', 'author']
 
+
 class CreateNoteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Note
         fields = ['id', 'content']
+
 
 class RequestSerializer(serializers.ModelSerializer):
     transactions = TransactionSerializer(many=True, read_only=True)
@@ -307,8 +309,8 @@ def validate_status_transition(instance, new_status):
         # Check if the transition is valid
         if current_status in allowed_transitions and new_status not in allowed_transitions[current_status]:
             raise serializers.ValidationError(
-                f"Invalid status transition from {
-                    current_status} to {new_status}."
+                f"Invalid status transition from \
+                    {current_status} to {new_status}."
                 f"You can only change it to one of {
                     allowed_transitions[current_status]}."
             )
@@ -520,18 +522,81 @@ class CreatePortalContentSerializer(serializers.ModelSerializer):
         model = PortalContent
         fields = ['id', 'title', 'location',
                   'page_redirect', 'include_in_site_map', 'display_in_site_navigation',
-                  'customer_groups', 'customers', 'everyone', 'content', 'logo', 'payment_proof', 'order_history'
+                  'customer_groups', 'customers', 'everyone', 'content', 'logo', 'payment_proof', 'order_history',
+                  'redirect_page', 'redirect_file', 'redirect_url', 'redirect_code'
                   ]
 
     def validate(self, data):
-        customer_group_data = data.get('customer_groups', None)
-        customer_data = data.get('customers', None)
+        customer_group_data = data.get('customer_groups', [])
+        customer_data = data.get('customers', [])
         everyone = data.get('everyone', None)
-        is_customer_or_customer_data = customer_group_data or customer_data
-
-        if is_customer_or_customer_data and everyone:
+        page_redirect = data.get('page_redirect', None)
+        redirect_page = data.get('redirect_page', None)
+        redirect_file = data.get('redirect_file', None)
+        redirect_url = data.get('redirect_url', None)
+        
+        # Validate customer group and everyone selection
+        if (customer_group_data or customer_data) and everyone:
             raise ValidationError(
-                "You cannot select 'everyone' and also specify 'customer_groups' or 'customers'. Choose one option only.")
+                "You cannot select 'everyone' and also specify 'customer_groups' or 'customers'. Choose one option only."
+            )
+
+        # Restrict customers to those in the parent portal
+        portal_id = self.context['portal_id']
+        portal = Portal.objects.prefetch_related('customers', 'customer_groups').get(id=portal_id)
+        portal_customers = set(portal.customers.values_list('id', flat=True))
+        portal_customer_ids = set()
+        for group in portal.customer_groups.all():
+            portal_customer_ids.update(group.customers.values_list('id', flat=True))
+
+        customer_ids = set(customer.id if hasattr(customer, 'id') else customer for customer in customer_data)
+        if not customer_ids.issubset(portal_customers.union(portal_customer_ids)):
+            raise ValidationError(
+                "All selected customers must be part of the parent portal."
+            )
+
+        # Restrict customer groups to those in the parent portal
+        portal_customer_groups = set(
+            portal.customer_groups.values_list('id', flat=True))
+        customer_group_ids = set(customer_group_data)
+        if not customer_group_ids.issubset(portal_customer_groups):
+            raise ValidationError(
+                "All selected customer groups must be part of the parent portal."
+            )
+
+        # Validate redirect fields based on page_redirect value
+        if page_redirect == 'no_redirect':
+            if redirect_page or redirect_file or redirect_url or not data.get('redirect_code') in ['default', None]:
+                raise ValidationError(
+                    "For 'no_redirect', 'redirect_page', 'redirect_file', 'redirect_url', and 'redirect_code' must be null."
+                )
+        elif page_redirect == 'external':
+            if not redirect_url:
+                raise ValidationError(
+                    "For 'external', 'redirect_url' is required."
+                )
+            if redirect_page or redirect_file:
+                raise ValidationError(
+                    "For 'external', 'redirect_page' and 'redirect_file' must be null."
+                )
+        elif page_redirect == 'internal':
+            if not redirect_page:
+                raise ValidationError(
+                    "For 'internal', 'redirect_page' is required."
+                )
+            if redirect_file or redirect_url:
+                raise ValidationError(
+                    "For 'internal', 'redirect_file' and 'redirect_url' must be null."
+                )
+        elif page_redirect == 'file':
+            if not redirect_file:
+                raise ValidationError(
+                    "For 'file', 'redirect_file' is required."
+                )
+            if redirect_page or redirect_url:
+                raise ValidationError(
+                    "For 'file', 'redirect_page' and 'redirect_url' must be null."
+                )
 
         return data
 
@@ -1325,8 +1390,10 @@ class CopyPortalSerializer(serializers.Serializer):
     new_catalog = serializers.CharField(max_length=255, required=False)
     new_proofing_category = serializers.CharField(
         max_length=255, required=False)
-    users = serializers.PrimaryKeyRelatedField(queryset=Customer.objects.all(), many=True, required=False)
-    groups = serializers.PrimaryKeyRelatedField(queryset=CustomerGroup.objects.all(), many=True, required=False)
+    users = serializers.PrimaryKeyRelatedField(
+        queryset=Customer.objects.all(), many=True, required=False)
+    groups = serializers.PrimaryKeyRelatedField(
+        queryset=CustomerGroup.objects.all(), many=True, required=False)
 
     def validate_title(self, value):
         if Portal.objects.filter(title__iexact=value).exists():
@@ -1343,18 +1410,21 @@ class CopyPortalSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "You cannot select both 'copy_catalogs_and_items' and provide a 'new_catalog'.")
         if not data['copy_catalogs_and_items'] and not data.get('new_catalog'):
-            raise serializers.ValidationError("You must provide a 'new_catalog' if 'copy_catalogs_and_items' is false.")
+            raise serializers.ValidationError(
+                "You must provide a 'new_catalog' if 'copy_catalogs_and_items' is false.")
         if data.get('new_catalog') and Catalog.objects.filter(title__iexact=data['new_catalog']).exists():
-            raise serializers.ValidationError("A catalog with this title already exists.")
+            raise serializers.ValidationError(
+                "A catalog with this title already exists.")
 
         if data['copy_proofing_categories'] and data.get('new_proofing_category'):
             raise serializers.ValidationError(
                 "You cannot select both 'copy_proofing_categories' and provide a 'new_proofing_category'.")
         if not data['copy_proofing_categories'] and not data.get('new_proofing_category'):
-            raise serializers.ValidationError("You must provide a 'new_proofing_category' if 'copy_proofing_categories' is false.")
+            raise serializers.ValidationError(
+                "You must provide a 'new_proofing_category' if 'copy_proofing_categories' is false.")
 
-        
         if data['copy_users_and_groups'] and (data.get('users') or data.get('groups')):
-            raise serializers.ValidationError("You cannot provide 'users' or 'groups' when 'copy_users_and_groups' is true.")
-        
+            raise serializers.ValidationError(
+                "You cannot provide 'users' or 'groups' when 'copy_users_and_groups' is true.")
+
         return data

@@ -26,6 +26,8 @@ django-cors-headers = "*"
 django-phonenumber-field = "*"
 phonenumbers = "*"
 drf-yasg = "*"
+redis = "*"
+celery = "*"
 
 [dev-packages]
 
