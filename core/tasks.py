@@ -10,8 +10,8 @@ def send_notification_email_task(staff_email, staff_name, instance_name, request
     send_mail(
         subject=f'Customer Request for Service – {instance_name}',
         message=f'Dear {staff_name},\n\n'
-        f'We have received a request from {
-            instance_name} regarding {request_type}. '
+        f'We have received a request from \
+            {instance_name} regarding {request_type}. '
         f'Please review the details below:\n\n'
         f'Customer Name: {instance_name}\n'
         f'Request Type: {request_type}\n'
