@@ -18,6 +18,7 @@ import dj_database_url
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
+from celery.schedules import crontab
 
 
 # Load environment variables from .env file
@@ -57,6 +58,7 @@ INSTALLED_APPS = [
     'playground',
     'corsheaders',
     'drf_yasg',
+    'django_celery_beat',
 ]
 
 MIDDLEWARE = [
@@ -264,6 +266,20 @@ SWAGGER_SETTINGS = {
 
 CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL')
 CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND')
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+CELERY_BEAT_SCHEDULE = {
+    'delete-expired-tokens': {
+        'task': 'core.tasks.delete_expired_tokens',
+        'schedule': crontab(minute=0, hour=0)
+    },
+    # 'notify_customers': {
+    #     'task': 'playground.tasks.notify_customers',
+    #     'schedule': 5,
+    #     'args': ('Hello World',),
+    # }
+}
 # CELERY_RESULT_EXTENDED = True
 # CELERY_TASK_TRACK_STARTED = True
 # CELERY_TASK_TIME_LIMIT = 30 * 60

@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from ..models import FileExchange
 from ..signals import file_transferred
 from ..utils import get_base_url
+from store.tasks import send_file_transfer_email_task
 
 
 @receiver(file_transferred)
@@ -15,11 +16,11 @@ def send_file_transfer_email(sender, **kwargs):
     request = kwargs['request']
     instance = kwargs['file_transfer']
     base_url = get_base_url(request)
-    
+
     subject = "File Transfer Notification"
     recipient = instance.recipient_email
     context = {
-        'date': instance.created_at,  # Assuming you have a created_at field
+        'date': instance.created_at,
         'recipient_name': instance.recipient_name,
         'recipient_email': instance.recipient_email,
         'sender_name': instance.name,
@@ -29,12 +30,5 @@ def send_file_transfer_email(sender, **kwargs):
         'file_size': instance.file.size,
         'file_url': f'{base_url}{instance.file.url}',
     }
-    message = render_to_string('email/file_transfer.html', context)
-    email = EmailMessage(
-        subject=subject,
-        body=message,
-        to=[recipient],
-        from_email=settings.DEFAULT_FROM_EMAIL,
-    )
-    email.content_subtype = "html"  # Send as HTML email
-    email.send()
+
+    send_file_transfer_email_task.delay(subject, context, recipient)

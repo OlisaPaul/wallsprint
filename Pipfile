@@ -28,6 +28,8 @@ phonenumbers = "*"
 drf-yasg = "*"
 redis = "*"
 celery = "*"
+flower = "*"
+django-celery-beat = "*"
 
 [dev-packages]
 

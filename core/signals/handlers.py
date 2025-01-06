@@ -4,7 +4,7 @@ from django.dispatch import receiver
 from django.contrib.auth.models import Group
 from store.models import Customer, Request, FileTransfer, Order, ContactInquiry, QuoteRequest
 from ..models import ExtendedGroup, StaffNotification
-from django.core.mail import send_mail
+from core.tasks import send_notification_email_task
 
 
 @receiver(post_save, sender=Group)
@@ -34,36 +34,12 @@ def send_notification_email(instance, model_name):
         'ContactInquiry': 'General Contact'
     }.get(model_name, 'Service/Product Inquiry/Support')
 
-    # Send email to staff
+    # Enqueue email tasks
     for staff in staff_notifications:
         staff_email = staff['user__email']
         staff_name = staff['user__name']
-        send_mail(
-            subject=f'Customer Request for Service – {instance.name}',
-            message=f'Dear {staff_name},\n\n'
-            f'We have received a request from {instance.name} regarding {request_type}. '
-            f'Please review the details below:\n\n'
-            f'Customer Name: {instance.name}\n'
-            f'Request Type: {request_type}\n'
-            f'Kindly take the necessary steps to assist them at your earliest convenience.\n\n'
-            f'Best regards,\n'
-            f'The WallsPrinting Team\n'
-            f'{settings.EMAIL_HOST_USER}',
-            from_email=settings.EMAIL_HOST_USER,
-            recipient_list=[staff_email],
-            fail_silently=False,
-        )
-
-    # Send email to client
-    client_email = instance.email_address
-    client_name = instance.name
-    send_mail(
-        subject=f'Your {model_name} is being processed',
-        message=f'Hello {client_name},\n\nYour {model_name} has been received and is currently being processed. We will update you shortly.\n\nThank you!',
-        from_email='your_email@example.com',
-        recipient_list=[client_email],
-        fail_silently=False,
-    )
+        send_notification_email_task.delay(
+            staff_email, staff_name, instance.name, request_type)
 
 
 @receiver(post_save, sender=QuoteRequest)
