@@ -628,16 +628,16 @@ class CreatePortalSerializer(serializers.ModelSerializer):
     same_permissions = serializers.BooleanField(required=False)
     same_catalogs = serializers.BooleanField(required=False)
     same_proofing_categories = serializers.BooleanField(required=False)
-    customer_groups = serializers.ListField(
-        child=serializers.IntegerField(),
-        write_only=True,
-        required=False
-    )
-    customers = serializers.ListField(
-        child=serializers.IntegerField(),
-        write_only=True,
-        required=False
-    )
+    # customer_groups = serializers.ListField(
+    #     child=serializers.IntegerField(),
+    #     write_only=True,
+    #     required=False
+    # )
+    # customers = serializers.ListField(
+    #     child=serializers.IntegerField(),
+    #     write_only=True,
+    #     required=False
+    # )
 
     class Meta:
         model = Portal
