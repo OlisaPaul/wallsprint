@@ -153,24 +153,13 @@ class CustomerViewSet(CustomModelViewSet):
 
         csv_content = serializer.validated_data['file']
         has_header = serializer.validated_data['has_header']
-        [id, *fields_without_id] = customer_fields
-
-        columns = ['name', 'email', 'password',
-                   'username', 'is_active'] + fields_without_id
+        columns = ['name', 'email', 'password', 'username', 'is_active'] + customer_fields[1:]
 
         try:
-            if has_header:
-                csv_reader = csv.DictReader(csv_content.splitlines())
-            else:
-                csv_reader = csv.DictReader(
-                    csv_content.splitlines(), fieldnames=columns)
-
+            csv_reader = csv.DictReader(csv_content.splitlines(), fieldnames=columns if not has_header else None)
             rows = list(csv_reader)
         except csv.Error as e:
-            return Response(
-                {"error": f"CSV parsing error: {str(e)}"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"error": f"CSV parsing error: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
         if not rows:
             return Response({"error": "The uploaded file contains no data."}, status=status.HTTP_400_BAD_REQUEST)
@@ -181,31 +170,20 @@ class CustomerViewSet(CustomModelViewSet):
         for row in rows:
             serializer = CreateCustomerSerializer(data=row)
             if serializer.is_valid():
-                email = row.get('email')
-                name = row.get('name')
-                password = row.get('password')
-                username = row.get('username')
-
-                user = User(email=email, username=username)
-                user.set_password(password)
-                user.name = name
+                user = User(email=row['email'], username=row['username'])
+                user.set_password(row['password'])
+                user.name = row['name']
                 user.save()
 
                 customer_data = {**row}
-                customer_data.pop('name')
-                customer_data.pop('email')
-                customer_data.pop('password')
+                customer_data.pop('name', None)
+                customer_data.pop('email', None)
+                customer_data.pop('password', None)
 
-                if customer_data['pay_tax'] == 'FALSE':
-                    customer_data['pay_tax'] = False
+                customer_data['pay_tax'] = row.get('pay_tax', 'FALSE') == 'TRUE'
+                customer_data['is_active'] = row.get('is_active', 'FALSE') == 'TRUE'
 
-                if customer_data['is_active'] == 'FALSE':
-                    customer_data['is_active'] = False
-
-                customer_data['pay_tax'] = bool(customer_data['pay_tax'])
-                customer_data['is_active'] = bool(customer_data['is_active'])
-
-                Customer.objects.create(user=user, **serializer.data)
+                Customer.objects.create(user=user, **customer_data)
                 customer_count += 1
             else:
                 errors.append({**serializer.errors, "row": row})
@@ -279,6 +257,7 @@ class PortalViewSet(CustomModelViewSet):
         return [IsAuthenticated()]
 
     def get_serializer_class(self):
+        print(self.request.data)
         if self.action == 'copy':
             return CopyPortalSerializer
         if self.request.method == 'POST':
