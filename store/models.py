@@ -406,6 +406,7 @@ class Portal(models.Model):
         Customer, blank=True, related_name='portals')
     customer_groups = models.ManyToManyField(
         CustomerGroup, blank=True, related_name='portals')
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.title

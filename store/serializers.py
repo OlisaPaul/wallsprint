@@ -885,7 +885,7 @@ class PortalSerializer(serializers.ModelSerializer):
     class Meta:
         model = Portal
         fields = ['id', 'title', 'content', 'can_user_access',
-                  'customers', 'customer_groups']
+                  'customers', 'customer_groups', 'created_at']
 
     def get_can_user_access(self, obj):
         request = self.context['request']
