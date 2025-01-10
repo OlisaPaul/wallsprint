@@ -30,6 +30,7 @@ redis = "*"
 celery = "*"
 flower = "*"
 django-celery-beat = "*"
+django-silk = "*"
 
 [dev-packages]
 
