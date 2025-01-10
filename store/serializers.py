@@ -773,12 +773,19 @@ class CatalogSerializer(serializers.ModelSerializer):
             'message_text',
             'description',
             'display_items_on_same_page',
+            'created_at',
         ]
 
     def validate_title(self, value):
+        request = self.context['request']
         if Catalog.objects.filter(title__iexact=value).exists():
-            raise serializers.ValidationError(
-                "A catalog with this title already exists.")
+            if request.method == 'POST':
+                raise serializers.ValidationError(
+                    "A catalog with this title already exists.")
+            elif request.method in ['PATCH', 'PUT']:
+                if Catalog.objects.get(title__iexact=value).id != self.instance.id:
+                    raise serializers.ValidationError(
+                        "A catalog with this title already exists.")
         return value
 
     def validate_recipient_emails(self, value):

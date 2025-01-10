@@ -415,6 +415,9 @@ class CatalogViewSet(CustomModelViewSet):
         if self.action == 'copy':
             return CopyCatalogSerializer
         return serializers.CatalogSerializer
+    
+    def get_serializer_context(self):
+        return {'request': self.request}
 
     @action(detail=True, methods=['post'])
     def copy(self, request, pk=None):

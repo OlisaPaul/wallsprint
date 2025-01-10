@@ -493,6 +493,7 @@ class Catalog(models.Model):
         verbose_name="Display Items on the Same Page as the Catalog?",
         help_text="Enable to display items on the same page as the catalog."
     )
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.title
