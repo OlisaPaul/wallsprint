@@ -232,13 +232,13 @@ class PortalViewSet(CustomModelViewSet):
         return [create_permission_class('portals')()]
 
     queryset = Portal.objects.prefetch_related(
-        'content__customer_groups', 'content__customers', 'content__page', 'content__catalog_assignments').all()
+        'content__customer_groups__customers__user', 'content__customers__user', 'content', 'content__catalog_assignments', 'content__catalog').all()
 
     def get_queryset(self):
         user = self.request.user
         if user.is_staff:
             return Portal.objects.prefetch_related(
-                'content__customer_groups', 'content__customers',
+                'content__customer_groups__customers__user', 'content__customers__user',
                 'content__page').all()
 
         try:
@@ -365,7 +365,7 @@ class PortalContentViewSet(CustomModelViewSet):
 
     def get_queryset(self):
         portal_id = self.kwargs.get('portal_pk')
-        return models.PortalContent.objects.filter(portal_id=portal_id).select_related('page', 'portal').prefetch_related('customers', 'customer_groups')
+        return models.PortalContent.objects.filter(portal_id=portal_id).select_related('page', 'portal').prefetch_related('customers__user', 'customer_groups__customers__user', 'catalogs', 'content__catalogs')
 
     def get_serializer_context(self):
         portal_id = self.kwargs.get('portal_pk')

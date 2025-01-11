@@ -628,6 +628,7 @@ class CreatePortalSerializer(serializers.ModelSerializer):
     same_permissions = serializers.BooleanField(required=False)
     same_catalogs = serializers.BooleanField(required=False)
     same_proofing_categories = serializers.BooleanField(required=False)
+    catalog = serializers.CharField(required=False)
     # customer_groups = serializers.ListField(
     #     child=serializers.IntegerField(),
     #     write_only=True,
@@ -643,8 +644,14 @@ class CreatePortalSerializer(serializers.ModelSerializer):
         model = Portal
         fields = ['id', 'title', 'logo', 'copy_an_existing_portal', 'copy_from_portal_id',
                   'same_permissions', 'copy_the_logo', 'same_catalogs', 'same_proofing_categories',
-                  'customers', 'customer_groups',
+                  'customers', 'customer_groups', 'catalog',
                   ]
+        
+    def validate_catalog(self, value):
+        if Catalog.objects.filter(title__iexact=value).exists():
+            raise serializers.ValidationError(
+                "Catalog already exists with title.")
+        return value
 
     def validate(self, data):
         copy_an_existing_portal = data.get('copy_an_existing_portal', False)
@@ -688,6 +695,7 @@ class CreatePortalSerializer(serializers.ModelSerializer):
 
     @transaction.atomic()
     def create(self, validated_data):
+        catalog = validated_data.pop('catalog', None)
         copy_an_existing_portal = validated_data.pop(
             'copy_an_existing_portal', False)
         validated_data.pop('copy_the_logo', False)
@@ -704,6 +712,9 @@ class CreatePortalSerializer(serializers.ModelSerializer):
             raise ValidationError(
                 "You cannot specify both 'customer_groups' and 'copy_from_portal_id'. Choose one option."
             )
+        
+        if catalog:
+            Catalog.objects.create(title=catalog)
 
         if copy_an_existing_portal:
             try:
@@ -864,7 +875,7 @@ class PortalContentSerializer(serializers.ModelSerializer):
     def get_can_user_access(self, obj):
         request = self.context['request']
         user = request.user
-        user = User.objects.get(id=request.user.id)
+        # user = User.objects.get(id=request.user.id)
 
         if user.is_staff:
             return True

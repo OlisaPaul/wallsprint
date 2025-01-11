@@ -536,6 +536,7 @@ class PortalContent(models.Model):
     content = models.TextField(null=True)
     portal = models.ForeignKey(
         Portal, on_delete=models.CASCADE, related_name='content')
+    url = models.URLField()
     page = models.ForeignKey(Page, on_delete=models.CASCADE, null=True)
     customer_groups = models.ManyToManyField(
         CustomerGroup, blank=True, related_name='accessible_content')
