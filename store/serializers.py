@@ -896,6 +896,7 @@ class PortalContentSerializer(serializers.ModelSerializer):
                   'customers', 'groups_count', 'user_count', 'catalog_assignments', 'content', 'logo', 'payment_proof', 'order_history']
 
     def get_can_user_access(self, obj):
+        return True
         request = self.context['request']
         user = request.user
         # user = User.objects.get(id=request.user.id)
@@ -920,7 +921,8 @@ class PortalContentSerializer(serializers.ModelSerializer):
 
 
 class PortalSerializer(serializers.ModelSerializer):
-    content = PortalContentSerializer(many=True, read_only=True)
+    content = serializers.SerializerMethodField()
+    # content = PortalContentSerializer(many=True, read_only=True)
     can_user_access = serializers.SerializerMethodField()
     customer_groups = SimpleCustomerGroupSerializer(many=True, read_only=True)
     customers = PortalCustomerSerializer(many=True, read_only=True)
@@ -929,8 +931,20 @@ class PortalSerializer(serializers.ModelSerializer):
         model = Portal
         fields = ['id', 'title', 'content', 'can_user_access',
                   'customers', 'customer_groups', 'created_at']
+        
+    def get_content(self, obj:Portal):
+        customer_id = self.context.get('customer_id')
+        
+
+        filtered_content = [
+            content for content in obj.content.all()
+            if content.everyone or customer_id in content.customers.values_list('id', flat=True) or 
+            any(customer_id in group.customers.values_list('id', flat=True) for group in content.customer_groups.all())
+        ]
+        return PortalContentSerializer(filtered_content, many=True, context={'request': self.context['request']}).data
 
     def get_can_user_access(self, obj):
+        return True
         request = self.context['request']
         user = request.user
         # user = User.objects.get(id=request.user.id)

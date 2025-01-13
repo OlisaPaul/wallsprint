@@ -248,6 +248,7 @@ class PortalViewSet(CustomModelViewSet):
         else:
             try:
                 customer = Customer.objects.get(user=user)
+                self.request.customer = customer
                 return Portal.objects.prefetch_related(*prefetch_array).filter(
                     Q(customers=customer) | Q(customer_groups__customers=customer)
                 ).distinct()
@@ -260,36 +261,38 @@ class PortalViewSet(CustomModelViewSet):
         return [IsAuthenticated()]
 
     def get_serializer_class(self):
-        if self.action == 'copy':
-            return CopyPortalSerializer
+        # if self.action == 'copy':
+        #     return CopyPortalSerializer
         if self.request.method == 'POST':
             return serializers.CreatePortalSerializer
         return PortalSerializer
 
     def get_serializer_context(self):
-        return {'request': self.request}
+        customer_id = self.request.customer.id if hasattr( self.request, 'customer') else None
 
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        return {'request': self.request, 'customer_id': customer_id}
 
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+    # def list(self, request, *args, **kwargs):
+    #     queryset = self.filter_queryset(self.get_queryset())
 
-        serializer = self.get_serializer(queryset, many=True)
+    #     page = self.paginate_queryset(queryset)
+    #     if page is not None:
+    #         serializer = self.get_serializer(page, many=True)
+    #         return self.get_paginated_response(serializer.data)
 
-        portals = serializer.data
-        for portal in portals:
-            content = portal.get('content')
-            nav_view = True if request.user.is_staff else content.get('display_in_site_navigation')
-            content = [
-                item for item in content
-                if (nav_view and (item.get('can_user_access') or item['everyone']))
-            ]
-            portal['content'] = content
+    #     serializer = self.get_serializer(queryset, many=True)
 
-        return Response(portals)
+    #     portals = serializer.data
+    #     for portal in portals:
+    #         content = portal.get('content')
+    #         nav_view = True if request.user.is_staff else content.get('display_in_site_navigation')
+    #         content = [
+    #             item for item in content
+    #             if (nav_view and (item.get('can_user_access') or item['everyone']))
+    #         ]
+    #         portal['content'] = content
+
+    #     return Response(portals)
 
     @action(detail=True, methods=['post'])
     def copy(self, request, pk=None):
@@ -297,7 +300,7 @@ class PortalViewSet(CustomModelViewSet):
         Copy a portal with specified options.
         """
         portal = self.get_object()
-        serializer = CopyPortalSerializer(data=request.data)
+        serializer = serializers.CreatePortalSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         new_title = serializer.validated_data['title']
