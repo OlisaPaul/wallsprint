@@ -491,7 +491,7 @@ class CustomerGroupSerializer(serializers.ModelSerializer):
         return customer_group.customers.count()
 
 
-class SimpleCustomerGroupSerializer(serializers.ModelSerializer):
+class PortalCustomerGroupSerializer(serializers.ModelSerializer):
     customers = PortalCustomerSerializer(many=True, read_only=True)
 
     class Meta:
@@ -881,7 +881,7 @@ class ViewPortalContentCatalogSerializer(serializers.ModelSerializer):
 
 
 class PortalContentSerializer(serializers.ModelSerializer):
-    customer_groups = SimpleCustomerGroupSerializer(many=True, read_only=True)
+    customer_groups = PortalCustomerGroupSerializer(many=True, read_only=True)
     customers = PortalCustomerSerializer(many=True, read_only=True)
     can_user_access = serializers.SerializerMethodField()
     groups_count = serializers.SerializerMethodField()
@@ -924,7 +924,7 @@ class PortalSerializer(serializers.ModelSerializer):
     content = serializers.SerializerMethodField()
     # content = PortalContentSerializer(many=True, read_only=True)
     can_user_access = serializers.SerializerMethodField()
-    customer_groups = SimpleCustomerGroupSerializer(many=True, read_only=True)
+    customer_groups = PortalCustomerGroupSerializer(many=True, read_only=True)
     customers = PortalCustomerSerializer(many=True, read_only=True)
 
     class Meta:
@@ -932,9 +932,11 @@ class PortalSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'content', 'can_user_access',
                   'customers', 'customer_groups', 'created_at']
         
-    def get_content(self, obj:Portal):
+    def get_content(self, obj:PortalContent):
         customer_id = self.context.get('customer_id')
         
+        if not customer_id:
+            return PortalContentSerializer(obj.content.all(), many=True, context={'request': self.context['request']}).data
 
         filtered_content = [
             content for content in obj.content.all()

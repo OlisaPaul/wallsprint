@@ -379,7 +379,7 @@ class PortalContentViewSet(CustomModelViewSet):
     def get_serializer_class(self):
         if self.request.method == 'GET':
             return serializers.PortalContentSerializer
-        return serializers.CreatePortalContentSerializer
+        return serializers.PortalContentSerializer
 
 
 class PortalContentCatalogViewSet(ModelViewSet):
