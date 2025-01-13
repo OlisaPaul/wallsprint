@@ -153,10 +153,12 @@ class CustomerViewSet(CustomModelViewSet):
 
         csv_content = serializer.validated_data['file']
         has_header = serializer.validated_data['has_header']
-        columns = ['name', 'email', 'password', 'username', 'is_active'] + customer_fields[1:]
+        columns = ['name', 'email', 'password',
+                   'username', 'is_active'] + customer_fields[1:]
 
         try:
-            csv_reader = csv.DictReader(csv_content.splitlines(), fieldnames=columns if not has_header else None)
+            csv_reader = csv.DictReader(csv_content.splitlines(
+            ), fieldnames=columns if not has_header else None)
             rows = list(csv_reader)
         except csv.Error as e:
             return Response({"error": f"CSV parsing error: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
@@ -180,8 +182,10 @@ class CustomerViewSet(CustomModelViewSet):
                 customer_data.pop('email', None)
                 customer_data.pop('password', None)
 
-                customer_data['pay_tax'] = row.get('pay_tax', 'FALSE') == 'TRUE'
-                customer_data['is_active'] = row.get('is_active', 'FALSE') == 'TRUE'
+                customer_data['pay_tax'] = row.get(
+                    'pay_tax', 'FALSE') == 'TRUE'
+                customer_data['is_active'] = row.get(
+                    'is_active', 'FALSE') == 'TRUE'
 
                 Customer.objects.create(user=user, **customer_data)
                 customer_count += 1
@@ -231,25 +235,24 @@ class PortalViewSet(CustomModelViewSet):
             return [IsAuthenticated()]
         return [create_permission_class('portals')()]
 
-    queryset = Portal.objects.prefetch_related(
-        'content__customer_groups__customers__user', 'content__customers__user', 'content', 'content__catalog_assignments', 'content__catalog').all()
-
     def get_queryset(self):
+        prefetch_array = [
+            'content__customer_groups__customers__user', 'content__customers__user',
+            'content__catalog_assignments__catalog',
+            'customers__user', 'customer_groups__customers__user'
+        ]
+
         user = self.request.user
         if user.is_staff:
-            return Portal.objects.prefetch_related(
-                'content__customer_groups__customers__user', 'content__customers__user',
-                'content__page').all()
-
-        try:
-            customer = Customer.objects.get(user=user)
-            return Portal.objects.prefetch_related(
-                'content__customer_groups', 'content__customers',
-                'content__page').filter(
-                Q(customers=customer) | Q(customer_groups__customers=customer)
-            ).distinct()
-        except Customer.DoesNotExist:
-            pass
+            return Portal.objects.prefetch_related(*prefetch_array).all()
+        else:
+            try:
+                customer = Customer.objects.get(user=user)
+                return Portal.objects.prefetch_related(*prefetch_array).filter(
+                    Q(customers=customer) | Q(customer_groups__customers=customer)
+                ).distinct()
+            except Customer.DoesNotExist:
+                return Portal.objects.none()
 
     def get_permissions(self):
         if self.request.method == 'POST':
@@ -257,12 +260,11 @@ class PortalViewSet(CustomModelViewSet):
         return [IsAuthenticated()]
 
     def get_serializer_class(self):
-        print(self.request.data)
         if self.action == 'copy':
             return CopyPortalSerializer
-        if self.request.method == 'POST':
-            return serializers.CreatePortalSerializer
-        return PortalSerializer
+        if self.request.method == 'GET':
+            return PortalSerializer
+        return serializers.CreatePortalSerializer
 
     def get_serializer_context(self):
         return {'request': self.request}
@@ -415,7 +417,7 @@ class CatalogViewSet(CustomModelViewSet):
         if self.action == 'copy':
             return CopyCatalogSerializer
         return serializers.CatalogSerializer
-    
+
     def get_serializer_context(self):
         return {'request': self.request}
 
@@ -857,7 +859,7 @@ class NoteViewSet(ModelViewSet):
     def get_serializer_class(self):
         if self.request.method == 'GET':
             return serializers.NoteSerializer
-        return serializers.CreateNoteSerializer 
+        return serializers.CreateNoteSerializer
 
     def get_queryset(self):
         if 'request_pk' in self.kwargs:

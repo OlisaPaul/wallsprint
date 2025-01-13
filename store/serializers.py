@@ -387,6 +387,21 @@ class SimpleCustomerSerializer(serializers.ModelSerializer):
         return customer.user.email
 
 
+class PortalCustomerSerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
+    email = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Customer
+        fields = ['id', 'name', 'email']
+
+    def get_name(self, customer: Customer):
+        return customer.user.name
+
+    def get_email(self, customer: Customer):
+        return customer.user.email
+
+
 class UpdateCustomerSerializer(serializers.ModelSerializer):
     name = serializers.CharField(write_only=True)
     is_active = serializers.BooleanField(write_only=True)
@@ -474,6 +489,14 @@ class CustomerGroupSerializer(serializers.ModelSerializer):
 
     def get_members(self, customer_group: CustomerGroup):
         return customer_group.customers.count()
+
+
+class SimpleCustomerGroupSerializer(serializers.ModelSerializer):
+    customers = PortalCustomerSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = CustomerGroup
+        fields = ['id', 'title', 'customers',]
 
 
 class CreateCustomerGroupSerializer(serializers.ModelSerializer):
@@ -629,16 +652,16 @@ class CreatePortalSerializer(serializers.ModelSerializer):
     same_catalogs = serializers.BooleanField(required=False)
     same_proofing_categories = serializers.BooleanField(required=False)
     catalog = serializers.CharField(required=False)
-    # customer_groups = serializers.ListField(
-    #     child=serializers.IntegerField(),
-    #     write_only=True,
-    #     required=False
-    # )
-    # customers = serializers.ListField(
-    #     child=serializers.IntegerField(),
-    #     write_only=True,
-    #     required=False
-    # )
+    customer_groups = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False
+    )
+    customers = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False
+    )
 
     class Meta:
         model = Portal
@@ -858,8 +881,8 @@ class ViewPortalContentCatalogSerializer(serializers.ModelSerializer):
 
 
 class PortalContentSerializer(serializers.ModelSerializer):
-    customer_groups = CustomerGroupSerializer(many=True, read_only=True)
-    customers = SimpleCustomerSerializer(many=True, read_only=True)
+    customer_groups = SimpleCustomerGroupSerializer(many=True, read_only=True)
+    customers = PortalCustomerSerializer(many=True, read_only=True)
     can_user_access = serializers.SerializerMethodField()
     groups_count = serializers.SerializerMethodField()
     user_count = serializers.SerializerMethodField()
@@ -899,6 +922,8 @@ class PortalContentSerializer(serializers.ModelSerializer):
 class PortalSerializer(serializers.ModelSerializer):
     content = PortalContentSerializer(many=True, read_only=True)
     can_user_access = serializers.SerializerMethodField()
+    customer_groups = SimpleCustomerGroupSerializer(many=True, read_only=True)
+    customers = PortalCustomerSerializer(many=True, read_only=True)
 
     class Meta:
         model = Portal
@@ -908,7 +933,7 @@ class PortalSerializer(serializers.ModelSerializer):
     def get_can_user_access(self, obj):
         request = self.context['request']
         user = request.user
-        user = User.objects.get(id=request.user.id)
+        # user = User.objects.get(id=request.user.id)
 
         if user.is_staff:
             return True
