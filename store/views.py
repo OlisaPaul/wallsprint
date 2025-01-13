@@ -262,9 +262,9 @@ class PortalViewSet(CustomModelViewSet):
     def get_serializer_class(self):
         if self.action == 'copy':
             return CopyPortalSerializer
-        if self.request.method == 'GET':
-            return PortalSerializer
-        return serializers.CreatePortalSerializer
+        if self.request.method == 'POST':
+            return serializers.CreatePortalSerializer
+        return PortalSerializer
 
     def get_serializer_context(self):
         return {'request': self.request}
