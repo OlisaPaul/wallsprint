@@ -922,7 +922,6 @@ class PortalContentSerializer(serializers.ModelSerializer):
 
 class PortalSerializer(serializers.ModelSerializer):
     content = serializers.SerializerMethodField()
-    # content = PortalContentSerializer(many=True, read_only=True)
     can_user_access = serializers.SerializerMethodField()
     customer_groups = PortalCustomerGroupSerializer(many=True, read_only=True)
     customers = PortalCustomerSerializer(many=True, read_only=True)
@@ -930,7 +929,7 @@ class PortalSerializer(serializers.ModelSerializer):
     class Meta:
         model = Portal
         fields = ['id', 'title', 'content', 'can_user_access',
-                  'customers', 'customer_groups', 'created_at']
+                  'customers', 'customer_groups', 'created_at', 'logo']
         
     def get_content(self, obj:PortalContent):
         customer_id = self.context.get('customer_id')
