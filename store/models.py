@@ -535,13 +535,13 @@ class PortalContent(models.Model):
     title = models.CharField(max_length=255)
     content = models.TextField(null=True)
     portal = models.ForeignKey(
-        Portal, on_delete=models.CASCADE, related_name='content')
+        Portal, on_delete=models.CASCADE, related_name='contents')
     url = models.URLField(null=True)
     page = models.ForeignKey(Page, on_delete=models.CASCADE, null=True)
     customer_groups = models.ManyToManyField(
-        CustomerGroup, blank=True, related_name='accessible_content')
+        CustomerGroup, blank=True, related_name='accessible_contents')
     customers = models.ManyToManyField(
-        Customer, blank=True, related_name='portal_content')
+        Customer, blank=True, related_name='portal_contents')
     everyone = models.BooleanField(default=False)
     display_in_site_navigation = models.BooleanField(default=True)
     include_in_site_map = models.BooleanField(default=True)
@@ -562,7 +562,7 @@ class PortalContent(models.Model):
         max_length=50, choices=REDIRECT_CODE_CHOICES, default=DEFAULT)
     catalogs = models.ManyToManyField(
         Catalog,
-        through='PortalContentCatalog',
+        # through='PortalContentCatalog',
         related_name='portal_contents'
     )
     logo = models.ImageField(upload_to='logos/', null=True)

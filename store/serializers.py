@@ -540,23 +540,26 @@ class PageSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'content']
 
 
-class CreatePortalContentSerializer(serializers.ModelSerializer):
+class UpdatePortalContentSerializer(serializers.ModelSerializer):
     class Meta:
         model = PortalContent
-        fields = ['id', 'title', 'location',
-                  'page_redirect', 'include_in_site_map', 'display_in_site_navigation',
-                  'customer_groups', 'customers', 'everyone', 'content', 'logo', 'payment_proof', 'order_history',
-                  'redirect_page', 'redirect_file', 'redirect_url', 'redirect_code'
+        fields = ['id', 'customer_groups', 'customers', 'everyone', 'content',
+                  'display_in_site_navigation', 'catalogs'
+                #   'logo', 'payment_proof', 'order_history', 'page_redirect', 
+                #   'redirect_page', 'redirect_file', 'redirect_url', 'redirect_code'
+                #   'include_in_site_map', 'location', 
                   ]
 
     def validate(self, data):
         customer_group_data = data.get('customer_groups', [])
         customer_data = data.get('customers', [])
+        catalogs = data.get('catalogs', [])
         everyone = data.get('everyone', None)
-        page_redirect = data.get('page_redirect', None)
-        redirect_page = data.get('redirect_page', None)
-        redirect_file = data.get('redirect_file', None)
-        redirect_url = data.get('redirect_url', None)
+        # page_redirect = data.get('page_redirect', None)
+        # redirect_page = data.get('redirect_page', None)
+        # redirect_file = data.get('redirect_file', None)
+        # redirect_url = data.get('redirect_url', None)
+        
         
         # Validate customer group and everyone selection
         if (customer_group_data or customer_data) and everyone:
@@ -564,7 +567,6 @@ class CreatePortalContentSerializer(serializers.ModelSerializer):
                 "You cannot select 'everyone' and also specify 'customer_groups' or 'customers'. Choose one option only."
             )
 
-        # Restrict customers to those in the parent portal
         portal_id = self.context['portal_id']
         portal = Portal.objects.prefetch_related('customers', 'customer_groups').get(id=portal_id)
         portal_customers = set(portal.customers.values_list('id', flat=True))
@@ -586,40 +588,44 @@ class CreatePortalContentSerializer(serializers.ModelSerializer):
             raise ValidationError(
                 "All selected customer groups must be part of the parent portal."
             )
+        
+        if  not self.instance.can_have_catalogs and catalogs:
+            raise ValidationError({"catalogs": "You can't assign catalogs for this page."})
+            
 
-        # Validate redirect fields based on page_redirect value
-        if page_redirect == 'no_redirect':
-            if redirect_page or redirect_file or redirect_url or not data.get('redirect_code') in ['default', None]:
-                raise ValidationError(
-                    "For 'no_redirect', 'redirect_page', 'redirect_file', 'redirect_url', and 'redirect_code' must be null."
-                )
-        elif page_redirect == 'external':
-            if not redirect_url:
-                raise ValidationError(
-                    "For 'external', 'redirect_url' is required."
-                )
-            if redirect_page or redirect_file:
-                raise ValidationError(
-                    "For 'external', 'redirect_page' and 'redirect_file' must be null."
-                )
-        elif page_redirect == 'internal':
-            if not redirect_page:
-                raise ValidationError(
-                    "For 'internal', 'redirect_page' is required."
-                )
-            if redirect_file or redirect_url:
-                raise ValidationError(
-                    "For 'internal', 'redirect_file' and 'redirect_url' must be null."
-                )
-        elif page_redirect == 'file':
-            if not redirect_file:
-                raise ValidationError(
-                    "For 'file', 'redirect_file' is required."
-                )
-            if redirect_page or redirect_url:
-                raise ValidationError(
-                    "For 'file', 'redirect_page' and 'redirect_url' must be null."
-                )
+        # # Validate redirect fields based on page_redirect value
+        # if page_redirect == 'no_redirect':
+        #     if redirect_page or redirect_file or redirect_url or not data.get('redirect_code') in ['default', None]:
+        #         raise ValidationError(
+        #             "For 'no_redirect', 'redirect_page', 'redirect_file', 'redirect_url', and 'redirect_code' must be null."
+        #         )
+        # elif page_redirect == 'external':
+        #     if not redirect_url:
+        #         raise ValidationError(
+        #             "For 'external', 'redirect_url' is required."
+        #         )
+        #     if redirect_page or redirect_file:
+        #         raise ValidationError(
+        #             "For 'external', 'redirect_page' and 'redirect_file' must be null."
+        #         )
+        # elif page_redirect == 'internal':
+        #     if not redirect_page:
+        #         raise ValidationError(
+        #             "For 'internal', 'redirect_page' is required."
+        #         )
+        #     if redirect_file or redirect_url:
+        #         raise ValidationError(
+        #             "For 'internal', 'redirect_file' and 'redirect_url' must be null."
+        #         )
+        # elif page_redirect == 'file':
+        #     if not redirect_file:
+        #         raise ValidationError(
+        #             "For 'file', 'redirect_file' is required."
+        #         )
+        #     if redirect_page or redirect_url:
+        #         raise ValidationError(
+        #             "For 'file', 'redirect_page' and 'redirect_url' must be null."
+        #         )
 
         return data
 
@@ -744,7 +750,7 @@ class CreatePortalSerializer(serializers.ModelSerializer):
                 if None in [same_permissions, same_catalogs, same_proofing_categories]:
                     return ValueError('Neither same_permissions, same_catalogs nor same_proofing_categories is allowed to be null')
                 source_portal = Portal.objects.prefetch_related(
-                    'content__customer_groups', 'content__customers'
+                    'contents__customer_groups', 'contents__customers'
                 ).get(id=copy_from_portal_id)
 
                 customers = source_portal.customers.all()
@@ -755,7 +761,7 @@ class CreatePortalSerializer(serializers.ModelSerializer):
 
             portal_contents = [] 
 
-            for source_content in source_portal.content.all():
+            for source_content in source_portal.contents.all():
                 portal_contents.append(PortalContent(
                     portal=portal,
                     everyone=source_content.everyone,
@@ -772,7 +778,6 @@ class CreatePortalSerializer(serializers.ModelSerializer):
                 portal_content.customers.set(source_content.customers.all())
         
         else:
-            print('Creating new portal')
             allowed_titles = ['Welcome', 'Online payments', 'Order approval', 'Logout']
             existing_titles = PortalContent.objects.filter(portal=portal).values_list('title', flat=True)
 
@@ -785,8 +790,6 @@ class CreatePortalSerializer(serializers.ModelSerializer):
                 for title in allowed_titles 
                 if title not in existing_titles
             ]
-            print(portal_contents)
-            print(online_orders_content)
         
             if portal_contents:
                 PortalContent.objects.bulk_create(portal_contents)
@@ -912,14 +915,15 @@ class PortalContentSerializer(serializers.ModelSerializer):
     can_user_access = serializers.SerializerMethodField()
     groups_count = serializers.SerializerMethodField()
     user_count = serializers.SerializerMethodField()
+    catalogs = CatalogSerializer(many=True, read_only=True)
     # page = PageSerializer()
-    catalog_assignments = ViewPortalContentCatalogSerializer(many=True)
+    # catalog_assignments = ViewPortalContentCatalogSerializer(many=True)
 
     class Meta:
         model = PortalContent
         fields = ['id', 'title',
-                  'customer_groups', 'everyone', 'can_user_access',
-                  'customers', 'groups_count', 'user_count', 'catalog_assignments', 'content', 'logo', 'payment_proof', 'order_history']
+                  'customer_groups', 'everyone', 'can_user_access', 'can_have_catalogs',
+                  'customers', 'groups_count', 'user_count', 'catalogs', 'content', 'logo', 'payment_proof', 'order_history']
 
     def get_can_user_access(self, obj):
         return True
@@ -947,24 +951,24 @@ class PortalContentSerializer(serializers.ModelSerializer):
 
 
 class PortalSerializer(serializers.ModelSerializer):
-    content = serializers.SerializerMethodField()
+    contents = serializers.SerializerMethodField()
     can_user_access = serializers.SerializerMethodField()
     customer_groups = PortalCustomerGroupSerializer(many=True, read_only=True)
     customers = PortalCustomerSerializer(many=True, read_only=True)
 
     class Meta:
         model = Portal
-        fields = ['id', 'title', 'content', 'can_user_access',
+        fields = ['id', 'title', 'contents', 'can_user_access',
                   'customers', 'customer_groups', 'created_at', 'logo']
         
-    def get_content(self, obj:PortalContent):
+    def get_contents(self, obj:Portal):
         customer_id = self.context.get('customer_id')
         
         if not customer_id:
-            return PortalContentSerializer(obj.content.all(), many=True, context={'request': self.context['request']}).data
+            return PortalContentSerializer(obj.contents.all(), many=True, context={'request': self.context['request']}).data
 
         filtered_content = [
-            content for content in obj.content.all()
+            content for content in obj.contents.all()
             if content.everyone or customer_id in content.customers.values_list('id', flat=True) or 
             any(customer_id in group.customers.values_list('id', flat=True) for group in content.customer_groups.all())
         ]

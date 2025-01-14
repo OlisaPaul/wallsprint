@@ -237,8 +237,8 @@ class PortalViewSet(CustomModelViewSet):
 
     def get_queryset(self):
         prefetch_array = [
-            'content__customer_groups__customers__user', 'content__customers__user',
-            'content__catalog_assignments__catalog',
+            'contents__customer_groups__customers__user', 'contents__customers__user',
+            'contents__catalogs',
             'customers__user', 'customer_groups__customers__user'
         ]
 
@@ -250,7 +250,8 @@ class PortalViewSet(CustomModelViewSet):
                 customer = Customer.objects.get(user=user)
                 self.request.customer = customer
                 return Portal.objects.prefetch_related(*prefetch_array).filter(
-                    Q(customers=customer) | Q(customer_groups__customers=customer)
+                    Q(customers=customer) | Q(
+                        customer_groups__customers=customer)
                 ).distinct()
             except Customer.DoesNotExist:
                 return Portal.objects.none()
@@ -270,7 +271,8 @@ class PortalViewSet(CustomModelViewSet):
         return PortalSerializer
 
     def get_serializer_context(self):
-        customer_id = self.request.customer.id if hasattr( self.request, 'customer') else None
+        customer_id = self.request.customer.id if hasattr(
+            self.request, 'customer') else None
 
         return {'request': self.request, 'customer_id': customer_id}
 
@@ -306,9 +308,9 @@ class PortalViewSet(CustomModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         ['id', 'title', 'logo',
-                  'same_permissions', 'copy_the_logo', 'same_catalogs', 'same_proofing_categories',
-                  'customers', 'customer_groups', 'catalog',
-                  ]
+         'same_permissions', 'copy_the_logo', 'same_catalogs', 'same_proofing_categories',
+         'customers', 'customer_groups', 'catalog',
+         ]
 
         new_title = serializer.validated_data['title']
         copy_the_logo = serializer.validated_data['copy_the_logo']
@@ -337,7 +339,7 @@ class PortalViewSet(CustomModelViewSet):
         elif customer_groups:
             new_portal.customer_groups.set(customer_groups)
 
-        for content in portal.content.all():
+        for content in portal.contents.all():
             new_content = PortalContent.objects.create(
                 portal=new_portal,
                 title=content.title,
@@ -357,8 +359,7 @@ class PortalViewSet(CustomModelViewSet):
                 new_content.catalogs.set(content.catalogs.all())
             else:
                 if catalog:
-                    new_catalog = Catalog.objects.create(
-                        title=catalog)
+                    Catalog.objects.create(title=catalog)
                     # new_content.catalogs.add(new_catalog)
 
             if same_proofing_categories:
@@ -370,7 +371,8 @@ class PortalViewSet(CustomModelViewSet):
 
 
 class PortalContentViewSet(CustomModelViewSet):
-    allowed_http_methods = ['get', 'put', 'patch', 'delete', 'head', 'options']
+    allowed_http_methods = ['get', 'put', 'patch', 'head', 'options']
+
     def get_permissions(self):
         if self.request.method == 'GET':
             return [IsAuthenticated()]
@@ -389,7 +391,7 @@ class PortalContentViewSet(CustomModelViewSet):
     def get_serializer_class(self):
         if self.request.method == 'GET':
             return serializers.PortalContentSerializer
-        return serializers.CreatePortalContentSerializer
+        return serializers.UpdatePortalContentSerializer
 
 
 class PortalContentCatalogViewSet(ModelViewSet):
