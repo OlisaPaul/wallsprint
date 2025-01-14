@@ -263,6 +263,8 @@ class PortalViewSet(CustomModelViewSet):
     def get_serializer_class(self):
         if self.action == 'copy':
             return CopyPortalSerializer
+        if self.request.method == 'PATCH':
+            return serializers.PatchPortalSerializer
         if self.request.method == 'POST':
             return serializers.CreatePortalSerializer
         return PortalSerializer
@@ -368,6 +370,7 @@ class PortalViewSet(CustomModelViewSet):
 
 
 class PortalContentViewSet(CustomModelViewSet):
+    allowed_http_methods = ['get', 'put', 'patch', 'delete', 'head', 'options']
     def get_permissions(self):
         if self.request.method == 'GET':
             return [IsAuthenticated()]
@@ -386,7 +389,7 @@ class PortalContentViewSet(CustomModelViewSet):
     def get_serializer_class(self):
         if self.request.method == 'GET':
             return serializers.PortalContentSerializer
-        return serializers.PortalContentSerializer
+        return serializers.CreatePortalContentSerializer
 
 
 class PortalContentCatalogViewSet(ModelViewSet):

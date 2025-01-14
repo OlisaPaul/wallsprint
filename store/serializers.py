@@ -753,17 +753,43 @@ class CreatePortalSerializer(serializers.ModelSerializer):
                 raise ValidationError(
                     {"copy_from_portal_id": "The portal to copy from does not exist."})
 
-            for source_content in source_portal.content.all():
+            portal_contents = [] 
 
-                portal_content = PortalContent.objects.create(
+            for source_content in source_portal.content.all():
+                portal_contents.append(PortalContent(
                     portal=portal,
                     everyone=source_content.everyone,
                     page=source_content.page,
-                )
+                    title=source_content.title,
+                    can_have_catalogs=source_content.can_have_catalogs,
+                ))
 
-                portal_content.customer_groups.set(
-                    source_content.customer_groups.all())
+            PortalContent.objects.bulk_create(portal_contents)
+            created_portal_contents = PortalContent.objects.filter(portal=portal, title__in=[content.title for content in portal_contents])
+
+            for portal_content, source_content in zip(created_portal_contents, source_portal.content.all()):
+                portal_content.customer_groups.set(source_content.customer_groups.all())
                 portal_content.customers.set(source_content.customers.all())
+        
+        else:
+            print('Creating new portal')
+            allowed_titles = ['Welcome', 'Online payments', 'Order approval', 'Logout']
+            existing_titles = PortalContent.objects.filter(portal=portal).values_list('title', flat=True)
+
+            online_orders_content = [
+                PortalContent(portal=portal, title='Online orders', can_have_catalogs=True) 
+            ]
+            
+            portal_contents = online_orders_content + [
+                PortalContent(portal=portal, title=title) 
+                for title in allowed_titles 
+                if title not in existing_titles
+            ]
+            print(portal_contents)
+            print(online_orders_content)
+        
+            if portal_contents:
+                PortalContent.objects.bulk_create(portal_contents)
 
         # for content in content_data:
 
@@ -945,22 +971,13 @@ class PortalSerializer(serializers.ModelSerializer):
         return PortalContentSerializer(filtered_content, many=True, context={'request': self.context['request']}).data
 
     def get_can_user_access(self, obj):
-        return True
-        request = self.context['request']
-        user = request.user
-        # user = User.objects.get(id=request.user.id)
+        return True   
 
-        if user.is_staff:
-            return True
 
-        try:
-            customer = Customer.objects.get(user=user)
-            customer_id = customer.id
-            customer_ids = obj.get_accessible_customers()
-
-            return customer_id in customer_ids
-        except Customer.DoesNotExist:
-            return False
+class PatchPortalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Portal
+        fields = ['title', 'customers', 'customer_groups', 'logo']
 
 
 class BulkPortalContentCatalogSerializer(serializers.ListSerializer):
@@ -1443,7 +1460,6 @@ class CopyPortalSerializer(serializers.Serializer):
     copy_the_logo = serializers.BooleanField(default=False)
     same_permissions = serializers.BooleanField(default=False)
     same_catalogs = serializers.BooleanField(default=False)
-    same_permissions
     same_proofing_categories = serializers.BooleanField(default=False)
     logo = serializers.ImageField(required=False, allow_null=True)
     catalog = serializers.CharField(max_length=255, required=False)

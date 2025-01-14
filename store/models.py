@@ -536,7 +536,7 @@ class PortalContent(models.Model):
     content = models.TextField(null=True)
     portal = models.ForeignKey(
         Portal, on_delete=models.CASCADE, related_name='content')
-    url = models.URLField()
+    url = models.URLField(null=True)
     page = models.ForeignKey(Page, on_delete=models.CASCADE, null=True)
     customer_groups = models.ManyToManyField(
         CustomerGroup, blank=True, related_name='accessible_content')
@@ -545,6 +545,7 @@ class PortalContent(models.Model):
     everyone = models.BooleanField(default=False)
     display_in_site_navigation = models.BooleanField(default=True)
     include_in_site_map = models.BooleanField(default=True)
+    can_have_catalogs = models.BooleanField(default=False)
     page_redirect = models.CharField(
         max_length=50,
         choices=REDIRECT_CHOICES,
