@@ -30,7 +30,7 @@ router.register('online-payments', views.OnlinePaymentViewSet,
 router.register('contact-us', views.ContactInquiryViewSet,
                 basename='contact-us'),
 portals_router = routers.NestedDefaultRouter(
-    router, 'portals', lookup='portal')
+    router, 'portals', lookup='portal',)
 portals_router.register(
     'contents', views.PortalContentViewSet, basename='portal-contents')
 contents_router = routers.NestedDefaultRouter(

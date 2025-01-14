@@ -8,7 +8,7 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.decorators import action
 from django.utils.dateparse import parse_datetime
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny,  IsAuthenticated, IsAdminUser
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
@@ -261,8 +261,8 @@ class PortalViewSet(CustomModelViewSet):
         return [IsAuthenticated()]
 
     def get_serializer_class(self):
-        # if self.action == 'copy':
-        #     return CopyPortalSerializer
+        if self.action == 'copy':
+            return CopyPortalSerializer
         if self.request.method == 'POST':
             return serializers.CreatePortalSerializer
         return PortalSerializer
@@ -300,35 +300,40 @@ class PortalViewSet(CustomModelViewSet):
         Copy a portal with specified options.
         """
         portal = self.get_object()
-        serializer = serializers.CreatePortalSerializer(data=request.data)
+        serializer = serializers.CopyPortalSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        ['id', 'title', 'logo',
+                  'same_permissions', 'copy_the_logo', 'same_catalogs', 'same_proofing_categories',
+                  'customers', 'customer_groups', 'catalog',
+                  ]
+
         new_title = serializer.validated_data['title']
-        copy_logo = serializer.validated_data['copy_logo']
-        copy_users_and_groups = serializer.validated_data['copy_users_and_groups']
-        copy_catalogs_and_items = serializer.validated_data['copy_catalogs_and_items']
-        copy_proofing_categories = serializer.validated_data['copy_proofing_categories']
-        new_logo = serializer.validated_data.get('new_logo')
-        new_catalog_name = serializer.validated_data.get('new_catalog')
+        copy_the_logo = serializer.validated_data['copy_the_logo']
+        same_permissions = serializer.validated_data['same_permissions']
+        same_catalogs = serializer.validated_data['same_catalogs']
+        same_proofing_categories = serializer.validated_data['same_proofing_categories']
+        logo = serializer.validated_data.get('logo')
+        catalog = serializer.validated_data.get('new_catalog')
         new_proofing_category_name = serializer.validated_data.get(
             'new_proofing_category')
-        users = serializer.validated_data.get('users')
-        groups = serializer.validated_data.get('groups')
+        customers = serializer.validated_data.get('customers')
+        customer_groups = serializer.validated_data.get('customer_groups')
 
         # Create a new portal
         new_portal = Portal.objects.create(
             title=new_title,
-            logo=portal.logo if copy_logo else new_logo,
+            logo=portal.logo if copy_the_logo else logo,
             copy_from_portal_id=portal.id
         )
 
-        if copy_users_and_groups:
+        if same_permissions:
             new_portal.customers.set(portal.customers.all())
             new_portal.customer_groups.set(portal.customer_groups.all())
-        elif users:
-            new_portal.customers.set(users)
-        elif groups:
-            new_portal.customer_groups.set(groups)
+        elif customers:
+            new_portal.customers.set(customers)
+        elif customer_groups:
+            new_portal.customer_groups.set(customer_groups)
 
         for content in portal.content.all():
             new_content = PortalContent.objects.create(
@@ -346,15 +351,15 @@ class PortalViewSet(CustomModelViewSet):
                 order_history=content.order_history
             )
 
-            if copy_catalogs_and_items:
+            if same_catalogs:
                 new_content.catalogs.set(content.catalogs.all())
             else:
-                if new_catalog_name:
+                if catalog:
                     new_catalog = Catalog.objects.create(
-                        title=new_catalog_name)
+                        title=catalog)
                     # new_content.catalogs.add(new_catalog)
 
-            if copy_proofing_categories:
+            if same_proofing_categories:
                 # Implement logic to copy proofing categories if needed
                 pass
 
@@ -370,6 +375,8 @@ class PortalContentViewSet(CustomModelViewSet):
 
     def get_queryset(self):
         portal_id = self.kwargs.get('portal_pk')
+        if not portal_id.isdigit():
+            raise ValidationError("portal_pk must be an integer.")
         return models.PortalContent.objects.filter(portal_id=portal_id).select_related('page', 'portal').prefetch_related('customers__user', 'customer_groups__customers__user', 'catalogs', 'content__catalogs')
 
     def get_serializer_context(self):
