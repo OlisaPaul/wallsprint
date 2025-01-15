@@ -640,6 +640,7 @@ class CatalogItem(models.Model):
     can_item_be_ordered = models.BooleanField(default=False)
     details_page_per_layout = models.CharField(
         max_length=255, default='default')
+    is_favorite = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

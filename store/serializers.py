@@ -24,7 +24,7 @@ catalog_item_fields = [
     'available_inventory', 'minimum_inventory', 'track_inventory_automatically',
     'restrict_orders_to_inventory', 'weight_per_piece_lb', 'weight_per_piece_oz',
     'exempt_from_shipping_charges', 'is_this_item_taxable', 'can_item_be_ordered',
-    'details_page_per_layout', 'attributes'
+    'details_page_per_layout','is_favorite', 'attributes'
 ]
 
 online_proof_fields = [
