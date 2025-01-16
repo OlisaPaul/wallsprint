@@ -955,6 +955,7 @@ class PortalSerializer(serializers.ModelSerializer):
     can_user_access = serializers.SerializerMethodField()
     customer_groups = PortalCustomerGroupSerializer(many=True, read_only=True)
     customers = PortalCustomerSerializer(many=True, read_only=True)
+    logo = serializers.ImageField(required=False)
 
     class Meta:
         model = Portal

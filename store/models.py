@@ -400,7 +400,7 @@ class FileTransfer(CommonFields):
 
 class Portal(models.Model):
     title = models.CharField(max_length=255)
-    logo = CloudinaryField('image', blank=True, null=True)
+    logo = CloudinaryField(blank=True, null=True)
     copy_from_portal_id = models.IntegerField(null=True, blank=True)
     customers = models.ManyToManyField(
         Customer, blank=True, related_name='portals')
