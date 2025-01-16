@@ -773,7 +773,7 @@ class CreatePortalSerializer(serializers.ModelSerializer):
             PortalContent.objects.bulk_create(portal_contents)
             created_portal_contents = PortalContent.objects.filter(portal=portal, title__in=[content.title for content in portal_contents])
 
-            for portal_content, source_content in zip(created_portal_contents, source_portal.content.all()):
+            for portal_content, source_content in zip(created_portal_contents, source_portal.contents.all()):
                 portal_content.customer_groups.set(source_content.customer_groups.all())
                 portal_content.customers.set(source_content.customers.all())
         
