@@ -782,11 +782,11 @@ class CreatePortalSerializer(serializers.ModelSerializer):
             existing_titles = PortalContent.objects.filter(portal=portal).values_list('title', flat=True)
 
             online_orders_content = [
-                PortalContent(portal=portal, title='Online orders', can_have_catalogs=True) 
+                PortalContent(portal=portal, title='Online orders', url='online-orders.html', can_have_catalogs=True) 
             ]
             
             portal_contents = online_orders_content + [
-                PortalContent(portal=portal, title=title) 
+                PortalContent(portal=portal, title=title, url=f'{title.lower().replace(" ", "-")}.html')
                 for title in allowed_titles 
                 if title not in existing_titles
             ]
@@ -1116,10 +1116,10 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         attributes_data = validated_data.pop('attribute_data', [])
         instance.title = validated_data.get('title', instance.title)
-        instance.parent_catalog = validated_data.get(
-            'parent_catalog', instance.parent_catalog)
-        instance.mark_as_favorite = validated_data.get(
-            'mark_as_favorite', instance.mark_as_favorite)
+        # instance.parent_catalog = validated_data.get(
+        #     'parent_catalog', instance.parent_catalog)
+        instance.is_favorite = validated_data.get(
+            'is_favorite', instance.is_favorite)
         instance.item_sku = validated_data.get('item_sku', instance.item_sku)
         instance.description = validated_data.get(
             'description', instance.description)
@@ -1202,7 +1202,7 @@ class CartItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CartItem
-        fields = ['id', 'catalog_item', 'quantity', 'sub_total']
+        fields = ['id', 'catalog_item', 'quantity', 'sub_total', 'unit_price']
 
     def get_sub_total(self, cart_item: CartItem):
         pricing_grid = cart_item.catalog_item.pricing_grid
@@ -1261,7 +1261,7 @@ class CartSerializer(serializers.ModelSerializer):
 
 
 class AddCartItemSerializer(serializers.ModelSerializer):
-    catalog_item_id = serializers.IntegerField()
+    # catalog_item = serializers.IntegerField()
 
     def validate_catalog_item_id(self, value):
         if not CatalogItem.objects.filter(pk=value).exists():
@@ -1270,13 +1270,13 @@ class AddCartItemSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
-        catalog_item_id = attrs.get('catalog_item_id')
+        catalog_item = attrs.get('catalog_item')
         quantity = attrs.get('quantity')
 
-        try:
-            catalog_item = CatalogItem.objects.get(pk=catalog_item_id)
-        except CatalogItem.DoesNotExist:
-            raise serializers.ValidationError("Invalid catalog item ID.")
+        # try:
+        #     catalog_item = CatalogItem.objects.get(pk=catalog_item_id)
+        # except CatalogItem.DoesNotExist:
+        #     raise serializers.ValidationError("Invalid catalog item ID.")
 
         pricing_grid = catalog_item.pricing_grid
         if not isinstance(pricing_grid, list):
@@ -1291,32 +1291,36 @@ class AddCartItemSerializer(serializers.ModelSerializer):
 
     def save(self, **kwargs):
         cart_id = self.context["cart_id"]
-        catalog_item_id = self.validated_data['catalog_item_id']
+        catalog_item = self.validated_data['catalog_item']
         quantity = self.validated_data['quantity']
-        catalog_item = CatalogItem.objects.get(pk=catalog_item_id)
+        # catalog_item = CatalogItem.objects.get(pk=catalog_item_id)
 
         pricing_grid = catalog_item.pricing_grid
         item = next(
             (entry for entry in pricing_grid if entry["minimum_quantity"] == quantity), None)
-        sub_total = item['minimum_quantity'] * item['unit_price']
+        unit_price = item['unit_price']
+        sub_total = item['minimum_quantity'] * unit_price
         self.validated_data['sub_total'] = sub_total
+        print(unit_price)
+        
 
         try:
             cart_item = CartItem.objects.get(
-                cart_id=cart_id, catalog_item_id=catalog_item_id, quantity=quantity)
+                cart_id=cart_id, catalog_item_id=catalog_item, quantity=quantity)
             cart_item.quantity += quantity
             cart_item.sub_total += sub_total
+            cart_item.unit_price = unit_price
             cart_item.save()
             self.instance = cart_item
         except CartItem.DoesNotExist:
             self.instance = CartItem.objects.create(
-                cart_id=cart_id, **self.validated_data)
+                cart_id=cart_id, unit_price=unit_price, **self.validated_data)
 
         return self.instance
 
     class Meta:
         model = CartItem
-        fields = ["id", "catalog_item_id", "quantity"]
+        fields = ["id", "catalog_item", "quantity"]
 
 
 class UpdateCartItemSerializer(serializers.ModelSerializer):

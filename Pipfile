@@ -21,7 +21,6 @@ whitenoise = "*"
 django-username-email = "*"
 cloudinary = "*"
 django-cloudinary-storage = "*"
-pillow = "*"
 django-cors-headers = "*"
 django-phonenumber-field = "*"
 phonenumbers = "*"
@@ -31,6 +30,7 @@ celery = "*"
 flower = "*"
 django-celery-beat = "*"
 django-silk = "*"
+pillow = "*"
 
 [dev-packages]
 

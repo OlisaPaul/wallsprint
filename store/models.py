@@ -769,6 +769,7 @@ class CartItem(models.Model):
     quantity = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1)]
     )
+    unit_price=models.DecimalField(max_digits=6, decimal_places=2)
     sub_total = models.DecimalField(
         max_digits=9, decimal_places=2, default=0.00)
 
