@@ -400,7 +400,7 @@ class FileTransfer(CommonFields):
 
 class Portal(models.Model):
     title = models.CharField(max_length=255)
-    logo = models.ImageField(upload_to='logos/', null=True)
+    logo = CloudinaryField('image', blank=True, null=True)
     copy_from_portal_id = models.IntegerField(null=True, blank=True)
     customers = models.ManyToManyField(
         Customer, blank=True, related_name='portals')
@@ -565,7 +565,7 @@ class PortalContent(models.Model):
         # through='PortalContentCatalog',
         related_name='portal_contents'
     )
-    logo = models.ImageField(upload_to='logos/', null=True)
+    logo = CloudinaryField('image', blank=True, null=True)
     payment_proof = models.BooleanField(default=False)
     order_history = models.BooleanField(default=False)
 
