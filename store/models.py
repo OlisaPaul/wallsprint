@@ -621,12 +621,9 @@ class CatalogItem(models.Model):
     default_quantity = models.PositiveIntegerField(default=1)
     pricing_grid = models.JSONField(
         default=list, validators=[validate_pricing_grid])
-    thumbnail = models.ImageField(
-        upload_to='thumbnails/', blank=True, null=True)
-    preview_image = models.ImageField(
-        upload_to='previews/', blank=True, null=True)
-    preview_file = models.FileField(
-        upload_to='preview_files/', blank=True, null=True)
+    thumbnail = CloudinaryField(blank=True, null=True)
+    preview_image = CloudinaryField(blank=True, null=True)
+    preview_file = CloudinaryField(blank=True, null=True)
     available_inventory = models.PositiveIntegerField(default=0)
     minimum_inventory = models.PositiveIntegerField(default=0)
     track_inventory_automatically = models.BooleanField(default=False)
