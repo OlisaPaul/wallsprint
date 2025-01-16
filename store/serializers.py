@@ -776,7 +776,9 @@ class CreatePortalSerializer(serializers.ModelSerializer):
             for portal_content, source_content in zip(created_portal_contents, source_portal.contents.all()):
                 portal_content.customer_groups.set(source_content.customer_groups.all())
                 portal_content.customers.set(source_content.customers.all())
-        
+
+                if portal_content.can_have_catalogs and same_catalogs:
+                    portal_content.catalogs.set(source_content.catalogs.all())
         else:
             allowed_titles = ['Welcome', 'Online payments', 'Order approval', 'Logout']
             existing_titles = PortalContent.objects.filter(portal=portal).values_list('title', flat=True)
