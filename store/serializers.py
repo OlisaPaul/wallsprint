@@ -743,7 +743,7 @@ class CreatePortalSerializer(serializers.ModelSerializer):
             )
         
         if catalog:
-            Catalog.objects.create(title=catalog)
+            catalog = Catalog.objects.create(title=catalog)
 
         if copy_an_existing_portal:
             try:
@@ -779,6 +779,8 @@ class CreatePortalSerializer(serializers.ModelSerializer):
 
                 if portal_content.can_have_catalogs and same_catalogs:
                     portal_content.catalogs.set(source_content.catalogs.all())
+                elif portal_content.can_have_catalogs and catalog:
+                    portal_content.catalogs.set([catalog])
         else:
             allowed_titles = ['Welcome', 'Online payments', 'Order approval', 'Logout']
             existing_titles = PortalContent.objects.filter(portal=portal).values_list('title', flat=True)
@@ -795,6 +797,11 @@ class CreatePortalSerializer(serializers.ModelSerializer):
         
             if portal_contents:
                 PortalContent.objects.bulk_create(portal_contents)
+
+            if catalog:
+                created_portal_contents = PortalContent.objects.get(portal=portal, can_have_catalogs=True)
+                created_portal_contents.catalogs.set([catalog])
+
 
         # for content in content_data:
 
