@@ -772,8 +772,7 @@ class CartViewSet(CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, Gener
                     'id').get(user_id=self.request.user.id).id
                 print('customer_id', customer_id)
             except Customer.DoesNotExist:
-                raise NotFound(f"No Customer found with id {
-                               self.request.user.id}.")
+                raise NotFound(f"No Customer found with id {self.request.user.id}.")
         return {'user_id': self.request.user.id, 'customer_id': customer_id}
 
     @action(detail=False, methods=['get'], url_path='customer-cart')
