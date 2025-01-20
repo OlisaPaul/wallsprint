@@ -760,11 +760,21 @@ class CatalogItemViewSet(ModelViewSet):
 
 
 class CartViewSet(CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, GenericViewSet):
-    queryset = Cart.objects.prefetch_related("items__catalog_item").all()
+    queryset = Cart.objects.select_related(
+        "customer__user").prefetch_related("items__catalog_item").all()
     serializer_class = CartSerializer
 
     def get_serializer_context(self):
-        return {'user_id': self.request.user.id}
+        customer_id = None
+        if not self.request.user.is_staff:
+            try:
+                customer_id = Customer.objects.only(
+                    'id').get(user_id=self.request.user.id).id
+                print('customer_id', customer_id)
+            except Customer.DoesNotExist:
+                raise NotFound(f"No Customer found with id {
+                               self.request.user.id}.")
+        return {'user_id': self.request.user.id, 'customer_id': customer_id}
 
     @action(detail=False, methods=['get'], url_path='customer-cart')
     def get_customer_cart(self, request):
@@ -780,6 +790,7 @@ class CartViewSet(CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, Gener
         elif not user.is_staff:
             try:
                 customer_id = Customer.objects.only('id').get(user_id=user.id)
+                self.customer_id = customer_id
             except Customer.DoesNotExist:
                 raise NotFound(f"No Customer found with id {user.id}.")
 
@@ -820,10 +831,29 @@ class OrderViewSet(ModelViewSet):
             return [IsAdminUser()]
         return [IsAuthenticated()]
 
+    def get_object(self):
+        self.customer = None
+        if self.request.user.is_staff: 
+            return
+        else:
+            try:
+                self.customer = Customer.objects.only('id').get(user=self.request.user)
+                return
+            except Customer.DoesNotExist:
+                return
+            
+
+    def get_serializer_context(self):
+        if not hasattr(self, 'customer'):
+            self.get_object()
+        return {'customer': self.customer}
+
     def create(self, request, *args, **kwargs):
+        if not hasattr(self, 'customer'):
+            self.get_object()
         serializer = CreateOrderSerializer(
             data=request.data,
-            context={'user_id': self.request.user.id}
+            context={'user_id': self.request.user.id, 'customer': self.customer}
         )
         serializer.is_valid(raise_exception=True)
         order = serializer.save()
@@ -839,12 +869,14 @@ class OrderViewSet(ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        # print(user)
+        if not hasattr(self, 'customer'):
+            self.get_object()
+        
 
         if user.is_staff:
-            return Order.objects.all().select_related('customer').prefetch_related('items__catalog_item')
-        customer_id = Customer.objects.only(
-            'id').get(user_id=user.id)
-        return Order.objects.filter(customer_id=customer_id)
+            return Order.objects.all().select_related('customer__user').prefetch_related('items__catalog_item__catalog')
+        return Order.objects.filter(customer=self.customer).select_related('customer__user').prefetch_related('items__catalog_item__catalog')
 
 
 class OnlinePaymentViewSet(ModelViewSet):

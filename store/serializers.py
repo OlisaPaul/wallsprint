@@ -544,11 +544,12 @@ class UpdatePortalContentSerializer(serializers.ModelSerializer):
     class Meta:
         model = PortalContent
         fields = ['id', 'customer_groups', 'customers', 'everyone', 'content',
-                  'display_in_site_navigation', 'catalogs'
+                  'display_in_site_navigation', 'catalogs', 'logo'
                 #   'logo', 'payment_proof', 'order_history', 'page_redirect', 
                 #   'redirect_page', 'redirect_file', 'redirect_url', 'redirect_code'
                 #   'include_in_site_map', 'location', 
                   ]
+        logo = serializers.ImageField(required=False)
 
     def validate(self, data):
         customer_group_data = data.get('customer_groups', [])
@@ -925,6 +926,7 @@ class PortalContentSerializer(serializers.ModelSerializer):
     groups_count = serializers.SerializerMethodField()
     user_count = serializers.SerializerMethodField()
     catalogs = CatalogSerializer(many=True, read_only=True)
+    logo = serializers.ImageField(required=False)
     # page = PageSerializer()
     # catalog_assignments = ViewPortalContentCatalogSerializer(many=True)
 
@@ -1239,6 +1241,11 @@ class CartSerializer(serializers.ModelSerializer):
         if not Customer.objects.filter(pk=value).exists():
             raise serializers.ValidationError(
                 "No customer with the given customer_id")
+        customer_id = self.context['customer_id']
+        if customer_id and customer_id != value:
+            raise serializers.ValidationError(
+                "You can only create your own cart")
+            
 
         if Cart.objects.filter(customer_id=value).exists():
             raise serializers.ValidationError(
@@ -1344,16 +1351,21 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderItem
-        fields = ['id', 'catalog_item', 'unit_price', 'quantity']
+        fields = ['id', 'catalog_item', 'unit_price', 'quantity', 'sub_total']
 
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     customer = SimpleCustomerSerializer()
+    total_price = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
-        fields = ['id', 'customer', 'payment_status', 'placed_at', "items"]
+        fields = ['id', 'customer', 'payment_status', 'placed_at', "items", "total_price"]
+
+    def get_total_price(self, obj:Order):
+        total_price = sum([item.sub_total for item in obj.items.all()])
+        return total_price
 
 
 class UpdateOrderSerializer(serializers.ModelSerializer):
@@ -1371,6 +1383,11 @@ class CreateOrderSerializer(serializers.Serializer):
                 {'cart_id': 'No cart with the given cart ID was found'})
         if CartItem.objects.filter(cart_id=cart_id).count() == 0:
             raise serializers.ValidationError('The cart is empty')
+        
+        if self.context['customer'] and not Cart.objects.filter(customer=self.context['customer'], pk=cart_id).exists():
+                raise serializers.ValidationError(
+                    'The cart does not belong to the customer')
+    
         return cart_id
 
     @transaction.atomic()
@@ -1388,11 +1405,16 @@ class CreateOrderSerializer(serializers.Serializer):
                 OrderItem(
                     order=order,
                     catalog_item=item.catalog_item,
-                    unit_price=item.quantity * next(
+                    sub_total=item.quantity * next(
                         (entry['unit_price'] for entry in item.catalog_item.pricing_grid
                          if entry['minimum_quantity'] == item.quantity),
                         0
                     ) or item.sub_total,
+                    unit_price=next(
+                        (entry['unit_price'] for entry in item.catalog_item.pricing_grid
+                         if entry['minimum_quantity'] == item.quantity),
+                        0
+                    ) or item.unit_price,
                     quantity=item.quantity
                 ) for item in cart_items
             ]

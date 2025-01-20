@@ -565,7 +565,7 @@ class PortalContent(models.Model):
         # through='PortalContentCatalog',
         related_name='portal_contents'
     )
-    logo = CloudinaryField('image', blank=True, null=True)
+    logo = CloudinaryField(blank=True, null=True)
     payment_proof = models.BooleanField(default=False)
     order_history = models.BooleanField(default=False)
 
@@ -798,11 +798,12 @@ class Order(models.Model):
 
 class OrderItem(models.Model):
     order = models.ForeignKey(
-        Order, on_delete=models.PROTECT, related_name="items")
+        Order, on_delete=models.CASCADE, related_name="items")
     catalog_item = models.ForeignKey(
         CatalogItem, on_delete=models.PROTECT, related_name="orderitems")
     quantity = models.PositiveSmallIntegerField()
     unit_price = models.DecimalField(max_digits=6, decimal_places=2)
+    sub_total = models.DecimalField(max_digits=6, decimal_places=2)
 
 
 class OnlinePayment(models.Model):
