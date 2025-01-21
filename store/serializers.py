@@ -783,7 +783,7 @@ class CreatePortalSerializer(serializers.ModelSerializer):
                 elif portal_content.can_have_catalogs and catalog:
                     portal_content.catalogs.set([catalog])
         else:
-            allowed_titles = ['Welcome', 'Online payments', 'Order approval', 'Logout']
+            allowed_titles = ['Welcome', 'Online payments', 'Order approval']
             existing_titles = PortalContent.objects.filter(portal=portal).values_list('title', flat=True)
 
             online_orders_content = [

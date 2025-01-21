@@ -563,7 +563,8 @@ class PortalContent(models.Model):
     catalogs = models.ManyToManyField(
         Catalog,
         # through='PortalContentCatalog',
-        related_name='portal_contents'
+        related_name='portal_contents',
+        blank=True
     )
     logo = CloudinaryField(blank=True, null=True)
     payment_proof = models.BooleanField(default=False)
