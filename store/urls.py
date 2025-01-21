@@ -88,9 +88,15 @@ recent_order_url = [
     path('recent-orders/', views.OrderView.as_view(), name='recent-orders'),
 ]
 
+# Create a nested router for CartDetails under CartItems
+cart_items_router = routers.NestedDefaultRouter(
+    carts_router, 'items', lookup='item')
+cart_items_router.register(
+    'details', views.CartDetailsViewSet, basename='cart-details')
 
 # URLConf
 urlpatterns = router.urls + portals_router.urls + \
     catalogs_router.urls + message_centre_url + carts_router.urls +\
     contents_router.urls + recent_order_url + \
-    requests_router.urls + file_transfers_router.urls
+    requests_router.urls + file_transfers_router.urls + \
+    cart_items_router.urls

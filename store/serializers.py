@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.validators import ValidationError
 from io import TextIOWrapper
-from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog, Note, BillingInfo, Shipment, Transaction
+from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog, Note, BillingInfo, Shipment, Transaction, CartDetails
 from .utils import create_instance_with_files
 from .signals import file_transferred
 
@@ -1093,13 +1093,35 @@ class AttributeSerializer(serializers.ModelSerializer):
             'pricing_tiers', 'price_modifier_scope', 'price_modifier_type', 'options'
         ]
 
+class CartDetailsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CartDetails
+        fields = ['title', 'name', 'email_address', 'phone_number', 'office_number']
+        
+
+    def create(self, validated_data):
+        cart_item_id = self.context['cart_item_id']
+        
+        if not CartItem.objects.filter(pk=cart_item_id).exists():
+            raise serializers.ValidationError(
+                "No cart item with the given ID was found")
+        
+        cart_item = CartItem.objects.get(id=cart_item_id)
+        print(cart_item.catalog_item.can_be_edited)       
+        if not CartItem.objects.filter(id=cart_item_id, catalog_item__can_be_edited=True).exists():
+            raise serializers.ValidationError(
+                "This item in the cart cannot be edited")
+        
+        cart_details = CartDetails.objects.create(cart_item=cart_item, **validated_data)
+        return cart_details
+
 
 class CatalogItemSerializer(serializers.ModelSerializer):
     attributes = AttributeSerializer(many=True, read_only=True)
 
     class Meta:
         model = CatalogItem
-        fields = catalog_item_fields + ['created_at']
+        fields = catalog_item_fields + ['created_at', 'can_be_edited']
 
 
 class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
@@ -1109,7 +1131,7 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CatalogItem
-        fields = catalog_item_fields + ['attribute_data']
+        fields = catalog_item_fields + ['attribute_data', 'can_be_edited']
 
     def create(self, validated_data):
         catalog_id = self.context['catalog_id']
@@ -1211,10 +1233,11 @@ class SimpleCatalogItemSerializer(serializers.ModelSerializer):
 class CartItemSerializer(serializers.ModelSerializer):
     catalog_item = SimpleCatalogItemSerializer()
     sub_total = serializers.SerializerMethodField()
+    details = CartDetailsSerializer()
 
     class Meta:
         model = CartItem
-        fields = ['id', 'catalog_item', 'quantity', 'sub_total', 'unit_price']
+        fields = ['id', 'catalog_item', 'quantity', 'sub_total', 'unit_price', 'details']
 
     def get_sub_total(self, cart_item: CartItem):
         pricing_grid = cart_item.catalog_item.pricing_grid
@@ -1311,6 +1334,9 @@ class AddCartItemSerializer(serializers.ModelSerializer):
         catalog_item = self.validated_data['catalog_item']
         quantity = self.validated_data['quantity']
         # catalog_item = CatalogItem.objects.get(pk=catalog_item_id)
+
+        if not Cart.objects.filter(pk=cart_id).exists():
+            raise serializers.ValidationError("No cart with the given ID")
 
         pricing_grid = catalog_item.pricing_grid
         item = next(

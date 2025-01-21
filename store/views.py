@@ -13,8 +13,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny,  IsAuthenticated, IsAdminUser
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, DestroyModelMixin
-from .models import Cart, CartItem, CatalogItem, ContactInquiry, PortalContentCatalog, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, Portal, Order, OrderItem, Note, ContentType, BillingInfo, Shipment, Transaction, PortalContent, Catalog
-from .serializers import AddCartItemSerializer, CartItemSerializer, CartSerializer, CatalogItemSerializer, ContactInquirySerializer, CreateOrderSerializer, OrderSerializer, PortalContentCatalogSerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCartItemSerializer, UpdateCustomerSerializer, UpdateOrderSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, PortalSerializer, customer_fields, CreateOrUpdateCatalogItemSerializer, NoteSerializer, BillingInfoSerializer, ShipmentSerializer, TransactionSerializer, CopyCatalogSerializer, CopyCatalogItemSerializer, CopyPortalSerializer
+from .models import Cart, CartItem, CatalogItem, ContactInquiry, PortalContentCatalog, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, Portal, Order, OrderItem, Note, ContentType, BillingInfo, Shipment, Transaction, PortalContent, Catalog, CartDetails
+from .serializers import AddCartItemSerializer, CartItemSerializer, CartSerializer, CatalogItemSerializer, ContactInquirySerializer, CreateOrderSerializer, OrderSerializer, PortalContentCatalogSerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCartItemSerializer, UpdateCustomerSerializer, UpdateOrderSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, PortalSerializer, customer_fields, CreateOrUpdateCatalogItemSerializer, NoteSerializer, BillingInfoSerializer, ShipmentSerializer, TransactionSerializer, CopyCatalogSerializer, CopyCatalogItemSerializer, CopyPortalSerializer, CartDetailsSerializer
 from django.shortcuts import get_object_or_404
 from .permissions import FullDjangoModelPermissions, create_permission_class
 from .mixins import HandleImagesMixin
@@ -22,6 +22,7 @@ from .utils import get_queryset_for_models_with_files, get_base_url
 from .utils import bulk_delete_objects, CustomModelViewSet
 from store import models
 from store import serializers
+from rest_framework import viewsets
 
 CanTransferFiles = create_permission_class('store.transfer_files')
 PortalPermissions = create_permission_class('store.portals')
@@ -772,7 +773,8 @@ class CartViewSet(CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, Gener
                     'id').get(user_id=self.request.user.id).id
                 print('customer_id', customer_id)
             except Customer.DoesNotExist:
-                raise NotFound(f"No Customer found with id {self.request.user.id}.")
+                raise NotFound(f"No Customer found with id {
+                               self.request.user.id}.")
         return {'user_id': self.request.user.id, 'customer_id': customer_id}
 
     @action(detail=False, methods=['get'], url_path='customer-cart')
@@ -832,15 +834,15 @@ class OrderViewSet(ModelViewSet):
 
     def get_object(self):
         self.customer = None
-        if self.request.user.is_staff: 
+        if self.request.user.is_staff:
             return
         else:
             try:
-                self.customer = Customer.objects.only('id').get(user=self.request.user)
+                self.customer = Customer.objects.only(
+                    'id').get(user=self.request.user)
                 return
             except Customer.DoesNotExist:
                 return
-            
 
     def get_serializer_context(self):
         if not hasattr(self, 'customer'):
@@ -852,7 +854,8 @@ class OrderViewSet(ModelViewSet):
             self.get_object()
         serializer = CreateOrderSerializer(
             data=request.data,
-            context={'user_id': self.request.user.id, 'customer': self.customer}
+            context={'user_id': self.request.user.id,
+                     'customer': self.customer}
         )
         serializer.is_valid(raise_exception=True)
         order = serializer.save()
@@ -871,7 +874,6 @@ class OrderViewSet(ModelViewSet):
         # print(user)
         if not hasattr(self, 'customer'):
             self.get_object()
-        
 
         if user.is_staff:
             return Order.objects.all().select_related('customer__user').prefetch_related('items__catalog_item__catalog')
@@ -1036,3 +1038,15 @@ class TransactionViewSet(ModelViewSet):
             file_transfer_instance = get_object_or_404(
                 FileTransfer, id=file_transfer_id)
             serializer.save(content_object=file_transfer_instance)
+
+
+class CartDetailsViewSet(viewsets.ModelViewSet):
+    serializer_class = CartDetailsSerializer
+
+    def get_serializer_context(self):
+        cart_item_id = self.kwargs['item_pk']
+        return {'cart_item_id': cart_item_id}
+
+    def get_queryset(self):
+        cart_item_id = self.kwargs['item_pk']
+        return CartDetails.objects.filter(cart_item__id=cart_item_id).select_related('cart_item', 'cart_item__catalog_item')

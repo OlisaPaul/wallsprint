@@ -639,6 +639,7 @@ class CatalogItem(models.Model):
         max_length=255, default='default')
     is_favorite = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    can_be_edited = models.BooleanField(default=False)
 
     def __str__(self):
         return self.title
@@ -766,7 +767,7 @@ class CartItem(models.Model):
     quantity = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1)]
     )
-    unit_price=models.DecimalField(max_digits=6, decimal_places=2)
+    unit_price = models.DecimalField(max_digits=6, decimal_places=2)
     sub_total = models.DecimalField(
         max_digits=9, decimal_places=2, default=0.00)
 
@@ -853,3 +854,16 @@ class FileExchange(models.Model):
 
     def __str__(self):
         return f"Transfer to {self.recipient_name} from {self.name}"
+
+
+class CartDetails(models.Model):
+    cart_item = models.OneToOneField(
+        CartItem, on_delete=models.CASCADE, related_name='details')
+    title = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
+    email_address = models.EmailField()
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
+    office_number = models.CharField(max_length=20, blank=True, null=True)
+
+    def __str__(self):
+        return f"Details for Cart {self.cart_item.id}"
