@@ -1319,6 +1319,11 @@ class AddCartItemSerializer(serializers.ModelSerializer):
         #     raise serializers.ValidationError("Invalid catalog item ID.")
 
         pricing_grid = catalog_item.pricing_grid
+        if  quantity > catalog_item.available_inventory:
+            raise serializers.ValidationError(
+                {"quantity": "The quantity provided is more than the available inventory."}
+            )
+
         if not isinstance(pricing_grid, list):
             raise serializers.ValidationError(
                 "No pricing grid for this catalog item"
@@ -1329,6 +1334,7 @@ class AddCartItemSerializer(serializers.ModelSerializer):
             )
         return attrs
 
+    @transaction.atomic()
     def save(self, **kwargs):
         cart_id = self.context["cart_id"]
         catalog_item = self.validated_data['catalog_item']
@@ -1344,7 +1350,9 @@ class AddCartItemSerializer(serializers.ModelSerializer):
         unit_price = item['unit_price']
         sub_total = item['minimum_quantity'] * unit_price
         self.validated_data['sub_total'] = sub_total
-        print(unit_price)
+        
+        catalog_item.available_inventory -= quantity
+        catalog_item.save()
         
 
         try:
