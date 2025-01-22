@@ -17,7 +17,6 @@ class RoleBasedAccessMiddleware(MiddlewareMixin):
     def process_view(self, request, view_func, view_args, view_kwargs):
         path = request.path
         view_name = resolve(path).view_name
-        print(request.user)
         if not 'auth' in request.path:
             return None
 
@@ -94,7 +93,6 @@ def hash_token(token):
 
 class TokenBlacklistMiddleware(MiddlewareMixin):
     def process_request(self, request):
-        print(request.user)
         auth_header = request.headers.get('Authorization')
         if auth_header:
             token = auth_header.split(' ')[1]  # Assuming 'Bearer <token>'

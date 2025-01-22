@@ -1351,9 +1351,6 @@ class AddCartItemSerializer(serializers.ModelSerializer):
         sub_total = item['minimum_quantity'] * unit_price
         self.validated_data['sub_total'] = sub_total
         
-        catalog_item.available_inventory -= quantity
-        catalog_item.save()
-        
 
         try:
             cart_item = CartItem.objects.get(
@@ -1431,7 +1428,6 @@ class CreateOrderSerializer(serializers.Serializer):
             cart_items = CartItem.objects.select_related(
                 "catalog_item").filter(cart_id=cart_id)
             cart = Cart.objects.get(id=cart_id)
-            print(cart.customer_id)
 
             order = Order.objects.create(customer=cart.customer)
 
