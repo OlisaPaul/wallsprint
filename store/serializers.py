@@ -390,16 +390,20 @@ class SimpleCustomerSerializer(serializers.ModelSerializer):
 class PortalCustomerSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
     email = serializers.SerializerMethodField()
+    username = serializers.SerializerMethodField()
 
     class Meta:
         model = Customer
-        fields = ['id', 'name', 'email']
+        fields = ['id', 'name', 'email', 'username']
 
     def get_name(self, customer: Customer):
         return customer.user.name
 
     def get_email(self, customer: Customer):
         return customer.user.email
+    
+    def get_username(self, customer: Customer):
+        return customer.user.username
 
 
 class UpdateCustomerSerializer(serializers.ModelSerializer):
@@ -552,7 +556,7 @@ class UpdatePortalContentSerializer(serializers.ModelSerializer):
         logo = serializers.ImageField(required=False)
 
     def validate(self, data):
-        customer_group_data = data.get('customer_groups', [])
+        customer_groups_data = data.get('customer_groups', [])
         customer_data = data.get('customers', [])
         catalogs = data.get('catalogs', [])
         everyone = data.get('everyone', None)
@@ -563,7 +567,7 @@ class UpdatePortalContentSerializer(serializers.ModelSerializer):
         
         
         # Validate customer group and everyone selection
-        if (customer_group_data or customer_data) and everyone:
+        if (customer_groups_data or customer_data) and everyone:
             raise ValidationError(
                 "You cannot select 'everyone' and also specify 'customer_groups' or 'customers'. Choose one option only."
             )
@@ -583,8 +587,9 @@ class UpdatePortalContentSerializer(serializers.ModelSerializer):
 
         # Restrict customer groups to those in the parent portal
         portal_customer_groups = set(
-            portal.customer_groups.values_list('id', flat=True))
-        customer_group_ids = set(customer_group_data)
+            portal.customer_groups.values_list(flat=True))
+        customer_group_ids = set(customer_group.id if hasattr(customer_group, 'id') else customer_group for customer_group in customer_groups_data)
+
         if not customer_group_ids.issubset(portal_customer_groups):
             raise ValidationError(
                 "All selected customer groups must be part of the parent portal."
