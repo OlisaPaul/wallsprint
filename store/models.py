@@ -791,6 +791,15 @@ class Order(models.Model):
         max_length=1, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_STATUS_PENDING)
     customer = models.ForeignKey(Customer, on_delete=models.PROTECT)
     date_needed = models.DateField(default=timezone.now)
+    name = models.CharField(max_length=255)
+    email_address = models.EmailField()
+    phone_number = models.CharField(max_length=20)
+    address = models.CharField(max_length=255)
+    company = models.CharField(max_length=255, blank=True, null=True)
+    city_state_zip = models.CharField(max_length=255, blank=True, null=True)
+    po_number = models.CharField(max_length=100, blank=True, null=True)
+    shipping_address = models.TextField(blank=True, null=True)
+    project_due_date = models.DateField(default=datetime.date.today)
 
     class Meta:
         permissions = [

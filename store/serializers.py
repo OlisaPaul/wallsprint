@@ -1418,7 +1418,13 @@ class OrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['id', 'customer', 'payment_status', 'placed_at', "items", "total_price"]
+        fields = [
+            'id', 'customer', 'payment_status', 
+            'placed_at', "items", "total_price",
+            'name', 'email_address', 'address', 
+            'shipping_address', 'phone_number', 'company', 
+            'city_state_zip', 'po_number', 'project_due_date'
+        ]
 
     def get_total_price(self, obj:Order):
         total_price = sum([item.sub_total for item in obj.items.all()])
@@ -1431,8 +1437,17 @@ class UpdateOrderSerializer(serializers.ModelSerializer):
         fields = ['payment_status']
 
 
-class CreateOrderSerializer(serializers.Serializer):
+class CreateOrderSerializer(serializers.ModelSerializer):
     cart_id = serializers.UUIDField()
+
+    class Meta:
+        model = Order
+        fields = [
+            'cart_id','name', 'email_address', 
+            'address', 'shipping_address', 'phone_number', 
+            'company', 'city_state_zip', 'po_number',
+            'project_due_date'
+        ]
 
     def validate_cart_id(self, cart_id):
         if not Cart.objects.filter(pk=cart_id).exists():
@@ -1463,12 +1478,13 @@ class CreateOrderSerializer(serializers.Serializer):
         return attrs
 
     @transaction.atomic()
-    def save(self, **kwargs):
-        cart_id = self.validated_data['cart_id']
+    def create(self, validated_data):
+        cart_id = validated_data.pop('cart_id')
         cart_items = CartItem.objects.select_related("catalog_item").filter(cart_id=cart_id)
         cart = Cart.objects.get(id=cart_id)
 
-        order = Order.objects.create(customer=cart.customer)
+        order = Order.objects.create(customer=cart.customer, **validated_data)
+
         order_items = []
         catalog_items = []
 
@@ -1509,7 +1525,7 @@ class CreateOrderSerializer(serializers.Serializer):
 
         Cart.objects.filter(pk=cart_id).delete()
 
-        return order
+        return order    
 
 
 class OnlinePaymentSerializer(serializers.ModelSerializer):
