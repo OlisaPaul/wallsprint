@@ -1250,8 +1250,10 @@ class SimpleCatalogItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = CatalogItem
         fields = [
-            'id', 'title', 'item_sku', 'description', 'short_description',
-            'default_quantity', 'thumbnail', 'preview_image', 'catalog'
+            'id', 'title', 'item_sku', 
+            'description', 'short_description','default_quantity', 
+            'thumbnail', 'preview_image', 'catalog',
+            'preview_file'
         ]
 
     def get_url(self, field):
