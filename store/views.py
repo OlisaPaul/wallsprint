@@ -473,6 +473,16 @@ class CatalogViewSet(CustomModelViewSet):
         response_serializer = self.get_serializer(new_catalog)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
+    @action(detail=True, methods=['get'])
+    def favorites(self, request, pk=None):
+        """
+        Retrieve all favorite items in the catalog.
+        """
+        catalog = self.get_object()
+        favorite_items = catalog.catalog_items.filter(is_favorite=True)  # Assuming there's an 'is_favorite' field
+
+        response_serializer = serializers.CatalogItemSerializer(favorite_items, many=True)
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
 
 class MessageCenterViewSet(ModelViewSet):
     serializer_class = serializers.MessageCenterSerializer
