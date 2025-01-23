@@ -1243,6 +1243,9 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
 
 class SimpleCatalogItemSerializer(serializers.ModelSerializer):
     catalog = SimpleCatalogSerializer()
+    preview_image = serializers.SerializerMethodField()
+    preview_file = serializers.SerializerMethodField()
+    thumbnail = serializers.SerializerMethodField()
 
     class Meta:
         model = CatalogItem
@@ -1250,6 +1253,30 @@ class SimpleCatalogItemSerializer(serializers.ModelSerializer):
             'id', 'title', 'item_sku', 'description', 'short_description',
             'default_quantity', 'thumbnail', 'preview_image', 'catalog'
         ]
+
+    def get_url(self, field):
+        cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
+        if not field:
+            return None
+        
+        url = field.url
+        if not field.url:
+            return url
+
+        if 'http' in url:
+            return url
+        
+        return f"https://res.cloudinary.com/{cloud_name}/{url}"
+
+    
+    def get_preview_image(self, catalog_item: CatalogItem):
+        return self.get_url(catalog_item.preview_image)
+    
+    def get_preview_file(self, catalog_item: CatalogItem):
+        return self.get_url(catalog_item.preview_file)
+    
+    def get_thumbnail(self, catalog_item: CatalogItem):
+        return self.get_url(catalog_item.thumbnail)
 
 
 class CartItemSerializer(serializers.ModelSerializer):
