@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.validators import ValidationError
 from io import TextIOWrapper
+from django.core.mail import send_mail
 from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog, Note, BillingInfo, Shipment, Transaction, CartDetails
 from .utils import create_instance_with_files
 from .signals import file_transferred
@@ -788,14 +789,17 @@ class CreatePortalSerializer(serializers.ModelSerializer):
                 elif portal_content.can_have_catalogs and catalog:
                     portal_content.catalogs.set([catalog])
         else:
-            allowed_titles = ['Welcome', 'Online payments', 'Order approval']
+            allowed_titles = ['Welcome', 'Online payments', 'Order approval',]
             existing_titles = PortalContent.objects.filter(portal=portal).values_list('title', flat=True)
 
             online_orders_content = [
                 PortalContent(portal=portal, title='Online orders', url='online-orders.html', can_have_catalogs=True) 
             ]
+            order_history_content = [
+                PortalContent(portal=portal, title='Order history', url='order-history.html', order_history=True) 
+            ]
             
-            portal_contents = online_orders_content + [
+            portal_contents = online_orders_content + order_history_content + [
                 PortalContent(portal=portal, title=title, url=f'{title.lower().replace(" ", "-")}.html')
                 for title in allowed_titles 
                 if title not in existing_titles
@@ -1130,6 +1134,9 @@ class CatalogItemSerializer(serializers.ModelSerializer):
 
 
 class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
+    preview_image = serializers.ImageField()
+    thumbnail = serializers.ImageField()
+    preview_file = serializers.FileField()
     attributes = AttributeSerializer(many=True, read_only=True)
     attribute_data = AttributeSerializer(
         many=True, write_only=True, required=False)
@@ -1317,16 +1324,23 @@ class AddCartItemSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         catalog_item = attrs.get('catalog_item')
         quantity = attrs.get('quantity')
+        cart_id = self.context["cart_id"]
 
         # try:
         #     catalog_item = CatalogItem.objects.get(pk=catalog_item_id)
         # except CatalogItem.DoesNotExist:
         #     raise serializers.ValidationError("Invalid catalog item ID.")
+        if not Cart.objects.filter(pk=cart_id).exists():
+            raise serializers.ValidationError("No cart with the given ID")
+        
+        if not catalog_item.can_item_be_ordered:
+            raise serializers.ValidationError(
+                f"{catalog_item.title} cannot be ordered.")
 
         pricing_grid = catalog_item.pricing_grid
         if  quantity > catalog_item.available_inventory:
             raise serializers.ValidationError(
-                {"quantity": "The quantity provided is more than the available inventory."}
+                {"quantity": f"The quantity of {catalog_item.title} in the cart is more than the available inventory."}
             )
 
         if not isinstance(pricing_grid, list):
@@ -1345,9 +1359,6 @@ class AddCartItemSerializer(serializers.ModelSerializer):
         catalog_item = self.validated_data['catalog_item']
         quantity = self.validated_data['quantity']
         # catalog_item = CatalogItem.objects.get(pk=catalog_item_id)
-
-        if not Cart.objects.filter(pk=cart_id).exists():
-            raise serializers.ValidationError("No cart with the given ID")
 
         pricing_grid = catalog_item.pricing_grid
         item = next(
@@ -1425,39 +1436,70 @@ class CreateOrderSerializer(serializers.Serializer):
                     'The cart does not belong to the customer')
     
         return cart_id
+    
+    def validate(self, attrs):
+        cart_id = attrs.get('cart_id')
+        cart_items = CartItem.objects.select_related("catalog_item").filter(cart_id=cart_id)
+       
+        for item in cart_items:
+            catalog_item = item.catalog_item
+            quantity = item.quantity
+            
+            if not catalog_item.can_item_be_ordered:
+                raise serializers.ValidationError(f"{catalog_item.title} cannot be ordered.")
+            if quantity > catalog_item.available_inventory:
+                raise serializers.ValidationError(f"The quantity of {catalog_item.title} in the cart is more than the available inventory.")
+        
+        return attrs
 
     @transaction.atomic()
     def save(self, **kwargs):
-        with transaction.atomic():
-            cart_id = self.validated_data['cart_id']
-            cart_items = CartItem.objects.select_related(
-                "catalog_item").filter(cart_id=cart_id)
-            cart = Cart.objects.get(id=cart_id)
+        cart_id = self.validated_data['cart_id']
+        cart_items = CartItem.objects.select_related("catalog_item").filter(cart_id=cart_id)
+        cart = Cart.objects.get(id=cart_id)
 
-            order = Order.objects.create(customer=cart.customer)
+        order = Order.objects.create(customer=cart.customer)
+        order_items = []
+        catalog_items = []
 
-            order_items = [
-                OrderItem(
-                    order=order,
-                    catalog_item=item.catalog_item,
-                    sub_total=item.quantity * next(
-                        (entry['unit_price'] for entry in item.catalog_item.pricing_grid
-                         if entry['minimum_quantity'] == item.quantity),
-                        0
-                    ) or item.sub_total,
-                    unit_price=next(
-                        (entry['unit_price'] for entry in item.catalog_item.pricing_grid
-                         if entry['minimum_quantity'] == item.quantity),
-                        0
-                    ) or item.unit_price,
-                    quantity=item.quantity
-                ) for item in cart_items
-            ]
+        for item in cart_items:
+            catalog_item = item.catalog_item
+            quantity = item.quantity
+
+            if catalog_item.restrict_orders_to_inventory:
+                catalog_item.available_inventory -= quantity
+                catalog_items.append(catalog_item)
+
+            if catalog_item.track_inventory_automatically and catalog_item.available_inventory < catalog_item.minimum_inventory:
+                catalog = catalog_item.catalog
+                if catalog.specify_low_inventory_message:
+                    send_mail(
+                        subject=catalog.subject,
+                        message=catalog.message_text,
+                        from_email=settings.EMAIL_HOST_USER,
+                        recipient_list=[email.strip() for email in catalog.recipient_emails.split(",")],
+                        fail_silently=False,
+                    )
+
+            unit_price = next((entry['unit_price'] for entry in item.catalog_item.pricing_grid if entry['minimum_quantity'] == item.quantity), item.unit_price)
+            sub_total = item.quantity * unit_price
+
+            order_items.append(OrderItem(
+                order=order,
+                catalog_item=item.catalog_item,
+                sub_total=sub_total,
+                unit_price=unit_price,
+                quantity=item.quantity
+            ))
+
+        if catalog_items:
+            CatalogItem.objects.bulk_update(catalog_items, ['available_inventory'])
+        if order_items:
             OrderItem.objects.bulk_create(order_items)
 
-            Cart.objects.filter(pk=cart_id).delete()
+        Cart.objects.filter(pk=cart_id).delete()
 
-            return order
+        return order
 
 
 class OnlinePaymentSerializer(serializers.ModelSerializer):
