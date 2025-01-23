@@ -683,6 +683,17 @@ class CreatePortalSerializer(serializers.ModelSerializer):
                   'customers', 'customer_groups', 'catalog',
                   ]
         
+    def validate_title(self, value):
+        if Portal.objects.filter(title__iexact=value).exists():
+            if self.instance is None:  
+                raise serializers.ValidationError(
+                    "A Portal with this title already exists.")
+            else:
+                if Portal.objects.get(title__iexact=value).id != self.instance.id:
+                    raise serializers.ValidationError(
+                        "A Portal with this title already exists.")
+        return value
+        
     def validate_catalog(self, value):
         if Catalog.objects.filter(title__iexact=value).exists():
             raise serializers.ValidationError(
