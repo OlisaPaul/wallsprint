@@ -1138,10 +1138,34 @@ class CartDetailsSerializer(serializers.ModelSerializer):
 
 class CatalogItemSerializer(serializers.ModelSerializer):
     attributes = AttributeSerializer(many=True, read_only=True)
+    preview_image = serializers.SerializerMethodField()
+    preview_file = serializers.SerializerMethodField()
+    thumbnail = serializers.SerializerMethodField()
+    catalog = SimpleCatalogSerializer()
 
     class Meta:
         model = CatalogItem
-        fields = catalog_item_fields + ['created_at', 'can_be_edited']
+        fields = catalog_item_fields + ['created_at', 'can_be_edited', 'catalog']
+    
+    def get_url(self, field):
+        cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
+        if not field:
+            return None
+
+        if 'http' in field:
+            return field
+        
+        return f"https://res.cloudinary.com/{cloud_name}/{field}"
+
+    
+    def get_preview_image(self, catalog_item: CatalogItem):
+        return self.get_url(catalog_item.preview_image.url)
+    
+    def get_preview_file(self, catalog_item: CatalogItem):
+        return self.get_url(catalog_item.preview_file.url)
+    
+    def get_thumbnail(self, catalog_item: CatalogItem):
+        return self.get_url(catalog_item.thumbnail.url)
 
 
 class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
@@ -1172,72 +1196,43 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         attributes_data = validated_data.pop('attribute_data', [])
-        instance.title = validated_data.get('title', instance.title)
-        # instance.parent_catalog = validated_data.get(
-        #     'parent_catalog', instance.parent_catalog)
-        instance.is_favorite = validated_data.get(
-            'is_favorite', instance.is_favorite)
-        instance.item_sku = validated_data.get('item_sku', instance.item_sku)
-        instance.description = validated_data.get(
-            'description', instance.description)
-        instance.short_description = validated_data.get(
-            'short_description', instance.short_description)
-        instance.default_quantity = validated_data.get(
-            'default_quantity', instance.default_quantity)
-        instance.pricing_grid = validated_data.get(
-            'pricing_grid', instance.pricing_grid)
-        instance.thumbnail = validated_data.get(
-            'thumbnail', instance.thumbnail)
-        instance.preview_image = validated_data.get(
-            'preview_image', instance.preview_image)
-        instance.available_inventory = validated_data.get(
-            'available_inventory', instance.available_inventory)
-        instance.minimum_inventory = validated_data.get(
-            'minimum_inventory', instance.minimum_inventory)
-        instance.track_inventory_automatically = validated_data.get(
-            'track_inventory_automatically', instance.track_inventory_automatically)
-        instance.restrict_orders_to_inventory = validated_data.get(
-            'restrict_orders_to_inventory', instance.restrict_orders_to_inventory)
-        instance.weight_per_piece_lb = validated_data.get(
-            'weight_per_piece_lb', instance.weight_per_piece_lb)
-        instance.weight_per_piece_oz = validated_data.get(
-            'weight_per_piece_oz', instance.weight_per_piece_oz)
-        instance.exempt_from_shipping_charges = validated_data.get(
-            'exempt_from_shipping_charges', instance.exempt_from_shipping_charges)
-        instance.is_this_item_taxable = validated_data.get(
-            'is_this_item_taxable', instance.is_this_item_taxable)
-        instance.can_item_be_ordered = validated_data.get(
-            'can_item_be_ordered', instance.can_item_be_ordered)
-        instance.details_page_per_layout = validated_data.get(
-            'details_page_per_layout', instance.details_page_per_layout)
+        fields_to_update = [
+            'title', 'is_favorite', 'item_sku', 'description',
+            'short_description', 'default_quantity', 'pricing_grid',
+            'thumbnail', 'preview_image', 'preview_file',
+            'available_inventory', 'minimum_inventory',
+            'track_inventory_automatically', 'restrict_orders_to_inventory',
+            'weight_per_piece_lb', 'weight_per_piece_oz',
+            'exempt_from_shipping_charges', 'is_this_item_taxable',
+            'can_item_be_ordered', 'details_page_per_layout'
+        ]
+        
+        for field in fields_to_update:
+            setattr(instance, field, validated_data.get(field, getattr(instance, field)))
+        
         instance.save()
 
         for attribute_data in attributes_data:
             options_data = attribute_data.pop('options', [])
             attribute_id = attribute_data.get('id')
             if attribute_id:
-                attribute = Attribute.objects.get(
-                    id=attribute_id, catalog_item=instance)
+                attribute = Attribute.objects.get(id=attribute_id, catalog_item=instance)
                 for key, value in attribute_data.items():
                     setattr(attribute, key, value)
                 attribute.save()
                 for option_data in options_data:
                     option_id = option_data.get('id')
                     if option_id:
-                        option = AttributeOption.objects.get(
-                            id=option_id, item_attribute=attribute)
+                        option = AttributeOption.objects.get(id=option_id, item_attribute=attribute)
                         for key, value in option_data.items():
                             setattr(option, key, value)
                         option.save()
                     else:
-                        AttributeOption.objects.create(
-                            item_attribute=attribute, **option_data)
+                        AttributeOption.objects.create(item_attribute=attribute, **option_data)
             else:
-                attribute = Attribute.objects.create(
-                    catalog_item=instance, **attribute_data)
+                attribute = Attribute.objects.create(catalog_item=instance, **attribute_data)
                 for option_data in options_data:
-                    AttributeOption.objects.create(
-                        item_attribute=attribute, **option_data)
+                    AttributeOption.objects.create(item_attribute=attribute, **option_data)
 
         return instance
 
