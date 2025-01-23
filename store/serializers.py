@@ -1151,21 +1151,25 @@ class CatalogItemSerializer(serializers.ModelSerializer):
         cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
         if not field:
             return None
-
-        if 'http' in field:
-            return field
         
-        return f"https://res.cloudinary.com/{cloud_name}/{field}"
+        url = field.url
+        if not field.url:
+            return url
+
+        if 'http' in url:
+            return url
+        
+        return f"https://res.cloudinary.com/{cloud_name}/{url}"
 
     
     def get_preview_image(self, catalog_item: CatalogItem):
-        return self.get_url(catalog_item.preview_image.url)
+        return self.get_url(catalog_item.preview_image)
     
     def get_preview_file(self, catalog_item: CatalogItem):
-        return self.get_url(catalog_item.preview_file.url)
+        return self.get_url(catalog_item.preview_file)
     
     def get_thumbnail(self, catalog_item: CatalogItem):
-        return self.get_url(catalog_item.thumbnail.url)
+        return self.get_url(catalog_item.thumbnail)
 
 
 class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
