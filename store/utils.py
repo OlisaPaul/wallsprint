@@ -10,7 +10,7 @@ from rest_framework import status
 from cloudinary.uploader import upload
 from cloudinary.api import resource
 from cloudinary.exceptions import Error
-from .models import File
+from .models import File, Cart, CatalogItem
 from django.http import HttpRequest
 
 def get_bulk_delete_serializer_class(model):
@@ -143,3 +143,64 @@ def get_base_url(request: HttpRequest) -> str:
     scheme = request.scheme
     host = request.get_host()  
     return f"{scheme}://{host}"
+
+def save_item(model_class, context, validated_data):
+    cart_id = context["cart_id"]
+    catalog_item = validated_data['catalog_item']
+    quantity = validated_data['quantity']
+
+    pricing_grid = catalog_item.pricing_grid
+    item = next(
+        (entry for entry in pricing_grid if entry["minimum_quantity"] == quantity), None)
+    unit_price = item['unit_price']
+    sub_total = item['minimum_quantity'] * unit_price
+    validated_data['sub_total'] = sub_total
+
+    try:
+        # Use the dynamic model class to get the item
+        cart_item = model_class.objects.get(
+            cart_id=cart_id, catalog_item_id=catalog_item, quantity=quantity)
+        cart_item.quantity += quantity
+        cart_item.sub_total += sub_total
+        cart_item.unit_price = unit_price
+        cart_item.save()
+        return cart_item
+    except model_class.DoesNotExist:
+        return model_class.objects.create(
+            cart_id=cart_id, unit_price=unit_price, **validated_data)
+
+
+def validate_catalog_item_id(value):
+        if not CatalogItem.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(
+                "No catalog_item with the given ID")
+        return value
+
+def validate_cart(context, attrs):
+    catalog_item = attrs.get('catalog_item')
+    quantity = attrs.get('quantity')
+    cart_id = context["cart_id"]
+
+    if not Cart.objects.filter(pk=cart_id).exists():
+        raise serializers.ValidationError("No cart with the given ID")
+
+    if not catalog_item.can_item_be_ordered:
+        raise serializers.ValidationError(
+            f"{catalog_item.title} cannot be ordered.")
+
+    pricing_grid = catalog_item.pricing_grid
+    if quantity > catalog_item.available_inventory:
+        raise serializers.ValidationError(
+            {"quantity": f"The quantity of 
+                {catalog_item.title} in the cart is more than the available inventory."}
+        )
+
+    if not isinstance(pricing_grid, list):
+        raise serializers.ValidationError(
+            "No pricing grid for this catalog item"
+        )
+    if not any(entry["minimum_quantity"] == quantity for entry in pricing_grid):
+        raise serializers.ValidationError(
+            {"quantity": "The quantity provided is not in the pricing grid."}
+        )
+    return attrs
