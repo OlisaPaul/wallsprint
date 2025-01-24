@@ -10,7 +10,7 @@ from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.views import APIView
 from rest_framework.decorators import action
-from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.exceptions import NotFound, ValidationError, PermissionDenied
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny,  IsAuthenticated, IsAdminUser
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
@@ -484,6 +484,7 @@ class CatalogViewSet(CustomModelViewSet):
         response_serializer = serializers.CatalogItemSerializer(favorite_items, many=True)
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
+
 class MessageCenterViewSet(ModelViewSet):
     serializer_class = serializers.MessageCenterSerializer
     # ordering = ['-date']
@@ -894,11 +895,19 @@ class OnlinePaymentViewSet(ModelViewSet):
 
     serializer_class = serializers.OnlinePaymentSerializer
     queryset = models.OnlinePayment.objects.all()
+    permission_classes = [IsAuthenticated]
 
-    def get_permissions(self):
-        if self.request.method == 'POST':
-            return [IsAdminUser()]
-        return [IsAuthenticated()]
+    def get_serializer_context(self):
+        customer = None
+        try:
+            customer = Customer.objects.only('id').get(user=self.request.user)
+        except Customer.DoesNotExist:
+            if self.request.method == 'POST':
+                raise PermissionDenied(
+                    "You do not have permission to access this resource.")
+            customer = None
+
+        return {'request': self.request, 'customer': customer}
 
 
 class FileExchangeViewSet(ModelViewSet):

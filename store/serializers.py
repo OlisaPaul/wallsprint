@@ -1,5 +1,6 @@
 import csv
 import os
+import re
 from django.conf import settings
 from django.core.validators import FileExtensionValidator
 from django.db import transaction
@@ -14,6 +15,7 @@ from django.core.mail import send_mail
 from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog, Note, BillingInfo, Shipment, Transaction, CartDetails
 from .utils import create_instance_with_files
 from .signals import file_transferred
+from decimal import Decimal
 
 User = get_user_model()
 
@@ -1340,7 +1342,7 @@ class CartSerializer(serializers.ModelSerializer):
 
     def get_total_price(self, cart: Cart):
         return sum(
-            (
+            Decimal(
                 cart_item.quantity * next(
                     (entry['unit_price'] for entry in cart_item.catalog_item.pricing_grid
                      if entry['minimum_quantity'] == cart_item.quantity),
@@ -1570,6 +1572,19 @@ class OnlinePaymentSerializer(serializers.ModelSerializer):
             'amount',
             'additional_instructions',
         ]
+
+    def validate_po_number(self, value):
+        customer = self.context['customer']
+
+        if not value:
+            return value
+        if not re.match(r'^[a-zA-Z0-9]*$', value):
+            raise serializers.ValidationError(
+                "PO number can only contain letters and numbers.")
+        if not Order.objects.filter(customer=customer, po_number=value).exists():
+            raise serializers.ValidationError("The PO# submitted is invalid")
+        
+        return value
 
     def validate_payment_method(self, value):
         """
