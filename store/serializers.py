@@ -27,7 +27,7 @@ catalog_item_fields = [
     'available_inventory', 'minimum_inventory', 'track_inventory_automatically',
     'restrict_orders_to_inventory', 'weight_per_piece_lb', 'weight_per_piece_oz',
     'exempt_from_shipping_charges', 'is_this_item_taxable', 'can_item_be_ordered',
-    'details_page_per_layout','is_favorite', 'attributes'
+    'details_page_per_layout', 'is_favorite', 'attributes'
 ]
 
 online_proof_fields = [
@@ -404,7 +404,7 @@ class PortalCustomerSerializer(serializers.ModelSerializer):
 
     def get_email(self, customer: Customer):
         return customer.user.email
-    
+
     def get_username(self, customer: Customer):
         return customer.user.username
 
@@ -552,9 +552,9 @@ class UpdatePortalContentSerializer(serializers.ModelSerializer):
         model = PortalContent
         fields = ['id', 'customer_groups', 'customers', 'everyone', 'content',
                   'display_in_site_navigation', 'catalogs', 'logo'
-                #   'logo', 'payment_proof', 'order_history', 'page_redirect', 
-                #   'redirect_page', 'redirect_file', 'redirect_url', 'redirect_code'
-                #   'include_in_site_map', 'location', 
+                  #   'logo', 'payment_proof', 'order_history', 'page_redirect',
+                  #   'redirect_page', 'redirect_file', 'redirect_url', 'redirect_code'
+                  #   'include_in_site_map', 'location',
                   ]
         logo = serializers.ImageField(required=False)
 
@@ -576,13 +576,16 @@ class UpdatePortalContentSerializer(serializers.ModelSerializer):
             )
 
         portal_id = self.context['portal_id']
-        portal = Portal.objects.prefetch_related('customers', 'customer_groups').get(id=portal_id)
+        portal = Portal.objects.prefetch_related(
+            'customers', 'customer_groups').get(id=portal_id)
         portal_customers = set(portal.customers.values_list('id', flat=True))
         portal_customer_ids = set()
         for group in portal.customer_groups.all():
-            portal_customer_ids.update(group.customers.values_list('id', flat=True))
+            portal_customer_ids.update(
+                group.customers.values_list('id', flat=True))
 
-        customer_ids = set(customer.id if hasattr(customer, 'id') else customer for customer in customer_data)
+        customer_ids = set(customer.id if hasattr(
+            customer, 'id') else customer for customer in customer_data)
         if not customer_ids.issubset(portal_customers.union(portal_customer_ids)):
             raise ValidationError(
                 "All selected customers must be part of the parent portal."
@@ -591,16 +594,17 @@ class UpdatePortalContentSerializer(serializers.ModelSerializer):
         # Restrict customer groups to those in the parent portal
         portal_customer_groups = set(
             portal.customer_groups.values_list(flat=True))
-        customer_group_ids = set(customer_group.id if hasattr(customer_group, 'id') else customer_group for customer_group in customer_groups_data)
+        customer_group_ids = set(customer_group.id if hasattr(
+            customer_group, 'id') else customer_group for customer_group in customer_groups_data)
 
         if not customer_group_ids.issubset(portal_customer_groups):
             raise ValidationError(
                 "All selected customer groups must be part of the parent portal."
             )
-        
-        if  not self.instance.can_have_catalogs and catalogs:
-            raise ValidationError({"catalogs": "You can't assign catalogs for this page."})
-            
+
+        if not self.instance.can_have_catalogs and catalogs:
+            raise ValidationError(
+                {"catalogs": "You can't assign catalogs for this page."})
 
         # # Validate redirect fields based on page_redirect value
         # if page_redirect == 'no_redirect':
@@ -684,10 +688,10 @@ class CreatePortalSerializer(serializers.ModelSerializer):
                   'same_permissions', 'copy_the_logo', 'same_catalogs', 'same_proofing_categories',
                   'customers', 'customer_groups', 'catalog',
                   ]
-        
+
     def validate_title(self, value):
         if Portal.objects.filter(title__iexact=value).exists():
-            if self.instance is None:  
+            if self.instance is None:
                 raise serializers.ValidationError(
                     "A Portal with this title already exists.")
             else:
@@ -695,7 +699,7 @@ class CreatePortalSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError(
                         "A Portal with this title already exists.")
         return value
-        
+
     def validate_catalog(self, value):
         if Catalog.objects.filter(title__iexact=value).exists():
             raise serializers.ValidationError(
@@ -761,7 +765,7 @@ class CreatePortalSerializer(serializers.ModelSerializer):
             raise ValidationError(
                 "You cannot specify both 'customer_groups' and 'copy_from_portal_id'. Choose one option."
             )
-        
+
         if catalog:
             catalog = Catalog.objects.create(title=catalog)
 
@@ -779,7 +783,7 @@ class CreatePortalSerializer(serializers.ModelSerializer):
                 raise ValidationError(
                     {"copy_from_portal_id": "The portal to copy from does not exist."})
 
-            portal_contents = [] 
+            portal_contents = []
 
             for source_content in source_portal.contents.all():
                 portal_contents.append(PortalContent(
@@ -806,25 +810,26 @@ class CreatePortalSerializer(serializers.ModelSerializer):
             existing_titles = PortalContent.objects.filter(portal=portal).values_list('title', flat=True)
 
             online_orders_content = [
-                PortalContent(portal=portal, title='Online orders', url='online-orders.html', can_have_catalogs=True) 
+                PortalContent(portal=portal, title='Online orders',
+                              url='online-orders.html', can_have_catalogs=True)
             ]
             order_history_content = [
-                PortalContent(portal=portal, title='Order history', url='order-history.html', order_history=True) 
+                PortalContent(portal=portal, title='Order history',
+                              url='order-history.html', order_history=True)
             ]
-            
+
             portal_contents = online_orders_content + order_history_content + [
                 PortalContent(portal=portal, title=title, url=f'{title.lower().replace(" ", "-")}.html')
                 for title in allowed_titles 
                 if title not in existing_titles
             ]
-        
+
             if portal_contents:
                 PortalContent.objects.bulk_create(portal_contents)
 
             if catalog:
                 created_portal_contents = PortalContent.objects.get(portal=portal, can_have_catalogs=True)
                 created_portal_contents.catalogs.set([catalog])
-
 
         # for content in content_data:
 
@@ -994,22 +999,23 @@ class PortalSerializer(serializers.ModelSerializer):
         model = Portal
         fields = ['id', 'title', 'contents', 'can_user_access',
                   'customers', 'customer_groups', 'created_at', 'logo']
-        
-    def get_contents(self, obj:Portal):
+
+    def get_contents(self, obj: Portal):
         customer_id = self.context.get('customer_id')
-        
+
         if not customer_id:
             return PortalContentSerializer(obj.contents.all(), many=True, context={'request': self.context['request']}).data
 
         filtered_content = [
             content for content in obj.contents.all()
-            if content.everyone or customer_id in content.customers.values_list('id', flat=True) or 
-            any(customer_id in group.customers.values_list('id', flat=True) for group in content.customer_groups.all())
+            if content.everyone or customer_id in content.customers.values_list('id', flat=True) or
+            any(customer_id in group.customers.values_list('id', flat=True)
+                for group in content.customer_groups.all())
         ]
         return PortalContentSerializer(filtered_content, many=True, context={'request': self.context['request']}).data
 
     def get_can_user_access(self, obj):
-        return True   
+        return True
 
 
 class PatchPortalSerializer(serializers.ModelSerializer):
@@ -1115,26 +1121,28 @@ class AttributeSerializer(serializers.ModelSerializer):
             'pricing_tiers', 'price_modifier_scope', 'price_modifier_type', 'options'
         ]
 
+
 class CartDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = CartDetails
-        fields = ['title', 'name', 'email_address', 'phone_number', 'office_number']
-        
+        fields = ['title', 'name', 'email_address',
+                  'phone_number', 'office_number']
 
     def create(self, validated_data):
         cart_item_id = self.context['cart_item_id']
-        
+
         if not CartItem.objects.filter(pk=cart_item_id).exists():
             raise serializers.ValidationError(
                 "No cart item with the given ID was found")
-        
+
         cart_item = CartItem.objects.get(id=cart_item_id)
-        print(cart_item.catalog_item.can_be_edited)       
+        print(cart_item.catalog_item.can_be_edited)
         if not CartItem.objects.filter(id=cart_item_id, catalog_item__can_be_edited=True).exists():
             raise serializers.ValidationError(
                 "This item in the cart cannot be edited")
-        
-        cart_details = CartDetails.objects.create(cart_item=cart_item, **validated_data)
+
+        cart_details = CartDetails.objects.create(
+            cart_item=cart_item, **validated_data)
         return cart_details
 
 
@@ -1147,29 +1155,29 @@ class CatalogItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CatalogItem
-        fields = catalog_item_fields + ['created_at', 'can_be_edited', 'catalog']
-    
+        fields = catalog_item_fields + \
+            ['created_at', 'can_be_edited', 'catalog']
+
     def get_url(self, field):
         cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
         if not field:
             return None
-        
+
         url = field.url
         if not field.url:
             return url
 
         if 'http' in url:
             return url
-        
+
         return f"https://res.cloudinary.com/{cloud_name}/{url}"
 
-    
     def get_preview_image(self, catalog_item: CatalogItem):
         return self.get_url(catalog_item.preview_image)
-    
+
     def get_preview_file(self, catalog_item: CatalogItem):
         return self.get_url(catalog_item.preview_file)
-    
+
     def get_thumbnail(self, catalog_item: CatalogItem):
         return self.get_url(catalog_item.thumbnail)
 
@@ -1212,33 +1220,39 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
             'exempt_from_shipping_charges', 'is_this_item_taxable',
             'can_item_be_ordered', 'details_page_per_layout'
         ]
-        
+
         for field in fields_to_update:
-            setattr(instance, field, validated_data.get(field, getattr(instance, field)))
-        
+            setattr(instance, field, validated_data.get(
+                field, getattr(instance, field)))
+
         instance.save()
 
         for attribute_data in attributes_data:
             options_data = attribute_data.pop('options', [])
             attribute_id = attribute_data.get('id')
             if attribute_id:
-                attribute = Attribute.objects.get(id=attribute_id, catalog_item=instance)
+                attribute = Attribute.objects.get(
+                    id=attribute_id, catalog_item=instance)
                 for key, value in attribute_data.items():
                     setattr(attribute, key, value)
                 attribute.save()
                 for option_data in options_data:
                     option_id = option_data.get('id')
                     if option_id:
-                        option = AttributeOption.objects.get(id=option_id, item_attribute=attribute)
+                        option = AttributeOption.objects.get(
+                            id=option_id, item_attribute=attribute)
                         for key, value in option_data.items():
                             setattr(option, key, value)
                         option.save()
                     else:
-                        AttributeOption.objects.create(item_attribute=attribute, **option_data)
+                        AttributeOption.objects.create(
+                            item_attribute=attribute, **option_data)
             else:
-                attribute = Attribute.objects.create(catalog_item=instance, **attribute_data)
+                attribute = Attribute.objects.create(
+                    catalog_item=instance, **attribute_data)
                 for option_data in options_data:
-                    AttributeOption.objects.create(item_attribute=attribute, **option_data)
+                    AttributeOption.objects.create(
+                        item_attribute=attribute, **option_data)
 
         return instance
 
@@ -1252,8 +1266,8 @@ class SimpleCatalogItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = CatalogItem
         fields = [
-            'id', 'title', 'item_sku', 
-            'description', 'short_description','default_quantity', 
+            'id', 'title', 'item_sku',
+            'description', 'short_description', 'default_quantity',
             'thumbnail', 'preview_image', 'catalog',
             'preview_file'
         ]
@@ -1262,23 +1276,22 @@ class SimpleCatalogItemSerializer(serializers.ModelSerializer):
         cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
         if not field:
             return None
-        
+
         url = field.url
         if not field.url:
             return url
 
         if 'http' in url:
             return url
-        
+
         return f"https://res.cloudinary.com/{cloud_name}/{url}"
 
-    
     def get_preview_image(self, catalog_item: CatalogItem):
         return self.get_url(catalog_item.preview_image)
-    
+
     def get_preview_file(self, catalog_item: CatalogItem):
         return self.get_url(catalog_item.preview_file)
-    
+
     def get_thumbnail(self, catalog_item: CatalogItem):
         return self.get_url(catalog_item.thumbnail)
 
@@ -1290,7 +1303,8 @@ class CartItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CartItem
-        fields = ['id', 'catalog_item', 'quantity', 'sub_total', 'unit_price', 'details']
+        fields = ['id', 'catalog_item', 'quantity',
+                  'sub_total', 'unit_price', 'details']
 
     def get_sub_total(self, cart_item: CartItem):
         pricing_grid = cart_item.catalog_item.pricing_grid
@@ -1321,7 +1335,6 @@ class CartSerializer(serializers.ModelSerializer):
         if customer_id and customer_id != value:
             raise serializers.ValidationError(
                 "You can only create your own cart")
-            
 
         if Cart.objects.filter(customer_id=value).exists():
             raise serializers.ValidationError(
@@ -1357,10 +1370,7 @@ class AddCartItemSerializer(serializers.ModelSerializer):
     # catalog_item = serializers.IntegerField()
 
     def validate_catalog_item_id(self, value):
-        if not CatalogItem.objects.filter(pk=value).exists():
-            raise serializers.ValidationError(
-                "No catalog_item with the given ID")
-        return value
+        return validate_catalog_item_id(value)
 
     def validate(self, attrs):
         return validate_catalog(self.context, attrs, Cart, 'cart')
@@ -1386,6 +1396,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderItem
         fields = ['id', 'catalog_item', 'unit_price', 'quantity', 'sub_total']
+
 
 class CreateOrderItemSerializer(serializers.ModelSerializer):
     class Meta:
@@ -1415,7 +1426,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'city_state_zip', 'po_number', 'project_due_date'
         ]
 
-    def get_total_price(self, obj:Order):
+    def get_total_price(self, obj: Order):
         total_price = sum([item.sub_total for item in obj.items.all()])
         return total_price
 
@@ -1432,8 +1443,8 @@ class CreateOrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = [
-            'cart_id','name', 'email_address', 
-            'address', 'shipping_address', 'phone_number', 
+            'cart_id', 'name', 'email_address',
+            'address', 'shipping_address', 'phone_number',
             'company', 'city_state_zip', 'po_number',
             'project_due_date'
         ]
@@ -1444,32 +1455,36 @@ class CreateOrderSerializer(serializers.ModelSerializer):
                 {'cart_id': 'No cart with the given cart ID was found'})
         if CartItem.objects.filter(cart_id=cart_id).count() == 0:
             raise serializers.ValidationError('The cart is empty')
-        
+
         if self.context['customer'] and not Cart.objects.filter(customer=self.context['customer'], pk=cart_id).exists():
-                raise serializers.ValidationError(
-                    'The cart does not belong to the customer')
-    
+            raise serializers.ValidationError(
+                'The cart does not belong to the customer')
+
         return cart_id
-    
+
     def validate(self, attrs):
         cart_id = attrs.get('cart_id')
-        cart_items = CartItem.objects.select_related("catalog_item").filter(cart_id=cart_id)
-       
+        cart_items = CartItem.objects.select_related(
+            "catalog_item").filter(cart_id=cart_id)
+
         for item in cart_items:
             catalog_item = item.catalog_item
             quantity = item.quantity
-            
+
             if not catalog_item.can_item_be_ordered:
-                raise serializers.ValidationError(f"{catalog_item.title} cannot be ordered.")
+                raise serializers.ValidationError(
+                    f"{catalog_item.title} cannot be ordered.")
             if quantity > catalog_item.available_inventory:
-                raise serializers.ValidationError(f"The quantity of {catalog_item.title} in the cart is more than the available inventory.")
-        
+                raise serializers.ValidationError(f"The quantity of {
+                                                  catalog_item.title} in the cart is more than the available inventory.")
+
         return attrs
 
     @transaction.atomic()
     def create(self, validated_data):
         cart_id = validated_data.pop('cart_id')
-        cart_items = CartItem.objects.select_related("catalog_item").filter(cart_id=cart_id)
+        cart_items = CartItem.objects.select_related(
+            "catalog_item").filter(cart_id=cart_id)
         cart = Cart.objects.get(id=cart_id)
 
         order = Order.objects.create(customer=cart.customer, **validated_data)
@@ -1492,11 +1507,13 @@ class CreateOrderSerializer(serializers.ModelSerializer):
                         subject=catalog.subject,
                         message=catalog.message_text,
                         from_email=settings.EMAIL_HOST_USER,
-                        recipient_list=[email.strip() for email in catalog.recipient_emails.split(",")],
+                        recipient_list=[
+                            email.strip() for email in catalog.recipient_emails.split(",")],
                         fail_silently=False,
                     )
 
-            unit_price = next((entry['unit_price'] for entry in item.catalog_item.pricing_grid if entry['minimum_quantity'] == item.quantity), item.unit_price)
+            unit_price = next(
+                (entry['unit_price'] for entry in item.catalog_item.pricing_grid if entry['minimum_quantity'] == item.quantity), item.unit_price)
             sub_total = item.quantity * unit_price
 
             order_items.append(OrderItem(
@@ -1508,13 +1525,14 @@ class CreateOrderSerializer(serializers.ModelSerializer):
             ))
 
         if catalog_items:
-            CatalogItem.objects.bulk_update(catalog_items, ['available_inventory'])
+            CatalogItem.objects.bulk_update(
+                catalog_items, ['available_inventory'])
         if order_items:
             OrderItem.objects.bulk_create(order_items)
 
         Cart.objects.filter(pk=cart_id).delete()
 
-        return order    
+        return order
 
 
 class OnlinePaymentSerializer(serializers.ModelSerializer):
@@ -1541,7 +1559,7 @@ class OnlinePaymentSerializer(serializers.ModelSerializer):
                 "PO number can only contain letters and numbers.")
         if not Order.objects.filter(customer=customer, po_number=value).exists():
             raise serializers.ValidationError("The PO# submitted is invalid")
-        
+
         return value
 
     def validate_payment_method(self, value):
@@ -1620,7 +1638,6 @@ class CopyPortalSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "A portal with this title already exists.")
         return value
-
 
     def validate(self, data):
         if data['copy_the_logo'] and data.get('logo'):
