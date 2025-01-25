@@ -842,7 +842,7 @@ class OrderViewSet(ModelViewSet):
             return [IsAdminUser()]
         return [IsAuthenticated()]
 
-    def get_object(self):
+    def get_customer(self):
         self.customer = None
         if self.request.user.is_staff:
             return
@@ -856,12 +856,12 @@ class OrderViewSet(ModelViewSet):
 
     def get_serializer_context(self):
         if not hasattr(self, 'customer'):
-            self.get_object()
+            self.get_customer()
         return {'customer': self.customer}
 
     def create(self, request, *args, **kwargs):
         if not hasattr(self, 'customer'):
-            self.get_object()
+            self.get_customer()
         serializer = CreateOrderSerializer(
             data=request.data,
             context={'user_id': self.request.user.id,
@@ -883,12 +883,28 @@ class OrderViewSet(ModelViewSet):
         user = self.request.user
         # print(user)
         if not hasattr(self, 'customer'):
-            self.get_object()
+            self.get_customer()
 
         if user.is_staff:
             return Order.objects.all().select_related('customer__user').prefetch_related('items__catalog_item__catalog')
         return Order.objects.filter(customer=self.customer).select_related('customer__user').prefetch_related('items__catalog_item__catalog')
 
+class OrderItemViewSet(ModelViewSet):
+    http_method_names = ['get', 'post', 'patch', 'delete']
+    permission_classes = [IsAdminUser]
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return serializers.CreateOrderItemSerializer
+        return serializers.OrderItemSerializer
+
+    def get_queryset(self):
+        order_id = self.kwargs.get('order_pk')
+        return OrderItem.objects.filter(order_id=order_id).select_related('catalog_item__catalog')
+
+    def get_serializer_context(self):
+        order_id = self.kwargs.get('order_pk')
+        return {"order_id": order_id}
 
 class OnlinePaymentViewSet(ModelViewSet):
     http_method_names = ['get', 'post', 'head', 'options']

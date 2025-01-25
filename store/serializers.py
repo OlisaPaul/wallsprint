@@ -13,7 +13,7 @@ from rest_framework.validators import ValidationError
 from io import TextIOWrapper
 from django.core.mail import send_mail
 from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog, Note, BillingInfo, Shipment, Transaction, CartDetails
-from .utils import create_instance_with_files
+from .utils import create_instance_with_files, validate_catalog, save_item
 from .signals import file_transferred
 from decimal import Decimal
 
@@ -1363,65 +1363,11 @@ class AddCartItemSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
-        catalog_item = attrs.get('catalog_item')
-        quantity = attrs.get('quantity')
-        cart_id = self.context["cart_id"]
-
-        # try:
-        #     catalog_item = CatalogItem.objects.get(pk=catalog_item_id)
-        # except CatalogItem.DoesNotExist:
-        #     raise serializers.ValidationError("Invalid catalog item ID.")
-        if not Cart.objects.filter(pk=cart_id).exists():
-            raise serializers.ValidationError("No cart with the given ID")
-        
-        if not catalog_item.can_item_be_ordered:
-            raise serializers.ValidationError(
-                f"{catalog_item.title} cannot be ordered.")
-
-        pricing_grid = catalog_item.pricing_grid
-        if  quantity > catalog_item.available_inventory:
-            raise serializers.ValidationError(
-                {"quantity": f"The quantity of {catalog_item.title} in the cart is more than the available inventory."}
-            )
-
-        if not isinstance(pricing_grid, list):
-            raise serializers.ValidationError(
-                "No pricing grid for this catalog item"
-            )
-        if not any(entry["minimum_quantity"] == quantity for entry in pricing_grid):
-            raise serializers.ValidationError(
-                {"quantity": "The quantity provided is not in the pricing grid."}
-            )
-        return attrs
+        return validate_catalog(self.context, attrs, Cart, 'cart')
 
     @transaction.atomic()
     def save(self, **kwargs):
-        cart_id = self.context["cart_id"]
-        catalog_item = self.validated_data['catalog_item']
-        quantity = self.validated_data['quantity']
-        # catalog_item = CatalogItem.objects.get(pk=catalog_item_id)
-
-        pricing_grid = catalog_item.pricing_grid
-        item = next(
-            (entry for entry in pricing_grid if entry["minimum_quantity"] == quantity), None)
-        unit_price = item['unit_price']
-        sub_total = item['minimum_quantity'] * unit_price
-        self.validated_data['sub_total'] = sub_total
-        
-
-        try:
-            cart_item = CartItem.objects.get(
-                cart_id=cart_id, catalog_item_id=catalog_item, quantity=quantity)
-            cart_item.quantity += quantity
-            cart_item.sub_total += sub_total
-            cart_item.unit_price = unit_price
-            cart_item.save()
-            self.instance = cart_item
-        except CartItem.DoesNotExist:
-            self.instance = CartItem.objects.create(
-                cart_id=cart_id, unit_price=unit_price, **self.validated_data)
-
-        return self.instance
+        return save_item(self.context, self.validated_data, CartItem, 'cart_id')
 
     class Meta:
         model = CartItem
@@ -1441,9 +1387,21 @@ class OrderItemSerializer(serializers.ModelSerializer):
         model = OrderItem
         fields = ['id', 'catalog_item', 'unit_price', 'quantity', 'sub_total']
 
+class CreateOrderItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderItem
+        fields = ['id', 'catalog_item', 'quantity']
+    
+    def validate(self, attrs):
+        return validate_catalog(self.context, attrs, Order, 'order')
+
+    @transaction.atomic()
+    def save(self, **kwargs):
+        return save_item(self.context, self.validated_data, OrderItem, 'order_id')    
+
 
 class OrderSerializer(serializers.ModelSerializer):
-    items = OrderItemSerializer(many=True, read_only=True)
+    items = OrderItemSerializer(many=True)
     customer = SimpleCustomerSerializer()
     total_price = serializers.SerializerMethodField()
 
@@ -1451,7 +1409,7 @@ class OrderSerializer(serializers.ModelSerializer):
         model = Order
         fields = [
             'id', 'customer', 'payment_status', 
-            'placed_at', "items", "total_price",
+            'placed_at', 'items', "total_price",
             'name', 'email_address', 'address', 
             'shipping_address', 'phone_number', 'company', 
             'city_state_zip', 'po_number', 'project_due_date'

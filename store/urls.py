@@ -37,45 +37,37 @@ contents_router = routers.NestedDefaultRouter(
     portals_router, r'contents', lookup='content')
 contents_router.register(
     r'catalogs', views.PortalContentCatalogViewSet, basename='content-catalogs')
-
 catalogs_router = routers.NestedDefaultRouter(
     router, 'catalogs', lookup='catalog')
 catalogs_router.register(
     'items', views.CatalogItemViewSet, basename='catalog-items')
 carts_router = routers.NestedDefaultRouter(router, "carts", lookup='cart')
 carts_router.register("items", views.CartItemViewSet, basename="cart-items")
-
 requests_router = routers.NestedDefaultRouter(
     router, 'requests', lookup='request')
 requests_router.register(
     'notes', views.NoteViewSet, basename='request-notes')
-
 file_transfers_router = routers.NestedDefaultRouter(
     router, 'file-transfers', lookup='file_transfer')
 file_transfers_router.register(
     'notes', views.NoteViewSet, basename='file-transfer-notes')
-
-# Nested routers for billing info
 requests_router.register(
     'billing-info', views.BillingInfoViewSet, basename='request-billing-info'
 )
-
 file_transfers_router.register(
     'billing-info', views.BillingInfoViewSet, basename='file-transfer-billing-info'
 )
-
+orders_router = routers.NestedDefaultRouter(router, 'orders', lookup='order')
+orders_router.register('items', views.OrderItemViewSet, basename='order-items')
 requests_router.register(
     'shipments', views.ShipmentViewSet, basename='request-shipments'
 )
-
 file_transfers_router.register(
     'shipments', views.ShipmentViewSet, basename='file-transfer-shipments'
 )
-
 requests_router.register(
     'transactions', views.TransactionViewSet, basename='request-transactions'
 )
-
 file_transfers_router.register(
     'transactions', views.TransactionViewSet, basename='file-transfer-transactions'
 )
@@ -99,4 +91,4 @@ urlpatterns = router.urls + portals_router.urls + \
     catalogs_router.urls + message_centre_url + carts_router.urls +\
     contents_router.urls + recent_order_url + \
     requests_router.urls + file_transfers_router.urls + \
-    cart_items_router.urls
+    cart_items_router.urls + orders_router.urls
