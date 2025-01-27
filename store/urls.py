@@ -58,6 +58,9 @@ file_transfers_router.register(
     'billing-info', views.BillingInfoViewSet, basename='file-transfer-billing-info'
 )
 orders_router = routers.NestedDefaultRouter(router, 'orders', lookup='order')
+orders_router.register('notes', views.NoteViewSet, basename='order-notes')
+orders_router.register('shipments', views.ShipmentViewSet, basename='order-shipments')
+orders_router.register('transactions', views.TransactionViewSet, basename='order-transactions')
 orders_router.register('items', views.OrderItemViewSet, basename='order-items')
 requests_router.register(
     'shipments', views.ShipmentViewSet, basename='request-shipments'

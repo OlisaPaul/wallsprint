@@ -1369,15 +1369,15 @@ class CartSerializer(serializers.ModelSerializer):
 class AddCartItemSerializer(serializers.ModelSerializer):
     # catalog_item = serializers.IntegerField()
 
-    def validate_catalog_item_id(self, value):
-        return validate_catalog_item_id(value)
+    # def validate_catalog_item_id(self, value):
+    #     return validate_catalog_item_id(value)
 
     def validate(self, attrs):
-        return validate_catalog(self.context, attrs, Cart, 'cart')
+        return validate_catalog(self.context, attrs, Cart, 'cart', self.instance)
 
     @transaction.atomic()
     def save(self, **kwargs):
-        return save_item(self.context, self.validated_data, CartItem, 'cart_id')
+        return save_item(self.context, self.validated_data, CartItem, 'cart_id', self.instance)
 
     class Meta:
         model = CartItem
@@ -1395,7 +1395,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderItem
-        fields = ['id', 'catalog_item', 'unit_price', 'quantity', 'sub_total']
+        fields = ['id', 'catalog_item', 'unit_price', 'quantity', 'sub_total', 'tax', 'status']
 
 
 class CreateOrderItemSerializer(serializers.ModelSerializer):
@@ -1404,17 +1404,29 @@ class CreateOrderItemSerializer(serializers.ModelSerializer):
         fields = ['id', 'catalog_item', 'quantity']
     
     def validate(self, attrs):
-        return validate_catalog(self.context, attrs, Order, 'order')
+        return validate_catalog(self.context, attrs, Order, 'order', self.instance)
+    
+    def create(self, validated_data):
+        validated_data['order_id'] = self.context['order_id']
+        return super().create(validated_data)
 
-    @transaction.atomic()
-    def save(self, **kwargs):
-        return save_item(self.context, self.validated_data, OrderItem, 'order_id')    
+
+class UpdateOrderItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderItem
+        fields = ['id', 'quantity', 'tax', 'status']
+    
+    def validate(self, attrs):
+        return validate_catalog(self.context, attrs, Order, 'order', self.instance)
 
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True)
     customer = SimpleCustomerSerializer()
     total_price = serializers.SerializerMethodField()
+    transactions = TransactionSerializer(many=True, read_only=True)
+    notes = NoteSerializer(many=True, read_only=True)
+    shipments = ShipmentSerializer(many=True, read_only=True)
 
     class Meta:
         model = Order
@@ -1423,7 +1435,8 @@ class OrderSerializer(serializers.ModelSerializer):
             'placed_at', 'items', "total_price",
             'name', 'email_address', 'address', 
             'shipping_address', 'phone_number', 'company', 
-            'city_state_zip', 'po_number', 'project_due_date'
+            'city_state_zip', 'po_number', 'project_due_date',
+            'notes', 'shipments',  'transactions'
         ]
 
     def get_total_price(self, obj: Order):
@@ -1438,7 +1451,7 @@ class UpdateOrderSerializer(serializers.ModelSerializer):
 
 
 class CreateOrderSerializer(serializers.ModelSerializer):
-    cart_id = serializers.UUIDField()
+    cart_id = serializers.UUIDField(write_only=True)
 
     class Meta:
         model = Order
@@ -1475,8 +1488,7 @@ class CreateOrderSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     f"{catalog_item.title} cannot be ordered.")
             if quantity > catalog_item.available_inventory:
-                raise serializers.ValidationError(f"The quantity of {
-                                                  catalog_item.title} in the cart is more than the available inventory.")
+                raise serializers.ValidationError(f"The quantity of {catalog_item.title} in the cart is more than the available inventory.")
 
         return attrs
 

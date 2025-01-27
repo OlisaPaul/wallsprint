@@ -32,6 +32,47 @@ OrderPermissions = create_permission_class('store.order')
 MessageCenterPermissions = create_permission_class('store.message_center')
 
 
+model_map = {
+    'request_pk': Request,
+    'file_transfer_pk': FileTransfer,
+    'order_pk': Order
+}
+
+def get_content_type_and_id(kwargs):
+    """Helper function to get content type and ID from kwargs"""
+    for key, model in model_map.items():
+        if key in kwargs:
+            return ContentType.objects.get_for_model(model), kwargs[key]
+    return None, None
+
+def get_queryset_for_content_types(kwargs, model_class):
+    """Get queryset filtered by content type and object ID"""
+    content_type, object_id = get_content_type_and_id(kwargs)
+    if content_type and object_id:
+        return model_class.objects.filter(
+            content_type=content_type,
+            object_id=object_id
+        )
+    return model_class.objects.none()
+
+def create_for_content_types(kwargs, serializer):
+    """Create object with content type relationship"""
+    content_type, object_id = get_content_type_and_id(kwargs)
+    if content_type and object_id:
+        instance = get_object_or_404(content_type.model_class(), id=object_id)
+        serializer.save(content_object=instance)
+
+def get_serializer_context_for_content_types(kwargs):
+    """Get serializer context with content type info"""
+    content_type, object_id = get_content_type_and_id(kwargs)
+    if content_type and object_id:
+        return {
+            "content_type": content_type,
+            "object_id": object_id
+        }
+    return {}
+
+
 class CustomerCreationHandler:
     def __init__(self, user, customer_data):
         self.user = user
@@ -479,9 +520,11 @@ class CatalogViewSet(CustomModelViewSet):
         Retrieve all favorite items in the catalog.
         """
         catalog = self.get_object()
-        favorite_items = catalog.catalog_items.filter(is_favorite=True)  # Assuming there's an 'is_favorite' field
+        favorite_items = catalog.catalog_items.filter(
+            is_favorite=True)  # Assuming there's an 'is_favorite' field
 
-        response_serializer = serializers.CatalogItemSerializer(favorite_items, many=True)
+        response_serializer = serializers.CatalogItemSerializer(
+            favorite_items, many=True)
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
 
@@ -630,6 +673,7 @@ class OrderView(APIView):
             FileTransfer).filter(date_filter)
         online_orders = get_queryset_for_models_with_files(
             Request).filter(date_filter)
+        orders = get_queryset_for_models_with_files(Order).filter(date_filter)
 
         def calculate_file_size(instance):
             file_size_in_bytes = sum(
@@ -672,14 +716,22 @@ class OrderView(APIView):
                 route='/file-transfers/'
             ))
 
-        for request_order in online_orders:
-            if request_order.this_is_an == 'Order Request':
+        for order in online_orders:
+            if order.this_is_an == 'Order Request':
                 messages.append(create_message(
-                    request_order,
+                    order,
                     'New Design Order',
-                    calculate_file_size(request_order),
+                    calculate_file_size(order),
                     route='/requests/'
                 ))
+        
+        for order in orders:
+            messages.append(create_message(
+                order,
+                'Order',
+                calculate_file_size(order),
+                route='/orders/'
+            ))
 
         messages.sort(key=lambda x: x['Date'], reverse=True)
 
@@ -784,7 +836,8 @@ class CartViewSet(CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, Gener
                     'id').get(user_id=self.request.user.id).id
                 print('customer_id', customer_id)
             except Customer.DoesNotExist:
-                raise NotFound(f"No Customer found with id {self.request.user.id}.")
+                raise NotFound(f"No Customer found with id {
+                               self.request.user.id}.")
         return {'user_id': self.request.user.id, 'customer_id': customer_id}
 
     @action(detail=False, methods=['get'], url_path='customer-cart')
@@ -836,6 +889,7 @@ class CartItemViewSet(ModelViewSet):
 
 class OrderViewSet(ModelViewSet):
     http_method_names = ['get', 'patch', 'delete', 'post', 'head', 'options']
+    prefetch_related = ['items__catalog_item__catalog', 'notes__author', 'shipments', 'billing_info', 'transactions']
 
     def get_permissions(self):
         if self.request.method in ['PATCH', 'DELETE']:
@@ -859,19 +913,6 @@ class OrderViewSet(ModelViewSet):
             self.get_customer()
         return {'customer': self.customer}
 
-    def create(self, request, *args, **kwargs):
-        if not hasattr(self, 'customer'):
-            self.get_customer()
-        serializer = CreateOrderSerializer(
-            data=request.data,
-            context={'user_id': self.request.user.id,
-                     'customer': self.customer}
-        )
-        serializer.is_valid(raise_exception=True)
-        order = serializer.save()
-        serializer = OrderSerializer(order)
-        return Response(serializer.data)
-
     def get_serializer_class(self):
         if self.request.method == 'POST':
             return CreateOrderSerializer
@@ -881,22 +922,28 @@ class OrderViewSet(ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        # print(user)
         if not hasattr(self, 'customer'):
             self.get_customer()
+        
+        queryset = get_queryset_for_models_with_files(Order)\
+            .select_related('customer__user')\
+            .prefetch_related(*self.prefetch_related)
 
         if user.is_staff:
-            return Order.objects.all().select_related('customer__user').prefetch_related('items__catalog_item__catalog')
-        return Order.objects.filter(customer=self.customer).select_related('customer__user').prefetch_related('items__catalog_item__catalog')
+            return queryset 
+        return queryset.filter(customer=self.customer)
+
 
 class OrderItemViewSet(ModelViewSet):
-    http_method_names = ['get', 'post', 'patch', 'delete']
+    # http_method_names = ['get', 'post', 'patch', 'delete']
     permission_classes = [IsAdminUser]
 
     def get_serializer_class(self):
-        if self.request.method == "POST":
-            return serializers.CreateOrderItemSerializer
-        return serializers.OrderItemSerializer
+        if self.request.method == "GET":
+            return serializers.OrderItemSerializer
+        if self.request.method in ['PATCH', 'PUT']:
+            return serializers.UpdateOrderItemSerializer
+        return serializers.CreateOrderItemSerializer
 
     def get_queryset(self):
         order_id = self.kwargs.get('order_pk')
@@ -905,6 +952,7 @@ class OrderItemViewSet(ModelViewSet):
     def get_serializer_context(self):
         order_id = self.kwargs.get('order_pk')
         return {"order_id": order_id}
+
 
 class OnlinePaymentViewSet(ModelViewSet):
     http_method_names = ['get', 'post', 'head', 'options']
@@ -937,40 +985,20 @@ class FileExchangeViewSet(ModelViewSet):
 
 class NoteViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
-
     def get_serializer_class(self):
         if self.request.method == 'GET':
             return serializers.NoteSerializer
         return serializers.CreateNoteSerializer
 
     def get_queryset(self):
-        if 'request_pk' in self.kwargs:
-            request_pk = self.kwargs.get('request_pk')
-            return Note.objects.filter(
-                content_type=ContentType.objects.get_for_model(Request),
-                object_id=request_pk
-            )
-        elif 'file_transfer_pk' in self.kwargs:
-            file_transfer_pk = self.kwargs.get('file_transfer_pk')
-            return Note.objects.filter(
-                content_type=ContentType.objects.get_for_model(FileTransfer),
-                object_id=file_transfer_pk
-            )
-        return Note.objects.none()
+      return get_queryset_for_content_types(self.kwargs, Note)
 
     def perform_create(self, serializer):
-
-        if 'request_pk' in self.kwargs:
-            content_type = ContentType.objects.get_for_model(Request)
-            object_id = self.kwargs.get('request_pk')
-        elif 'file_transfer_pk' in self.kwargs:
-            content_type = ContentType.objects.get_for_model(FileTransfer)
-            object_id = self.kwargs.get('file_transfer_pk')
-
+        content_type, object_id = get_content_type_and_id(self.kwargs)
+        content_object = content_type.get_object_for_this_type(id=object_id)
         serializer.save(
             author=self.request.user,
-            content_type=content_type,
-            object_id=object_id
+            content_object=content_object
         )
 
 
@@ -1006,72 +1034,22 @@ class ShipmentViewSet(ModelViewSet):
     serializer_class = ShipmentSerializer
 
     def get_queryset(self):
-        request_id = self.kwargs.get('request_pk')
-        if request_id:
-            return Shipment.objects.filter(requests__id=request_id)
-
-        file_transfer_pk = self.kwargs.get('file_transfer_pk')
-        if file_transfer_pk:
-            return Shipment.objects.filter(
-                content_type=ContentType.objects.get_for_model(FileTransfer),
-                object_id=file_transfer_pk
-            )
+        return get_queryset_for_content_types(self.kwargs, Shipment)
 
     def perform_create(self, serializer):
-        request_id = self.kwargs.get('request_pk')
-        if request_id:
-            request_instance = get_object_or_404(Request, id=request_id)
-            content_type = ContentType.objects.get_for_model(Request)
-            object_id = request_id
-            serializer.save(content_object=request_instance,
-                            content_type=content_type, object_id=object_id)
-        else:
-            file_transfer_id = self.kwargs.get('file_transfer_pk')
-            file_transfer_instance = get_object_or_404(
-                FileTransfer, id=file_transfer_id)
-            content_type = ContentType.objects.get_for_model(FileTransfer)
-            object_id = file_transfer_id
-            serializer.save(content_object=file_transfer_instance,
-                            content_type=content_type, object_id=object_id)
-
+        return create_for_content_types(self.kwargs, serializer)
 
 class TransactionViewSet(ModelViewSet):
     serializer_class = TransactionSerializer
 
     def get_serializer_context(self):
-        if 'request_pk' in self.kwargs:
-            return {'content_type': ContentType.objects.get_for_model(Request), 'object_id': self.kwargs.get('request_pk')}
-        elif 'file_transfer_pk' in self.kwargs:
-            return {'content_type': ContentType.objects.get_for_model(FileTransfer), 'object_id': self.kwargs.get('file_transfer_pk')}
-        return {}
+        return get_serializer_context_for_content_types(self.kwargs)
 
     def get_queryset(self):
-        request_id = self.kwargs.get('request_pk')
-        file_transfer_id = self.kwargs.get('file_transfer_pk')
-
-        if request_id:
-            return Transaction.objects.filter(
-                content_type=ContentType.objects.get_for_model(Request),
-                object_id=request_id
-            )
-        elif file_transfer_id:
-            return Transaction.objects.filter(
-                content_type=ContentType.objects.get_for_model(FileTransfer),
-                object_id=file_transfer_id
-            )
-        return Transaction.objects.none()
+        return get_queryset_for_content_types(self.kwargs, Transaction)
 
     def perform_create(self, serializer):
-        request_id = self.kwargs.get('request_pk')
-        file_transfer_id = self.kwargs.get('file_transfer_pk')
-
-        if request_id:
-            request_instance = get_object_or_404(Request, id=request_id)
-            serializer.save(content_object=request_instance)
-        elif file_transfer_id:
-            file_transfer_instance = get_object_or_404(
-                FileTransfer, id=file_transfer_id)
-            serializer.save(content_object=file_transfer_instance)
+        return create_for_content_types(self.kwargs, serializer)
 
 
 class CartDetailsViewSet(viewsets.ModelViewSet):

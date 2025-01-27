@@ -150,8 +150,8 @@ def validate_catalog_item_id(value):
                 "No catalog_item with the given ID")
         return value
 
-def validate_catalog(context, attrs, model_class, field_name):
-    catalog_item = attrs.get('catalog_item')
+def validate_catalog(context, attrs, model_class, field_name, instance=None):
+    catalog_item = instance.catalog_item if instance else attrs.get('catalog_item')
     quantity = attrs.get('quantity')
     cart_id = context[f"{field_name}_id"]
     
@@ -179,9 +179,9 @@ def validate_catalog(context, attrs, model_class, field_name):
         )
     return attrs
 
-def save_item(context, validated_data, model_class, field_name):
+def save_item(context, validated_data, model_class, field_name, old_instance):
     id = context[field_name]
-    catalog_item = validated_data['catalog_item']
+    catalog_item = old_instance.catalog_item if old_instance else validated_data.get('catalog_item')
     quantity = validated_data['quantity']
 
     pricing_grid = catalog_item.pricing_grid
@@ -190,6 +190,15 @@ def save_item(context, validated_data, model_class, field_name):
     unit_price = item['unit_price']
     sub_total = item['minimum_quantity'] * unit_price
     validated_data['sub_total'] = sub_total
+
+    if old_instance:
+        old_instance.unit_price = unit_price
+        old_instance.sub_total = sub_total
+        old_instance.quantity = quantity
+        old_instance.save()
+
+        return old_instance
+
     
     instance = model_class.objects.create(
         **({field_name: id}),

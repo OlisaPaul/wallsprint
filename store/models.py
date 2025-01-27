@@ -1,5 +1,7 @@
 import re
+from typing import Iterable
 from uuid import uuid4
+from django.db import transaction
 from django.core.validators import MinValueValidator
 from django.utils import timezone
 from django.contrib.contenttypes.fields import GenericRelation
@@ -334,14 +336,44 @@ class CustomerGroup(models.Model):
         return self.title
 
 
-class FileTransfer(CommonFields):
+class BaseTransaction(CommonFields):
     NEW = 'New'
     PENDING = 'Pending'
     COMPLETED = 'Completed'
     PROCESSING = 'Processing'
     SHIPPED = 'Shipped'
 
+    STATUS_CHOICES = [
+        (NEW, NEW),
+        (PENDING, PENDING),
+        (PROCESSING, PROCESSING),
+        (COMPLETED, COMPLETED),
+        (SHIPPED, SHIPPED),
+    ]
+
     additional_details = models.TextField(blank=True, null=True)
+    status = models.CharField(
+        max_length=50,
+        choices=STATUS_CHOICES,
+        default=NEW
+    )
+    notes = GenericRelation(Note, related_query_name='requests')
+    billing_info = models.ForeignKey(
+        BillingInfo,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    transactions = GenericRelation(Transaction, related_query_name='requests')
+    shipments = GenericRelation(Shipment, related_query_name='requests')
+    files = GenericRelation(
+        "File", related_query_name='quote_requests', null=True)
+
+    class Meta:
+        abstract = True
+
+
+class FileTransfer(BaseTransaction):
     file_type = models.CharField(
         max_length=50,
         choices=[
@@ -362,8 +394,6 @@ class FileTransfer(CommonFields):
             ('Other', 'OTHER'),
         ],
     )
-    files = GenericRelation(
-        "File", related_query_name='quote_requests', null=True)
     application_type = models.CharField(
         max_length=255,
         choices=[
@@ -372,25 +402,10 @@ class FileTransfer(CommonFields):
         ],
     )
     other_application_type = models.CharField(
-        max_length=255, blank=True, null=True)
-    status = models.CharField(
-        max_length=50,
-        choices=[
-            (NEW, NEW),
-            (PENDING, PENDING),
-            (PROCESSING, PROCESSING),
-            (COMPLETED, COMPLETED),
-            (SHIPPED, SHIPPED),
-        ],
-        default=NEW
+        max_length=255,
+        blank=True,
+        null=True
     )
-    notes = GenericRelation(Note, related_query_name='file_transfers')
-    billing_info = models.ForeignKey(
-        BillingInfo, on_delete=models.CASCADE, related_name='file_transfers', null=True, blank=True
-    )
-    transactions = GenericRelation(
-        Transaction, related_query_name='file_transfers')
-    shipments = GenericRelation(Shipment, related_query_name='file_transfers')
 
     class Meta:
         permissions = [
@@ -776,7 +791,7 @@ class CartItem(models.Model):
         unique_together = [["catalog_item", "cart", "quantity"]]
 
 
-class Order(models.Model):
+class Order(BaseTransaction):
     PAYMENT_STATUS_PENDING = 'P'
     PAYMENT_STATUS_COMPLETE = 'C'
     PAYMENT_STATUS_FAILED = 'F'
@@ -791,12 +806,7 @@ class Order(models.Model):
         max_length=1, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_STATUS_PENDING)
     customer = models.ForeignKey(Customer, on_delete=models.PROTECT)
     date_needed = models.DateField(default=timezone.now)
-    name = models.CharField(max_length=255)
-    email_address = models.EmailField()
-    phone_number = models.CharField(max_length=20)
     address = models.CharField(max_length=255)
-    company = models.CharField(max_length=255, blank=True, null=True)
-    city_state_zip = models.CharField(max_length=255, blank=True, null=True)
     po_number = models.CharField(max_length=100, blank=True, null=True)
     shipping_address = models.TextField(blank=True, null=True)
     project_due_date = models.DateField(default=datetime.date.today)
@@ -808,13 +818,54 @@ class Order(models.Model):
 
 
 class OrderItem(models.Model):
+    PENDING = 'Pending'
+    DENIED = 'Denied'
+    ORDERED = 'Ordered'
+    STATUS_CHOICES = [
+        (PENDING, PENDING),
+        (DENIED, DENIED),
+        (ORDERED, ORDERED)
+    ]
+
     order = models.ForeignKey(
         Order, on_delete=models.CASCADE, related_name="items")
     catalog_item = models.ForeignKey(
         CatalogItem, on_delete=models.PROTECT, related_name="orderitems")
     quantity = models.PositiveSmallIntegerField()
+    tax = models.DecimalField(max_digits=6, decimal_places=2, null=True)
+    status = models.CharField(
+        max_length=50, default=PENDING, choices=STATUS_CHOICES)
     unit_price = models.DecimalField(max_digits=6, decimal_places=2)
     sub_total = models.DecimalField(max_digits=12, decimal_places=2)
+
+    @transaction.atomic()
+    def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+        quantity_to_subtract = self.quantity
+        is_new = self._state.adding
+        catalog_item = self.catalog_item
+            
+        if catalog_item and self.quantity and ((is_new and not self.unit_price) or not is_new):
+            print('Called')
+            pricing_grid = catalog_item.pricing_grid
+            item = next(
+                (entry for entry in pricing_grid if entry["minimum_quantity"] == self.quantity), None)
+
+            if item:
+                self.unit_price = item['unit_price']
+                self.sub_total = item['minimum_quantity'] * self.unit_price
+            
+            if catalog_item.track_inventory_automatically:
+                if not is_new:
+                    order_item = OrderItem.objects.get(pk=self.pk)
+                    if order_item.quantity != quantity_to_subtract:
+                        new_quantity = order_item.quantity - quantity_to_subtract
+                        catalog_item.available_inventory += new_quantity
+                else:
+                    catalog_item.available_inventory -= quantity_to_subtract
+            
+                catalog_item.save()
+
+        return super().save(force_insert, force_update, using, update_fields)
 
 
 class OnlinePayment(models.Model):
