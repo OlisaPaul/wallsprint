@@ -831,13 +831,12 @@ class CartViewSet(CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, Gener
     def get_serializer_context(self):
         customer_id = None
         if not self.request.user.is_staff:
+            user_id = self.request.user.id
             try:
                 customer_id = Customer.objects.only(
                     'id').get(user_id=self.request.user.id).id
-                print('customer_id', customer_id)
             except Customer.DoesNotExist:
-                raise NotFound(f"No Customer found with id {
-                               self.request.user.id}.")
+                raise NotFound(f"No Customer found with id {user_id}.")
         return {'user_id': self.request.user.id, 'customer_id': customer_id}
 
     @action(detail=False, methods=['get'], url_path='customer-cart')
