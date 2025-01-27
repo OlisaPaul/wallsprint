@@ -10,7 +10,7 @@ from rest_framework import status
 from cloudinary.uploader import upload
 from cloudinary.api import resource
 from cloudinary.exceptions import Error
-from .models import File
+from .models import File, Cart, CatalogItem, CartItem
 from django.http import HttpRequest
 
 def get_bulk_delete_serializer_class(model):
@@ -143,3 +143,66 @@ def get_base_url(request: HttpRequest) -> str:
     scheme = request.scheme
     host = request.get_host()  
     return f"{scheme}://{host}"
+
+def validate_catalog_item_id(value):
+        if not CatalogItem.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(
+                "No catalog_item with the given ID")
+        return value
+
+def validate_catalog(context, attrs, model_class, field_name, instance=None):
+    catalog_item = instance.catalog_item if instance else attrs.get('catalog_item')
+    quantity = attrs.get('quantity')
+    cart_id = context[f"{field_name}_id"]
+    
+
+    if  not model_class.objects.filter(pk=cart_id).exists():
+        raise serializers.ValidationError(f"No {field_name} with the given ID")
+
+    if not catalog_item.can_item_be_ordered:
+        raise serializers.ValidationError(
+            f"{catalog_item.title} cannot be ordered.")
+
+    pricing_grid = catalog_item.pricing_grid
+    if quantity > catalog_item.available_inventory:
+        raise serializers.ValidationError(
+            {"quantity": f"The quantity of {catalog_item.title} in the cart is more than the available inventory."}
+        )
+
+    if not isinstance(pricing_grid, list):
+        raise serializers.ValidationError(
+            "No pricing grid for this catalog item"
+        )
+    if not any(entry["minimum_quantity"] == quantity for entry in pricing_grid):
+        raise serializers.ValidationError(
+            {"quantity": "The quantity provided is not in the pricing grid."}
+        )
+    return attrs
+
+def save_item(context, validated_data, model_class, field_name, old_instance):
+    id = context[field_name]
+    catalog_item = old_instance.catalog_item if old_instance else validated_data.get('catalog_item')
+    quantity = validated_data['quantity']
+
+    pricing_grid = catalog_item.pricing_grid
+    item = next(
+        (entry for entry in pricing_grid if entry["minimum_quantity"] == quantity), None)
+    unit_price = item['unit_price']
+    sub_total = item['minimum_quantity'] * unit_price
+    validated_data['sub_total'] = sub_total
+
+    if old_instance:
+        old_instance.unit_price = unit_price
+        old_instance.sub_total = sub_total
+        old_instance.quantity = quantity
+        old_instance.save()
+
+        return old_instance
+
+    
+    instance = model_class.objects.create(
+        **({field_name: id}),
+        unit_price=unit_price,
+        **validated_data)
+
+    return instance
