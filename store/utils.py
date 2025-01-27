@@ -159,9 +159,9 @@ def validate_catalog(context, attrs, model_class, field_name, instance=None):
     if  not model_class.objects.filter(pk=cart_id).exists():
         raise serializers.ValidationError(f"No {field_name} with the given ID")
 
-    if not catalog_item.can_item_be_ordered:
-        raise serializers.ValidationError(
-            f"{catalog_item.title} cannot be ordered.")
+    # if not catalog_item.can_item_be_ordered:
+    #     raise serializers.ValidationError(
+    #         f"{catalog_item.title} cannot be ordered.")
 
     pricing_grid = catalog_item.pricing_grid
     if quantity > catalog_item.available_inventory:
