@@ -798,8 +798,8 @@ class CartItem(models.Model):
     sub_total = models.DecimalField(
         max_digits=9, decimal_places=2, default=0.00)
 
-    class Meta:
-        unique_together = [["catalog_item", "cart", "quantity"]]
+    # class Meta:
+    #     unique_together = [["catalog_item", "cart", "quantity"]]
 
 
 class Order(BaseTransaction):
