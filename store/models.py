@@ -627,6 +627,16 @@ class PortalContentCatalog(models.Model):
 
 
 class CatalogItem(models.Model):
+    NON_EDITABLE = 'Non-editable'
+    BUSINESS_CARD = 'Business Card'
+    OTHERS = 'Others'
+
+    ITEM_TYPE_CHOICES = [
+        (NON_EDITABLE, NON_EDITABLE),
+        (BUSINESS_CARD, BUSINESS_CARD),
+        (OTHERS, OTHERS)
+    ]
+
     title = models.CharField(max_length=255)
     catalog = models.ForeignKey(
         'Catalog', null=True, blank=True, on_delete=models.SET_NULL, related_name='catalog_items'
@@ -656,6 +666,7 @@ class CatalogItem(models.Model):
     is_favorite = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     can_be_edited = models.BooleanField(default=False)
+    item_type = models.CharField(max_length=50, default=NON_EDITABLE, choices=ITEM_TYPE_CHOICES)
 
     def __str__(self):
         return self.title
@@ -787,8 +798,8 @@ class CartItem(models.Model):
     sub_total = models.DecimalField(
         max_digits=9, decimal_places=2, default=0.00)
 
-    class Meta:
-        unique_together = [["catalog_item", "cart", "quantity"]]
+    # class Meta:
+    #     unique_together = [["catalog_item", "cart", "quantity"]]
 
 
 class Order(BaseTransaction):
@@ -845,7 +856,6 @@ class OrderItem(models.Model):
         catalog_item = self.catalog_item
             
         if catalog_item and self.quantity and ((is_new and not self.unit_price) or not is_new):
-            print('Called')
             pricing_grid = catalog_item.pricing_grid
             item = next(
                 (entry for entry in pricing_grid if entry["minimum_quantity"] == self.quantity), None)

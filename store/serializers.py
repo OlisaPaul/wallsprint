@@ -1,6 +1,7 @@
 import csv
 import os
 import re
+import json
 from django.conf import settings
 from django.core.validators import FileExtensionValidator
 from django.db import transaction
@@ -27,7 +28,7 @@ catalog_item_fields = [
     'available_inventory', 'minimum_inventory', 'track_inventory_automatically',
     'restrict_orders_to_inventory', 'weight_per_piece_lb', 'weight_per_piece_oz',
     'exempt_from_shipping_charges', 'is_this_item_taxable', 'can_item_be_ordered',
-    'details_page_per_layout', 'is_favorite', 'attributes'
+    'details_page_per_layout', 'is_favorite', 'attributes', 'item_type'
 ]
 
 online_proof_fields = [
@@ -569,6 +570,9 @@ class UpdatePortalContentSerializer(serializers.ModelSerializer):
         # redirect_url = data.get('redirect_url', None)
         
         
+        
+
+        
         # Validate customer group and everyone selection
         if (customer_groups_data or customer_data) and everyone:
             raise ValidationError(
@@ -795,10 +799,12 @@ class CreatePortalSerializer(serializers.ModelSerializer):
                 ))
 
             PortalContent.objects.bulk_create(portal_contents)
-            created_portal_contents = PortalContent.objects.filter(portal=portal, title__in=[content.title for content in portal_contents])
+            created_portal_contents = PortalContent.objects.filter(
+                portal=portal, title__in=[content.title for content in portal_contents])
 
             for portal_content, source_content in zip(created_portal_contents, source_portal.contents.all()):
-                portal_content.customer_groups.set(source_content.customer_groups.all())
+                portal_content.customer_groups.set(
+                    source_content.customer_groups.all())
                 portal_content.customers.set(source_content.customers.all())
 
                 if portal_content.can_have_catalogs and same_catalogs:
@@ -807,7 +813,8 @@ class CreatePortalSerializer(serializers.ModelSerializer):
                     portal_content.catalogs.set([catalog])
         else:
             allowed_titles = ['Welcome', 'Online payments', 'Order approval',]
-            existing_titles = PortalContent.objects.filter(portal=portal).values_list('title', flat=True)
+            existing_titles = PortalContent.objects.filter(
+                portal=portal).values_list('title', flat=True)
 
             online_orders_content = [
                 PortalContent(portal=portal, title='Online orders',
@@ -828,32 +835,9 @@ class CreatePortalSerializer(serializers.ModelSerializer):
                 PortalContent.objects.bulk_create(portal_contents)
 
             if catalog:
-                created_portal_contents = PortalContent.objects.get(portal=portal, can_have_catalogs=True)
+                created_portal_contents = PortalContent.objects.get(
+                    portal=portal, can_have_catalogs=True)
                 created_portal_contents.catalogs.set([catalog])
-
-        # for content in content_data:
-
-        #     customer_group_data = []
-        #     customer_data = []
-        #     everyone = content.get('everyone')
-
-        #     customer_group_data = content.pop('customer_groups', None)
-        #     customer_data = content.pop('customers', None)
-
-        #     is_customer_or_customer_data = customer_group_data or customer_data
-
-        #     if is_customer_or_customer_data and everyone:
-        #         raise ValidationError(
-        #             "You cannot select 'everyone' and also specify 'customer_groups' or 'customers'. Choose one option only.")
-
-        #     portal_content = PortalContent.objects.create(
-        #         portal=portal, **content)
-
-        #     if customer_group_data:
-        #         portal_content.customer_groups.set(customer_group_data)
-
-        #     if customer_data:
-        #         portal_content.customers.set(customer_data)
 
         portal.customers.set(customers)
         portal.customer_groups.set(customer_groups)
@@ -1192,7 +1176,7 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CatalogItem
-        fields = catalog_item_fields + ['attribute_data', 'can_be_edited']
+        fields = catalog_item_fields + ['attribute_data', 'can_be_edited', 'item_type']
 
     def create(self, validated_data):
         catalog_id = self.context['catalog_id']
@@ -1208,25 +1192,10 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
                     item_attribute=attribute, **option_data)
         return catalog_item
 
+    @transaction.atomic()
     def update(self, instance, validated_data):
         attributes_data = validated_data.pop('attribute_data', [])
-        fields_to_update = [
-            'title', 'is_favorite', 'item_sku', 'description',
-            'short_description', 'default_quantity', 'pricing_grid',
-            'thumbnail', 'preview_image', 'preview_file',
-            'available_inventory', 'minimum_inventory',
-            'track_inventory_automatically', 'restrict_orders_to_inventory',
-            'weight_per_piece_lb', 'weight_per_piece_oz',
-            'exempt_from_shipping_charges', 'is_this_item_taxable',
-            'can_item_be_ordered', 'details_page_per_layout'
-        ]
-
-        for field in fields_to_update:
-            setattr(instance, field, validated_data.get(
-                field, getattr(instance, field)))
-
-        instance.save()
-
+        
         for attribute_data in attributes_data:
             options_data = attribute_data.pop('options', [])
             attribute_id = attribute_data.get('id')
@@ -1253,8 +1222,9 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
                 for option_data in options_data:
                     AttributeOption.objects.create(
                         item_attribute=attribute, **option_data)
+                            
+        return super().update(instance, validated_data)
 
-        return instance
 
 
 class SimpleCatalogItemSerializer(serializers.ModelSerializer):
@@ -1395,17 +1365,18 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderItem
-        fields = ['id', 'catalog_item', 'unit_price', 'quantity', 'sub_total', 'tax', 'status']
+        fields = ['id', 'catalog_item', 'unit_price',
+                  'quantity', 'sub_total', 'tax', 'status']
 
 
 class CreateOrderItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderItem
         fields = ['id', 'catalog_item', 'quantity']
-    
+
     def validate(self, attrs):
         return validate_catalog(self.context, attrs, Order, 'order', self.instance)
-    
+
     def create(self, validated_data):
         validated_data['order_id'] = self.context['order_id']
         return super().create(validated_data)
@@ -1415,7 +1386,7 @@ class UpdateOrderItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderItem
         fields = ['id', 'quantity', 'tax', 'status']
-    
+
     def validate(self, attrs):
         return validate_catalog(self.context, attrs, Order, 'order', self.instance)
 
@@ -1431,10 +1402,10 @@ class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = [
-            'id', 'customer', 'payment_status', 
+            'id', 'customer', 'payment_status',
             'placed_at', 'items', "total_price",
-            'name', 'email_address', 'address', 
-            'shipping_address', 'phone_number', 'company', 
+            'name', 'email_address', 'address',
+            'shipping_address', 'phone_number', 'company',
             'city_state_zip', 'po_number', 'project_due_date',
             'notes', 'shipments',  'transactions'
         ]
