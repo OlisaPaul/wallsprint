@@ -568,11 +568,7 @@ class UpdatePortalContentSerializer(serializers.ModelSerializer):
         # redirect_page = data.get('redirect_page', None)
         # redirect_file = data.get('redirect_file', None)
         # redirect_url = data.get('redirect_url', None)
-        
-        
-        
 
-        
         # Validate customer group and everyone selection
         if (customer_groups_data or customer_data) and everyone:
             raise ValidationError(
@@ -826,8 +822,9 @@ class CreatePortalSerializer(serializers.ModelSerializer):
             ]
 
             portal_contents = online_orders_content + order_history_content + [
-                PortalContent(portal=portal, title=title, url=f'{title.lower().replace(" ", "-")}.html')
-                for title in allowed_titles 
+                PortalContent(portal=portal, title=title, url=f'{
+                              title.lower().replace(" ", "-")}.html')
+                for title in allowed_titles
                 if title not in existing_titles
             ]
 
@@ -1091,19 +1088,90 @@ class MessageCenterSerializer(serializers.ModelSerializer):
 class AttributeOptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = AttributeOption
-        fields = ['id', 'option', 'alternate_display_text',
-                  'price_modifier_type', 'pricing_tiers']
+        fields = [
+            'id', 'option', 'alternate_display_text',
+            'price_modifier_type', 'pricing_tiers', 
+        ]
+        
+    def create(self, validated_data):
+        attribute_id = self.context['attribute_id']
+        validated_data['item_attribute_id'] = attribute_id
+
+        return super().create(validated_data)
 
 
 class AttributeSerializer(serializers.ModelSerializer):
-    options = AttributeOptionSerializer(many=True)
+    options_data = serializers.JSONField(write_only=True, required=False)
+    options = AttributeOptionSerializer(read_only=True, many=True)
 
     class Meta:
         model = Attribute
         fields = [
-            'id', 'label', 'is_required', 'attribute_type', 'max_length',
-            'pricing_tiers', 'price_modifier_scope', 'price_modifier_type', 'options'
+            'id', 'label', 'is_required', 'attribute_type',
+            'max_length','pricing_tiers', 'price_modifier_scope', 
+            'price_modifier_type', 'options', 'options_data'
         ]
+    
+    def validate_options_data(self, options_data):
+        options_data = options_data or []
+        if options_data and not self.instance:
+            for option_data in options_data:
+                serializer = AttributeOptionSerializer(data=option_data)
+                serializer.is_valid(raise_exception=True)
+        
+        return options_data
+
+    def validate(self, attrs):
+        attribute_type = attrs.get('attribute_type', 'text_field')
+        max_length = attrs.get('max_length')
+        options = attrs.get('options_data')
+        pricing_tiers = attrs.get('pricing_tiers')
+        price_modifier_type = attrs.get('price_modifier_type')
+
+        if self.instance and options:
+            raise serializers.ValidationError(
+                {"options_data": "Options can only be set during creation"})
+
+        select_list = ['checkboxes', 'radio_buttons', 'select_menu']
+
+        if attribute_type == 'text_field' and not max_length:
+            raise serializers.ValidationError(
+                {"max_length": "Max length is required for text fields"})
+
+        if attribute_type != 'text_field' and max_length:
+            raise serializers.ValidationError(
+                {"max_length": "Max length can only be set for text fields"})
+
+        if attribute_type in select_list:
+            if pricing_tiers:
+                raise serializers.ValidationError(
+                    {"pricing_tiers": "Pricing tiers can only be set for text fields, file upload and text areas types"})
+            if price_modifier_type:
+                raise serializers.ValidationError(
+                    {"price_modifier_type": "Price modifier type can only be set for text fields, file upload and text areas types"})
+        else:
+            if options:
+                raise serializers.ValidationError(
+                    {"options": "Options can only be set for checkboxes, radio buttons, and select menus"})
+
+        return attrs
+
+    @transaction.atomic()
+    def create(self, validated_data):
+        options_data = validated_data.pop('options_data', [])
+        self.validate_options_data(options_data)
+
+        catalog_item_id = self.context['catalog_item_id']
+        validated_data['catalog_item_id'] = catalog_item_id
+        attribute = super().create(validated_data)
+
+        options = [
+            AttributeOption(item_attribute=attribute, **option_data)
+            for option_data in options_data
+        ]
+        AttributeOption.objects.bulk_create(options)
+
+        return attribute
 
 
 class CartDetailsSerializer(serializers.ModelSerializer):
@@ -1115,15 +1183,18 @@ class CartDetailsSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         cart_item_id = self.context['cart_item_id']
 
-        if not CartItem.objects.filter(pk=cart_item_id).exists():
-            raise serializers.ValidationError(
-                "No cart item with the given ID was found")
+        cart_item = CartItem.objects.filter(
+            id=cart_item_id,
+            catalog_item__can_be_edited=True
+        ).first()
 
-        cart_item = CartItem.objects.get(id=cart_item_id)
-        print(cart_item.catalog_item.can_be_edited)
-        if not CartItem.objects.filter(id=cart_item_id, catalog_item__can_be_edited=True).exists():
-            raise serializers.ValidationError(
-                "This item in the cart cannot be edited")
+        if not cart_item:
+            if not CartItem.objects.filter(id=cart_item_id).exists():
+                raise serializers.ValidationError(
+                    "No cart item with the given ID was found")
+            else:
+                raise serializers.ValidationError(
+                    "This item in the cart cannot be edited")
 
         cart_details = CartDetails.objects.create(
             cart_item=cart_item, **validated_data)
@@ -1171,31 +1242,65 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
     thumbnail = serializers.ImageField()
     preview_file = serializers.FileField()
     attributes = AttributeSerializer(many=True, read_only=True)
-    attribute_data = AttributeSerializer(
-        many=True, write_only=True, required=False)
+    attribute_data = serializers.JSONField(write_only=True, required=False)
 
     class Meta:
         model = CatalogItem
-        fields = catalog_item_fields + ['attribute_data', 'can_be_edited', 'item_type']
+        fields = catalog_item_fields + \
+            ['attribute_data', 'can_be_edited', 'item_type']
 
-    def create(self, validated_data):
+    def validate_attribute_data(self, attributes_data):
+        if attributes_data and self.instance:
+            for attribute_data in attributes_data:
+                serializer = AttributeSerializer(data=attribute_data)
+                serializer.is_valid(raise_exception=True)
+            return attributes_data
+
+    def validate(self, attrs):
+        attributes_data = attrs.pop('attribute_data', [])
+        if self.instance and attributes_data:
+            raise serializers.ValidationError(
+                {"attribute_data":"Attribute data not allowed during updates"})
+
         catalog_id = self.context['catalog_id']
+        if not Catalog.objects.filter(pk=catalog_id).exists():
+            raise serializers.ValidationError(
+                "No catalog with the given catalog_id was found")
+        return attrs
+
+    @transaction.atomic()
+    def create(self, validated_data):
         attributes_data = validated_data.pop('attribute_data', [])
+        self.validate_attribute_data(attributes_data)
+        catalog_id = self.context['catalog_id']
         catalog_item = CatalogItem.objects.create(
             catalog_id=catalog_id, **validated_data)
+
+        options_to_bulk_create = []
+
         for attribute_data in attributes_data:
             options_data = attribute_data.pop('options', [])
             attribute = Attribute.objects.create(
                 catalog_item=catalog_item, **attribute_data)
-            for option_data in options_data:
-                AttributeOption.objects.create(
-                    item_attribute=attribute, **option_data)
+
+            attribute_options = [
+                AttributeOption(item_attribute_id=attribute.id, **option_data)
+                for option_data in options_data
+            ]
+            
+            options_to_bulk_create += attribute_options
+
+        AttributeOption.objects.bulk_create(options_to_bulk_create)
+            
+
         return catalog_item
 
     @transaction.atomic()
     def update(self, instance, validated_data):
         attributes_data = validated_data.pop('attribute_data', [])
-        
+        # Validate attribute_data
+        self.validate_attribute_data(attributes_data)
+
         for attribute_data in attributes_data:
             options_data = attribute_data.pop('options', [])
             attribute_id = attribute_data.get('id')
@@ -1222,9 +1327,8 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
                 for option_data in options_data:
                     AttributeOption.objects.create(
                         item_attribute=attribute, **option_data)
-                            
-        return super().update(instance, validated_data)
 
+        return super().update(instance, validated_data)
 
 
 class SimpleCatalogItemSerializer(serializers.ModelSerializer):
@@ -1459,7 +1563,8 @@ class CreateOrderSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     f"{catalog_item.title} cannot be ordered.")
             if quantity > catalog_item.available_inventory:
-                raise serializers.ValidationError(f"The quantity of {catalog_item.title} in the cart is more than the available inventory.")
+                raise serializers.ValidationError(f"The quantity of {
+                                                  catalog_item.title} in the cart is more than the available inventory.")
 
         return attrs
 
