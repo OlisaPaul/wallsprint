@@ -17,6 +17,7 @@ from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, Catalog
 from .utils import create_instance_with_files, validate_catalog, save_item
 from .signals import file_transferred
 from decimal import Decimal
+from django.template.loader import render_to_string
 
 User = get_user_model()
 
@@ -1090,9 +1091,9 @@ class AttributeOptionSerializer(serializers.ModelSerializer):
         model = AttributeOption
         fields = [
             'id', 'option', 'alternate_display_text',
-            'price_modifier_type', 'pricing_tiers', 
+            'price_modifier_type', 'pricing_tiers',
         ]
-        
+
     def create(self, validated_data):
         attribute_id = self.context['attribute_id']
         validated_data['item_attribute_id'] = attribute_id
@@ -1108,17 +1109,17 @@ class AttributeSerializer(serializers.ModelSerializer):
         model = Attribute
         fields = [
             'id', 'label', 'is_required', 'attribute_type',
-            'max_length','pricing_tiers', 'price_modifier_scope', 
+            'max_length', 'pricing_tiers', 'price_modifier_scope',
             'price_modifier_type', 'options', 'options_data'
         ]
-    
+
     def validate_options_data(self, options_data):
         options_data = options_data or []
         if options_data and not self.instance:
             for option_data in options_data:
                 serializer = AttributeOptionSerializer(data=option_data)
                 serializer.is_valid(raise_exception=True)
-        
+
         return options_data
 
     def validate(self, attrs):
@@ -1260,7 +1261,7 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
         attributes_data = attrs.pop('attribute_data', [])
         if self.instance and attributes_data:
             raise serializers.ValidationError(
-                {"attribute_data":"Attribute data not allowed during updates"})
+                {"attribute_data": "Attribute data not allowed during updates"})
 
         catalog_id = self.context['catalog_id']
         if not Catalog.objects.filter(pk=catalog_id).exists():
@@ -1287,11 +1288,10 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
                 AttributeOption(item_attribute_id=attribute.id, **option_data)
                 for option_data in options_data
             ]
-            
+
             options_to_bulk_create += attribute_options
 
         AttributeOption.objects.bulk_create(options_to_bulk_create)
-            
 
         return catalog_item
 
@@ -1527,6 +1527,7 @@ class UpdateOrderSerializer(serializers.ModelSerializer):
 
 class CreateOrderSerializer(serializers.ModelSerializer):
     cart_id = serializers.UUIDField(write_only=True)
+    auto_send_proof = serializers.BooleanField(default=False)
 
     class Meta:
         model = Order
@@ -1534,7 +1535,7 @@ class CreateOrderSerializer(serializers.ModelSerializer):
             'cart_id', 'name', 'email_address',
             'address', 'shipping_address', 'phone_number',
             'company', 'city_state_zip', 'po_number',
-            'project_due_date'
+            'project_due_date', 'auto_send_proof',
         ]
 
     def validate_cart_id(self, cart_id):
@@ -1570,6 +1571,7 @@ class CreateOrderSerializer(serializers.ModelSerializer):
 
     @transaction.atomic()
     def create(self, validated_data):
+        auto_send_proof = validated_data.pop('auto_send_proof')
         cart_id = validated_data.pop('cart_id')
         cart_items = CartItem.objects.select_related(
             "catalog_item").filter(cart_id=cart_id)
@@ -1620,6 +1622,23 @@ class CreateOrderSerializer(serializers.ModelSerializer):
 
         Cart.objects.filter(pk=cart_id).delete()
 
+        if auto_send_proof:
+            subject = f"Your Walls Printing Order Confirmation - {order.po_number}"
+            message = render_to_string('email/order_confirmation.html', {
+                'customer_name': order.customer.user.name,
+                'invoice_number': order.po_number,
+                'po_number': order.po_number,
+                'payment_submission_link': 'your_payment_submission_link_here'
+            })
+            send_mail(
+                subject=subject,
+                message='',
+                from_email=settings.EMAIL_HOST_USER,
+                recipient_list=[order.customer.user.email],
+                html_message=message,
+                fail_silently=False,
+            )
+
         return order
 
 
@@ -1657,6 +1676,28 @@ class OnlinePaymentSerializer(serializers.ModelSerializer):
         if value not in dict(OnlinePayment.PAYMENT_METHOD_CHOICES).keys():
             raise serializers.ValidationError("Invalid payment method.")
         return value
+
+    def create(self, validated_data):
+        payment = super().create(validated_data)
+
+        # Send email to the customer
+        subject = f"Payment Proof Submitted Successfully - Order {
+            payment.po_number}"
+        message = render_to_string('email/payment_confirmation.html', {
+            'customer_name': payment.name,
+            'po_number': payment.po_number,
+            'amount': payment.amount,
+        })
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.EMAIL_HOST_USER,
+            recipient_list=[payment.email_address],
+            html_message=message,
+            fail_silently=False,
+        )
+
+        return payment
 
 
 class FileExchangeSerializer(serializers.ModelSerializer):

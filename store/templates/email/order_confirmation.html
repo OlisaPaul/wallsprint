@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Order Confirmation</title>
+  </head>
+  <body
+    style="
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      margin: 0;
+      padding: 0;
+    "
+  >
+    <table
+      width="100%"
+      cellpadding="0"
+      cellspacing="0"
+      border="0"
+      style="background-color: #f4f4f9; margin: 0; padding: 20px"
+    >
+      <tr>
+        <td align="center">
+          <table
+            width="600px"
+            cellpadding="0"
+            cellspacing="0"
+            border="0"
+            style="
+              background-color: #ffffff;
+              border-radius: 8px;
+              box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+              overflow: hidden;
+            "
+          >
+            <tr>
+              <td style="padding: 20px; text-align: center">
+                <img
+                  src="logo_url"
+                  alt="Walls Printing"
+                  style="max-width: 100px"
+                />
+                <h2 style="margin: 0; color: #333333">
+                  Your Walls Printing Order Confirmation - {{ invoice_number }}
+                </h2>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 20px">
+                <p style="font-size: 16px; margin-bottom: 20px">
+                  Dear {{ customer_name }},
+                </p>
+                <p style="font-size: 16px; margin-bottom: 20px">
+                  Thank you for your recent order with Walls Printing.
+                </p>
+                <p style="font-size: 16px; margin-bottom: 20px">
+                  Your order number is <strong>{{ po_number }}</strong> and your
+                  invoice number is <strong>{{ invoice_number }}</strong>.
+                </p>
+                <p style="font-size: 16px; margin-bottom: 20px">
+                  You can make payment for this order using any of our preferred
+                  methods.
+                </p>
+                <p style="font-size: 16px; margin-bottom: 20px">
+                  Once payment is made, please submit your proof of payment
+                  through the following link:
+                  <a href="payment_submission_link">Submit Payment</a>
+                </p>
+                <p style="font-size: 16px; margin-bottom: 20px">
+                  You will receive a confirmation email once your payment has
+                  been processed.
+                </p>
+                <p style="font-size: 16px; margin-bottom: 20px">
+                  Thank you for your business!
+                </p>
+                <p style="font-size: 16px; margin-bottom: 20px">Sincerely,</p>
+                <p style="font-size: 16px; margin-bottom: 20px">
+                  The Walls Printing Team
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td
+                style="
+                  background-color: #f4f4f9;
+                  text-align: center;
+                  padding: 10px;
+                  font-size: 12px;
+                  color: #999999;
+                "
+              >
+                © 2025 Walls Printing. All rights reserved.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
