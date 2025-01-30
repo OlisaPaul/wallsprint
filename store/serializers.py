@@ -1625,7 +1625,7 @@ class CreateOrderSerializer(serializers.ModelSerializer):
         if auto_send_proof:
             subject = f"Your Walls Printing Order Confirmation - {order.po_number}"
             message = render_to_string('email/order_confirmation.html', {
-                'customer_name': order.customer.user.name,
+                'customer_name': order.name,
                 'invoice_number': order.po_number,
                 'po_number': order.po_number,
                 'payment_submission_link': 'your_payment_submission_link_here'
@@ -1634,7 +1634,7 @@ class CreateOrderSerializer(serializers.ModelSerializer):
                 subject=subject,
                 message='',
                 from_email=settings.EMAIL_HOST_USER,
-                recipient_list=[order.customer.user.email],
+                recipient_list=[order.email_address],
                 html_message=message,
                 fail_silently=False,
             )
