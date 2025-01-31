@@ -728,7 +728,7 @@ class OrderView(APIView):
         for order in orders:
             messages.append(create_message(
                 order,
-                'Order',
+                'Portal order',
                 calculate_file_size(order),
                 route='/orders/'
             ))
