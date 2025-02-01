@@ -728,7 +728,7 @@ class OrderView(APIView):
         for order in orders:
             messages.append(create_message(
                 order,
-                'Order',
+                'Portal order',
                 calculate_file_size(order),
                 route='/orders/'
             ))
@@ -1061,3 +1061,29 @@ class CartDetailsViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         cart_item_id = self.kwargs['item_pk']
         return CartDetails.objects.filter(cart_item__id=cart_item_id).select_related('cart_item', 'cart_item__catalog_item')
+
+
+class AttributeViewSet(ModelViewSet):
+    def get_serializer_context(self):
+        catalog_item_id = self.kwargs['catalog_item_pk']
+        return {'catalog_item_id': catalog_item_id}
+
+
+    def get_queryset(self):
+        catalog_item_id = self.kwargs.get('catalog_item_pk')
+        queryset = models.Attribute.objects.filter(catalog_item_id=catalog_item_id)
+        
+        return queryset.prefetch_related('options')
+    
+    serializer_class = serializers.AttributeSerializer
+
+class AttributeOptionViewSet(ModelViewSet):
+    def get_serializer_context(self):
+        attribute_id = self.kwargs['attribute_pk']
+        return {'attribute_id': attribute_id}
+
+    def get_queryset(self):
+        attribute_id = self.kwargs.get('attribute_pk')
+        return models.AttributeOption.objects.filter(item_attribute_id=attribute_id)
+    
+    serializer_class = serializers.AttributeOptionSerializer
