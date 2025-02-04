@@ -6,10 +6,10 @@ from datetime import datetime, timedelta
 
 
 @shared_task
-def send_notification_email_task(staff_email, staff_name, instance_name, request_type):
+def send_notification_email_task(staff_email, instance_name, request_type):
     send_mail(
         subject=f'Customer Request for Service – {instance_name}',
-        message=f'Dear {staff_name},\n\n'
+        message=f'Dear Team,\n\n'
         f'We have received a request from \
             {instance_name} regarding {request_type}. '
         f'Please review the details below:\n\n'
@@ -20,7 +20,7 @@ def send_notification_email_task(staff_email, staff_name, instance_name, request
         f'The WallsPrinting Team\n'
         f'{settings.EMAIL_HOST_USER}',
         from_email=settings.EMAIL_HOST_USER,
-        recipient_list=[staff_email],
+        recipient_list=staff_email,
         fail_silently=False,
     )
 

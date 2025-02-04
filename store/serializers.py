@@ -374,6 +374,7 @@ class CustomerSerializer(serializers.ModelSerializer):
 
     def get_name(self, customer: Customer):
         return customer.user.name
+    
 
 
 class SimpleCustomerSerializer(serializers.ModelSerializer):
