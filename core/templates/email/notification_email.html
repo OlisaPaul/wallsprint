@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notification Email</title>
+</head>
+<body>
+    <p>Dear Team,</p>
+    <p>We have received a request from <strong>{{ instance_name }}</strong> regarding <strong>{{ request_type }}</strong>.</p>
+    <p>Please review the details below:</p>
+    <ul>
+        <li><strong>Customer Name:</strong> {{ instance_name }}</li>
+        <li><strong>Request Type:</strong> {{ request_type }}</li>
+    </ul>
+    <p>Kindly take the necessary steps to assist them at your earliest convenience.</p>
+    <p>Best regards,<br>
+    The WallsPrinting Team<br>
+    {{ settings.EMAIL_HOST_USER }}</p>
+</body>
+</html>
