@@ -59,6 +59,7 @@ class CommonFields(models.Model):
     city_state_zip = models.CharField(max_length=255, null=True)
     country = models.CharField(max_length=255, null=True)
     portal = models.ForeignKey("Portal", on_delete=models.SET_NULL, null=True)
+    tracking_number = models.UUIDField(default=uuid4)
     preferred_mode_of_response = models.CharField(
         max_length=50,
         choices=[
