@@ -1512,7 +1512,8 @@ class OrderSerializer(serializers.ModelSerializer):
             'name', 'email_address', 'address',
             'shipping_address', 'phone_number', 'company',
             'city_state_zip', 'po_number', 'project_due_date',
-            'notes', 'shipments',  'transactions'
+            'notes', 'shipments',  'transactions',
+            'status'
         ]
 
     def get_total_price(self, obj: Order):
