@@ -59,6 +59,7 @@ class CommonFields(models.Model):
     city_state_zip = models.CharField(max_length=255, null=True)
     country = models.CharField(max_length=255, null=True)
     portal = models.ForeignKey("Portal", on_delete=models.SET_NULL, null=True)
+    tracking_number = models.UUIDField(default=uuid4)
     preferred_mode_of_response = models.CharField(
         max_length=50,
         choices=[
@@ -784,7 +785,7 @@ class Cart(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     created_at = models.DateTimeField(auto_now_add=True)
     customer = models.OneToOneField(
-        Customer, on_delete=models.PROTECT, null=True, blank=True)
+        Customer, on_delete=models.SET_NULL, null=True, blank=True)
 
 
 class CartItem(models.Model):
@@ -815,7 +816,7 @@ class Order(BaseTransaction):
     placed_at = models.DateTimeField(auto_now_add=True)
     payment_status = models.CharField(
         max_length=1, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_STATUS_PENDING)
-    customer = models.ForeignKey(Customer, on_delete=models.PROTECT)
+    customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True)
     date_needed = models.DateField(default=timezone.now)
     address = models.CharField(max_length=255)
     po_number = models.CharField(max_length=100, blank=True, null=True)
@@ -841,7 +842,7 @@ class OrderItem(models.Model):
     order = models.ForeignKey(
         Order, on_delete=models.CASCADE, related_name="items")
     catalog_item = models.ForeignKey(
-        CatalogItem, on_delete=models.PROTECT, related_name="orderitems")
+        CatalogItem, on_delete=models.CASCADE, related_name="orderitems")
     quantity = models.PositiveSmallIntegerField()
     tax = models.DecimalField(max_digits=6, decimal_places=2, null=True)
     status = models.CharField(

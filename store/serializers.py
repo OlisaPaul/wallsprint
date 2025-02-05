@@ -374,6 +374,7 @@ class CustomerSerializer(serializers.ModelSerializer):
 
     def get_name(self, customer: Customer):
         return customer.user.name
+    
 
 
 class SimpleCustomerSerializer(serializers.ModelSerializer):
@@ -1511,7 +1512,8 @@ class OrderSerializer(serializers.ModelSerializer):
             'name', 'email_address', 'address',
             'shipping_address', 'phone_number', 'company',
             'city_state_zip', 'po_number', 'project_due_date',
-            'notes', 'shipments',  'transactions'
+            'notes', 'shipments',  'transactions',
+            'status', 'tracking_number'
         ]
 
     def get_total_price(self, obj: Order):

@@ -55,13 +55,13 @@ def send_notification_email(instance, model_name):
             'ContactInquiry': 'General Contact'
         }.get(model_name, 'Service/Product Inquiry/Support')
 
-    # # Enqueue email tasks
-    # name = instance.name if hasattr(instance, 'name') else instance.customer.user.name
-    # for staff in staff_notifications:
-    #     staff_email = staff['user__email']
-    #     staff_name = staff['user__name']
-    #     send_notification_email_task.delay(
-    #         staff_email, staff_name, name, request_type)
+    # Enqueue email tasks
+    name = instance.name if hasattr(instance, 'name') else instance.customer.user.name
+    send_notification_email_task(
+        list(staff_notifications),
+        instance_name=name, 
+        request_type=request_type
+    )
 
 
 @receiver(post_save, sender=QuoteRequest)

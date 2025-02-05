@@ -38,12 +38,14 @@ model_map = {
     'order_pk': Order
 }
 
+
 def get_content_type_and_id(kwargs):
     """Helper function to get content type and ID from kwargs"""
     for key, model in model_map.items():
         if key in kwargs:
             return ContentType.objects.get_for_model(model), kwargs[key]
     return None, None
+
 
 def get_queryset_for_content_types(kwargs, model_class):
     """Get queryset filtered by content type and object ID"""
@@ -55,12 +57,14 @@ def get_queryset_for_content_types(kwargs, model_class):
         )
     return model_class.objects.none()
 
+
 def create_for_content_types(kwargs, serializer):
     """Create object with content type relationship"""
     content_type, object_id = get_content_type_and_id(kwargs)
     if content_type and object_id:
         instance = get_object_or_404(content_type.model_class(), id=object_id)
         serializer.save(content_object=instance)
+
 
 def get_serializer_context_for_content_types(kwargs):
     """Get serializer context with content type info"""
@@ -724,7 +728,7 @@ class OrderView(APIView):
                     calculate_file_size(order),
                     route='/requests/'
                 ))
-        
+
         for order in orders:
             messages.append(create_message(
                 order,
@@ -888,7 +892,8 @@ class CartItemViewSet(ModelViewSet):
 
 class OrderViewSet(ModelViewSet):
     http_method_names = ['get', 'patch', 'delete', 'post', 'head', 'options']
-    prefetch_related = ['items__catalog_item__catalog', 'notes__author', 'shipments', 'billing_info', 'transactions']
+    prefetch_related = ['items__catalog_item__catalog',
+                        'notes__author', 'shipments', 'billing_info', 'transactions']
 
     def get_permissions(self):
         if self.request.method in ['PATCH', 'DELETE']:
@@ -923,13 +928,13 @@ class OrderViewSet(ModelViewSet):
         user = self.request.user
         if not hasattr(self, 'customer'):
             self.get_customer()
-        
+
         queryset = get_queryset_for_models_with_files(Order)\
             .select_related('customer__user')\
             .prefetch_related(*self.prefetch_related)
 
         if user.is_staff:
-            return queryset 
+            return queryset
         return queryset.filter(customer=self.customer)
 
 
@@ -984,13 +989,14 @@ class FileExchangeViewSet(ModelViewSet):
 
 class NoteViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
+
     def get_serializer_class(self):
         if self.request.method == 'GET':
             return serializers.NoteSerializer
         return serializers.CreateNoteSerializer
 
     def get_queryset(self):
-      return get_queryset_for_content_types(self.kwargs, Note)
+        return get_queryset_for_content_types(self.kwargs, Note)
 
     def perform_create(self, serializer):
         content_type, object_id = get_content_type_and_id(self.kwargs)
@@ -1038,6 +1044,7 @@ class ShipmentViewSet(ModelViewSet):
     def perform_create(self, serializer):
         return create_for_content_types(self.kwargs, serializer)
 
+
 class TransactionViewSet(ModelViewSet):
     serializer_class = TransactionSerializer
 
@@ -1068,14 +1075,15 @@ class AttributeViewSet(ModelViewSet):
         catalog_item_id = self.kwargs['catalog_item_pk']
         return {'catalog_item_id': catalog_item_id}
 
-
     def get_queryset(self):
         catalog_item_id = self.kwargs.get('catalog_item_pk')
-        queryset = models.Attribute.objects.filter(catalog_item_id=catalog_item_id)
-        
+        queryset = models.Attribute.objects.filter(
+            catalog_item_id=catalog_item_id)
+
         return queryset.prefetch_related('options')
-    
+
     serializer_class = serializers.AttributeSerializer
+
 
 class AttributeOptionViewSet(ModelViewSet):
     def get_serializer_context(self):
@@ -1085,5 +1093,5 @@ class AttributeOptionViewSet(ModelViewSet):
     def get_queryset(self):
         attribute_id = self.kwargs.get('attribute_pk')
         return models.AttributeOption.objects.filter(item_attribute_id=attribute_id)
-    
+
     serializer_class = serializers.AttributeOptionSerializer
