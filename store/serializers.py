@@ -135,14 +135,14 @@ class ShipmentSerializer(serializers.ModelSerializer):
             'first_name', 'last_name', 'email_address', 'phone_number',
             'fax_number', 'company', 'address', 'address_line_2',
             'state', 'city', 'zip_code', 'status', 'send_notifications',
-            'tracking_number', 'shipment_cost'
+            'tracking_number', 'shipment_cost', 'created_at'
         ]
 
 
 class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
-        fields = ['amount', 'type', 'description']
+        fields = ['id', 'amount', 'type', 'description', 'created_at']
 
     def validate(self, data):
         if data['type'] == 'refund':
@@ -160,7 +160,7 @@ class BillingInfoSerializer(serializers.ModelSerializer):
         fields = [
             'first_name', 'last_name', 'email_address', 'phone_number',
             'fax_number', 'company', 'address', 'address_line_2',
-            'state', 'city', 'zip_code'
+            'state', 'city', 'zip_code', 'created_at'
         ]
 
 

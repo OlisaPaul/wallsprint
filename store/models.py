@@ -88,6 +88,7 @@ class BillingInfo(models.Model):
     state = models.CharField(max_length=100)
     city = models.CharField(max_length=100)
     zip_code = models.CharField(max_length=20)
+    created_at = models.DateTimeField(auto_now_add=True)
 
 
 class Shipment(models.Model):
@@ -117,6 +118,7 @@ class Shipment(models.Model):
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey('content_type', 'object_id')
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"Shipment to {self.first_name} {self.last_name} - {self.status}"
@@ -136,6 +138,7 @@ class Transaction(models.Model):
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey('content_type', 'object_id')
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.type.capitalize()} of {self.amount}"
