@@ -68,6 +68,7 @@ def create_instance_with_files(model_class, validated_data):
 
             if isinstance(file, InMemoryUploadedFile):
                 file_size = file.size
+                file_name = file.name
                 try:
                     upload_result = upload(file)
                     cloudinary_path = upload_result.get("public_id")
@@ -78,6 +79,7 @@ def create_instance_with_files(model_class, validated_data):
                 try:
                     file_metadata = resource(file)
                     file_size = file_metadata.get("bytes")
+                    file_name = file_metadata.get("filename")
                     cloudinary_path = file
                 except Error as e:
                     print(f"Error fetching metadata for {file}: {e}")
@@ -87,7 +89,8 @@ def create_instance_with_files(model_class, validated_data):
                 path=cloudinary_path,
                 file_size=file_size,
                 content_type=content_type,
-                object_id=instance.id
+                object_id=instance.id,
+                file_name=file_name
             )
 
     return instance

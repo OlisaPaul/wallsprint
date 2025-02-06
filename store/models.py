@@ -298,6 +298,7 @@ class File(models.Model):
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey('content_type', 'object_id')
+    file_name = models.CharField(max_length=255, blank=True, null=True)
 
     def __str__(self):
         return f"File related to {self.content_object}"

@@ -23,6 +23,18 @@ User = get_user_model()
 
 load_dotenv()
 
+def send_email(user, context, subject, template):
+    message = render_to_string(template, context)
+    send_mail(
+        subject,
+        message,
+        os.getenv('EMAIL_HOST_USER'),
+        [user.email],
+        fail_silently=False,
+        html_message=message
+    )
+
+
 catalog_item_fields = [
     'id', 'title', 'item_sku', 'description', 'short_description',
     'default_quantity', 'pricing_grid', 'thumbnail', 'preview_image', 'preview_file',
@@ -85,7 +97,7 @@ class FileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = File
-        fields = ['path', 'url', 'file_size']
+        fields = ['path', 'url', 'file_size', 'file_name']
 
     def get_url(self, image: File):
         cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
@@ -483,6 +495,18 @@ class CreateCustomerSerializer(serializers.ModelSerializer):
         user = User.objects.create_user(
             email=email, password=password, name=name, username=username, is_active=is_active)
         customer = Customer.objects.create(user=user, **validated_data)
+
+        subject = "Welcome to Walls Printing!"
+        template = "email/welcome_email.html"
+        context = {
+            "user": user,
+            "temporary_password": password,
+            "login_url": os.getenv('CUSTOMER_LOGIN_URL')
+        }
+
+        send_email(user=user, context=context,
+                   subject=subject, template=template)
+
         if groups:
             customer.groups.set(groups)
 
