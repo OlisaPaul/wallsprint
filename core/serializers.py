@@ -2,6 +2,7 @@ import os
 import random
 import secrets
 import string
+from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import authenticate
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
@@ -11,9 +12,10 @@ from djoser.serializers import UserSerializer as BaseUserSerializer, UserCreateS
 from djoser.conf import settings
 from djoser.serializers import TokenCreateSerializer
 from djoser.compat import get_user_email, get_user_email_field_name
-from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from dotenv import load_dotenv
 from .signals import group_created
 from .models import User, StaffNotification, BlacklistedToken
 from .utils import generate_jwt_for_user, blacklist_token
@@ -428,3 +430,9 @@ class CreateStaffNotificationSerializer(serializers.ModelSerializer):
         if not value.is_staff:
             raise serializers.ValidationError("User must be a staff member.")
         return value
+
+
+class CustomObtainPairSerializer(TokenObtainPairSerializer):
+    default_error_messages = {
+        "no_active_account": _("Invalid email or password. Please try again.")
+    }

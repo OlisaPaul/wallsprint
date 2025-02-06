@@ -218,6 +218,7 @@ SIMPLE_JWT = {
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
     'TOKEN_TYPE_CLAIM': 'token_type',
     'JTI_CLAIM': 'jti',
+    "TOKEN_OBTAIN_SERIALIZER": "core.serializers.CustomObtainPairSerializer",
 }
 
 AUTHENTICATION_BACKENDS = (
