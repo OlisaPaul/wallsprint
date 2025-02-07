@@ -165,6 +165,21 @@ class User(AbstractCUser):
     class Meta(AbstractCUser.Meta):
         swappable = 'AUTH_USER_MODEL'
 
+    def has_superuser_group(self):
+        """Check if user is in the 'superuser' group."""
+        return self.groups.filter(extendedgroup__for_superuser=True).exists()
+
+    def is_effective_superuser(self):
+        """User is a superuser if either the DB field is set or they belong to the 'superuser' group."""
+        return self.is_superuser or self.has_superuser_group()
+
+    def has_perm(self, perm, obj=None):
+        """Grant all permissions if the user is an effective superuser."""
+        return self.is_effective_superuser() or super().has_perm(perm, obj)
+
+    def has_module_perms(self, app_label):
+        """Grant all module permissions if the user is an effective superuser."""
+        return self.is_effective_superuser() or super().has_module_perms(app_label)
 
 class Group(BaseGroup):
     class Meta:
@@ -176,6 +191,7 @@ class Group(BaseGroup):
 class ExtendedGroup(models.Model):
     group = models.OneToOneField(BaseGroup, on_delete=models.CASCADE)
     date_created = models.DateTimeField(default=timezone.now)
+    for_superuser = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.group.name} - Created on {self.date_created}"

@@ -1,3 +1,4 @@
+import re
 import os
 import random
 import secrets
@@ -180,10 +181,12 @@ class GroupSerializer(ModelSerializer):
     users = serializers.SerializerMethodField(method_name='get_users')
     date_created = serializers.DateTimeField(
         source='extendedgroup.date_created', read_only=True)
-
+    for_superuser = serializers.BooleanField(
+        source='extendedgroup.for_superuser', read_only=True)
+    
     class Meta:
         model = Group
-        fields = ['id', 'name', 'permissions', 'users', 'date_created']
+        fields = ['id', 'name', 'permissions', 'users', 'date_created', 'for_superuser']
 
     def get_users(self, obj):
         users = obj.user_set.all()
@@ -341,6 +344,14 @@ class CreateGroupSerializer(ModelSerializer):
 
     def validate_name(self, attrs):
         name = attrs.lower()
+
+        cleaned_name = re.sub(r'[^a-z0-9]', '', name)
+    
+        if "superuser" in cleaned_name:
+            raise serializers.ValidationError(
+                {"name": "Group name cannot contain the reserved word 'superuser'."}
+            )
+        
         if Group.objects.filter(name__iexact=name).exists():
             raise serializers.ValidationError("Group name already exists")
         return attrs
@@ -352,6 +363,23 @@ class UpdateGroupSerializer(ModelSerializer):
         queryset=User.objects.all(),
         many=True
     )
+
+    def validate(self, attrs):
+        name = attrs.get('name')
+        instance = self.instance
+
+        cleaned_name = re.sub(r'[^a-z0-9]', '', name)
+        superuser_group = self.instance.extendedgroup.for_superuser
+    
+        if "superuser" in cleaned_name:
+            if not superuser_group:
+                raise serializers.ValidationError(
+                    {"name": "Group name cannot contain the reserved word 'superuser'."}
+                )
+        elif superuser_group and name != instance.name:
+            raise serializers.ValidationError({'name': "You can not change the name of the default group"})
+
+        return super().validate(attrs)
 
     class Meta:
         model = Group
