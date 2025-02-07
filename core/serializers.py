@@ -2,13 +2,16 @@ import os
 import random
 import secrets
 import string
+from typing import Dict
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import authenticate
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.db import transaction
+from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.models import Permission, Group
 from djoser.serializers import UserSerializer as BaseUserSerializer, UserCreateSerializer as BaseUserCreateSerializer, UserDeleteSerializer
+from rest_framework.exceptions import AuthenticationFailed
 from djoser.conf import settings
 from djoser.serializers import TokenCreateSerializer
 from djoser.compat import get_user_email, get_user_email_field_name
@@ -19,7 +22,6 @@ from dotenv import load_dotenv
 from .signals import group_created
 from .models import User, StaffNotification, BlacklistedToken
 from .utils import generate_jwt_for_user, blacklist_token
-from django.contrib.auth.password_validation import validate_password
 
 load_dotenv()
 
@@ -433,6 +435,21 @@ class CreateStaffNotificationSerializer(serializers.ModelSerializer):
 
 
 class CustomObtainPairSerializer(TokenObtainPairSerializer):
-    default_error_messages = {
-        "no_active_account": _("Invalid email or password. Please try again.")
-    }
+    def validate(self, attrs):
+        username = attrs.get(self.username_field)
+        password = attrs.get("password")
+
+        # Fetch the user manually
+        user = User.objects.filter(**{self.username_field: username}).first()
+
+        if user:
+            if not user.is_active:
+                raise AuthenticationFailed("Your account is inactive. Please contact support.")
+
+        # Authenticate the user
+        user = authenticate(**{self.username_field: username, "password": password})
+
+        if not user:
+            raise AuthenticationFailed("Invalid email or password. Please try again.")
+
+        return super().validate(attrs)
