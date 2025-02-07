@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save, post_delete, post_migrate
 from django.dispatch import receiver
 from django.contrib.auth.models import Group
 from store.models import Customer, Request, FileTransfer, Order, ContactInquiry, QuoteRequest, OnlinePayment
@@ -8,12 +8,18 @@ from core.tasks import send_notification_email_task
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 
+admin_group_name = 'super_user'
+
+@receiver(post_migrate)
+def create_superuser_group(sender, **kwargs):
+    """Ensure the 'superuser' group exists after migrations."""
+    Group.objects.get_or_create(name=admin_group_name)
 
 @receiver(post_save, sender=Group)
 def create_extended_group(sender, instance, **kwargs):
-    print("Called")
     if kwargs['created']:
-        ExtendedGroup.objects.create(group=instance)
+        for_superuser = instance.name == admin_group_name
+        ExtendedGroup.objects.create(group=instance, for_superuser=for_superuser)
 
 
 @receiver(post_delete, sender=Customer)

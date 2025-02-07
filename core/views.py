@@ -39,6 +39,13 @@ class GroupViewSet(viewsets.ModelViewSet):
         elif self.request.method == "PUT":
             return UpdateGroupSerializer
         return GroupSerializer
+    
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.extendedgroup.for_superuser:
+            return Response({"detail": "You can not delete the default group."}, status=status.HTTP_400_BAD_REQUEST)
+
+        return super().destroy(request, *args, **kwargs)
 
     @action(detail=False, methods=['delete'], url_path='delete-multiple')
     def delete_multiple(self, request):
