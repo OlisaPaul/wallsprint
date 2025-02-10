@@ -1,4 +1,5 @@
 import re
+from decimal import Decimal
 from typing import Iterable
 from uuid import uuid4
 from django.db import transaction
@@ -114,7 +115,7 @@ class Shipment(models.Model):
     send_notifications = models.BooleanField(default=False)
     tracking_number = models.CharField(max_length=255, blank=True, null=True)
     shipment_cost = models.DecimalField(
-        max_digits=10, decimal_places=2, blank=True, null=True)
+        max_digits=10, decimal_places=2, blank=True, default=Decimal(0))
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey('content_type', 'object_id')
@@ -848,7 +849,7 @@ class OrderItem(models.Model):
     catalog_item = models.ForeignKey(
         CatalogItem, on_delete=models.CASCADE, related_name="orderitems")
     quantity = models.PositiveSmallIntegerField()
-    tax = models.DecimalField(max_digits=6, decimal_places=2, null=True)
+    tax = models.DecimalField(max_digits=6, decimal_places=2, default=Decimal(0))
     status = models.CharField(
         max_length=50, default=PENDING, choices=STATUS_CHOICES)
     unit_price = models.DecimalField(max_digits=6, decimal_places=2)
