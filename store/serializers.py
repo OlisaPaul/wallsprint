@@ -848,7 +848,7 @@ class CreatePortalSerializer(serializers.ModelSerializer):
             ]
 
             portal_contents = online_orders_content + order_history_content + [
-                PortalContent(portal=portal, title=title, url=f'{
+                PortalContent(portal=portal, title=title, url=f'{\
                               title.lower().replace(" ", "-")}.html')
                 for title in allowed_titles
                 if title not in existing_titles
