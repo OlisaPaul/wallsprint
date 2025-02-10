@@ -1523,26 +1523,54 @@ class UpdateOrderItemSerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True)
     customer = SimpleCustomerSerializer()
-    total_price = serializers.SerializerMethodField()
     transactions = TransactionSerializer(many=True, read_only=True)
     notes = NoteSerializer(many=True, read_only=True)
     shipments = ShipmentSerializer(many=True, read_only=True)
+    tax = serializers.SerializerMethodField()
+    shipment_cost = serializers.SerializerMethodField()
+    total_paid = serializers.SerializerMethodField()
+    sub_total = serializers.SerializerMethodField()
+    balance = serializers.SerializerMethodField()
+    total_price = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
         fields = [
             'id', 'customer', 'payment_status',
-            'placed_at', 'items', "total_price",
-            'name', 'email_address', 'address',
-            'shipping_address', 'phone_number', 'company',
-            'city_state_zip', 'po_number', 'project_due_date',
-            'notes', 'shipments',  'transactions',
-            'status', 'tracking_number'
+            'placed_at', 'items', 'name', 
+            'email_address', 'address', 'shipping_address',
+            'phone_number','company', 'city_state_zip',
+            'po_number','project_due_date', 'notes',
+            'shipments', 'transactions', 'status',
+            'tracking_number', 'tax', 'shipment_cost',
+            'sub_total', 'total_paid', 'balance',
+            "total_price"
         ]
 
-    def get_total_price(self, obj: Order):
+    def get_sub_total(self, obj: Order):
         total_price = sum([item.sub_total for item in obj.items.all()])
         return total_price
+    
+    def get_tax(self, obj: Order):
+        return sum([item.sub_total * (item.tax / 100) for item in obj.items.all()])
+    
+    def get_shipment_cost (self, obj: Order):
+        return sum([shipment.shipment_cost for shipment in obj.shipments.all()])
+
+    def get_total_paid (self, obj: Order):
+        total_paid = sum([
+            transaction.amount if transaction.type == 'payment' else (-1 * transaction.amount) 
+            for transaction in obj.transactions.all()
+        ])
+        return total_paid
+
+    def get_total_price (self, obj: Order):
+        return self.get_sub_total(obj) + self.get_tax(obj) + self.get_shipment_cost(obj)
+    
+    def get_balance (self, obj: Order):
+        return self.get_total_price(obj) - self.get_total_paid(obj)
+
+
 
 
 class UpdateOrderSerializer(serializers.ModelSerializer):
