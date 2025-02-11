@@ -1734,8 +1734,7 @@ class OnlinePaymentSerializer(serializers.ModelSerializer):
         payment = super().create(validated_data)
 
         # Send email to the customer
-        subject = f"Payment Proof Submitted Successfully - Order {
-            payment.po_number}"
+        subject = f"Payment Proof Submitted Successfully - Order {payment.po_number}"
         message = render_to_string('email/payment_confirmation.html', {
             'customer_name': payment.name,
             'po_number': payment.po_number,
