@@ -1617,8 +1617,8 @@ class CreateOrderSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     f"{catalog_item.title} cannot be ordered.")
             if quantity > catalog_item.available_inventory:
-                raise serializers.ValidationError(f"The quantity of {
-                                                  catalog_item.title} in the cart is more than the available inventory.")
+                raise serializers.ValidationError(f"The quantity of\
+                            {catalog_item.title} in the cart is more than the available inventory.")
 
         return attrs
 
