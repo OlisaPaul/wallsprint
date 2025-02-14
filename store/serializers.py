@@ -1283,13 +1283,10 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
             return attributes_data
 
     def validate(self, attrs):
-        thumbnail = attrs.get('thumbnail')
         attributes_data = attrs.pop('attribute_data', [])
         if self.instance and attributes_data:
             raise serializers.ValidationError(
                 {"attribute_data": "Attribute data not allowed during updates"})
-        
-        print(thumbnail)
 
         catalog_id = self.context['catalog_id']
         if not Catalog.objects.filter(pk=catalog_id).exists():
