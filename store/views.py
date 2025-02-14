@@ -750,7 +750,7 @@ class CatalogItemViewSet(ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'copy':
             return CopyCatalogItemSerializer
-        if self.request.method in ['POST', 'PUT']:
+        if self.request.method in ['POST', 'PUT', 'PATCH']:
             return CreateOrUpdateCatalogItemSerializer
         return CatalogItemSerializer
 
