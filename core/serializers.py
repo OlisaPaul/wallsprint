@@ -60,6 +60,7 @@ class UpdateCurrentUserSerializer(BaseUserSerializer):
     groups_count = serializers.SerializerMethodField()
     groups = SimpleGroupSerializer(many=True, read_only=True)
     permissions = serializers.SerializerMethodField()
+    is_superuser = serializers.SerializerMethodField()
 
     class Meta(BaseUserSerializer.Meta):
         fields = ['id', 'email', 'name', 'username', 'is_active', 'status',
@@ -69,6 +70,9 @@ class UpdateCurrentUserSerializer(BaseUserSerializer):
 
     def get_groups_count(self, obj):
         return obj.groups.count()
+
+    def get_is_superuser(self, obj: User):
+        return obj.is_superuser or obj.groups.filter(extendedgroup__for_superuser=True).exists()
 
     def get_permissions(self, obj):
         """
@@ -122,6 +126,7 @@ class UserSerializer(BaseUserSerializer):
     )
     groups = SimpleGroupSerializer(many=True, read_only=True)
     permissions = serializers.SerializerMethodField()
+    is_superuser = serializers.SerializerMethodField()
 
     class Meta(BaseUserSerializer.Meta):
         fields = ['id', 'email', 'name', 'username', 'is_active', 'status',
@@ -132,6 +137,10 @@ class UserSerializer(BaseUserSerializer):
     def validate(self, attrs):
         self.group_ids = attrs.pop('group_ids', [])
         return super().validate(attrs)
+
+    def get_is_superuser(self, obj: User):
+        return obj.is_superuser or obj.groups.filter(extendedgroup__for_superuser=True).exists()
+
 
     def get_permissions(self, obj):
         """
