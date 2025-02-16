@@ -33,9 +33,9 @@ def validate_pricing_grid(value):
         if not isinstance(tier['minimum_quantity'], int) or tier['minimum_quantity'] <= 0:
             raise ValidationError(
                 "The 'minimum_quantity' in each pricing tier must be a positive integer.")
-        if not isinstance(tier['unit_price'], (int, float)) or tier['unit_price'] < 0:
+        if not isinstance(tier['unit_price'], (int, float)) or tier['unit_price'] <= 0:
             raise ValidationError(
-                "The 'unit_price' in each pricing tier must be a non-negative number.")
+                "The 'unit_price' in each pricing tier must be a greater than 0.")
 
 
 def validate_number(value):
