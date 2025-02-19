@@ -804,7 +804,7 @@ class CatalogItemViewSet(ModelViewSet):
         
         queryset = CatalogItem.objects.filter(
             catalog__portal_contents__portal_id=portal_id
-        ).prefetch_related('attributes__options')
+        ).prefetch_related('attributes__options').select_related('catalog')
 
         serializer = CatalogItemSerializer(queryset, many=True)
         return Response(serializer.data)
