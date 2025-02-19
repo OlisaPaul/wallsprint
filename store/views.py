@@ -793,6 +793,22 @@ class CatalogItemViewSet(ModelViewSet):
         self.perform_update(serializer)
         return Response(serializer.data)
 
+    @action(detail=False, methods=['get'], url_path='get-catalog-items-for-portal')
+    def get_catalog_items_for_portal(self, request):
+        """
+        Returns all catalog items associated with the portal.
+        """
+        portal_id = self.request.query_params.get('portal_id')
+        if not portal_id:
+            return Response({'detail': 'Portal ID query parameter is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        queryset = CatalogItem.objects.filter(
+            catalog__portal_contents__portal_id=portal_id
+        ).prefetch_related('attributes__options')
+
+        serializer = CatalogItemSerializer(queryset, many=True)
+        return Response(serializer.data)
+    
     @transaction.atomic()
     @action(detail=True, methods=['post'])
     def copy(self, request, pk=None, catalog_pk=None):
@@ -856,8 +872,14 @@ class CartViewSet(CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, Gener
     @action(detail=False, methods=['get'], url_path='customer-cart')
     def get_customer_cart(self, request):
         user = self.request.user
-        customer_id = request.query_params.get(
-            'customer_id')  # Get customer_id from query params
+        customer_id = request.query_params.get('customer_id')
+        # portal_id = request.query_params.get('portal_id')
+
+        # if not portal_id:
+        #     return Response(
+        #         {"detail": "portal_id query parameter is required."},
+        #         status=status.HTTP_400_BAD_REQUEST
+        #     )
 
         if user.is_staff and not customer_id:
             return Response(
@@ -878,6 +900,29 @@ class CartViewSet(CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, Gener
                 f"No cart found for customer with id {customer_id}.")
 
         serializer = self.get_serializer(cart)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'], url_path='customer-carts')
+    def get_customer_carts(self, request):
+        user = self.request.user
+        customer_id = request.query_params.get('customer_id')
+
+        if user.is_staff and not customer_id:
+            return Response(
+                {"detail": "customer_id query parameter is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        elif not user.is_staff:
+            try:
+                customer_id = Customer.objects.only('id').get(user_id=user.id)
+                self.customer_id = customer_id
+            except Customer.DoesNotExist:
+                raise NotFound(f"No Customer found with id {user.id}.")
+
+        cart = Cart.objects.prefetch_related(
+            "items__catalog_item").filter(customer_id=customer_id)
+
+        serializer = self.get_serializer(cart, many=True)
         return Response(serializer.data)
 
 
