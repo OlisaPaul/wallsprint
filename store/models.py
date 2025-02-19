@@ -791,6 +791,7 @@ class Cart(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     customer = models.OneToOneField(
         Customer, on_delete=models.SET_NULL, null=True, blank=True)
+    portal = models.ForeignKey(Portal, on_delete=models.SET_NULL, null=True)
 
 
 class CartItem(models.Model):
