@@ -747,6 +747,12 @@ class CatalogItemViewSet(ModelViewSet):
     A viewset for viewing and editing catalog items.
     """
 
+    def get_permissions(self):
+        catalog_id = self.kwargs.get('catalog_pk')
+        if catalog_id:
+            return [IsAuthenticated()]
+        return [IsAdminUser()]
+
     def get_serializer_class(self):
         if self.action == 'copy':
             return CopyCatalogItemSerializer
@@ -756,7 +762,10 @@ class CatalogItemViewSet(ModelViewSet):
 
     def get_queryset(self):
         catalog_id = self.kwargs.get('catalog_pk')
-        return CatalogItem.objects.filter(catalog_id=catalog_id).prefetch_related('attributes__options')
+        queryset = CatalogItem.objects.all().prefetch_related('attributes__options')
+        if catalog_id:
+            queryset = queryset.filter(catalog_id=catalog_id)
+        return queryset
 
     def get_serializer_context(self):
         catalog_id = self.kwargs.get('catalog_pk')
@@ -831,6 +840,7 @@ class CartViewSet(CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, Gener
     queryset = Cart.objects.select_related(
         "customer__user").prefetch_related("items__catalog_item").all()
     serializer_class = CartSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_serializer_context(self):
         customer_id = None

@@ -1424,7 +1424,8 @@ class CartSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Cart
-        fields = ["id", "items", "total_price", "customer_id", 'customer']
+        fields = ["id", "items", "total_price",
+                  "customer_id", 'customer', 'portal']
 
     def validate_customer_id(self, value):
         if not Customer.objects.filter(pk=value).exists():
@@ -1434,12 +1435,17 @@ class CartSerializer(serializers.ModelSerializer):
         if customer_id and customer_id != value:
             raise serializers.ValidationError(
                 "You can only create your own cart")
-
-        if Cart.objects.filter(customer_id=value).exists():
-            raise serializers.ValidationError(
-                "The customer already has an active cart")
-
         return value
+
+    def validate(self, attrs):
+        customer_id = attrs.get('customer_id', None)
+        portal = attrs.get('portal', None)
+
+        if Cart.objects.filter(customer_id=customer_id, porter=portal).exists():
+            raise serializers.ValidationError(
+                "The customer already has an active cart for this portal")
+
+        return attrs
 
     def validate(self, attrs):
         customer = attrs.get('customer_id', None)

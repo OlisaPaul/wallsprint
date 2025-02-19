@@ -15,6 +15,7 @@ router.register('online-proofs', views.OnlineProofViewSet,
                 basename='online-proofs'),
 router.register('images', views.ImageViewSet, basename='images'),
 router.register('catalogs', views.CatalogViewSet, basename='catalogs'),
+router.register('catalog-items', views.CatalogItemViewSet, basename='catalog-items'),
 router.register("orders", views.OrderViewSet, basename='orders')
 # router.register(r'catalog-items', views.CatalogItemViewSet, basename='catalog-item')
 router.register('portals', views.PortalViewSet, basename='portals'),
