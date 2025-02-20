@@ -789,9 +789,12 @@ class WebsiteUsers(models.Model):
 class Cart(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     created_at = models.DateTimeField(auto_now_add=True)
-    customer = models.OneToOneField(
+    customer = models.ForeignKey(
         Customer, on_delete=models.SET_NULL, null=True, blank=True)
     portal = models.ForeignKey(Portal, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        unique_together = [['customer', 'portal']]
 
 
 class CartItem(models.Model):

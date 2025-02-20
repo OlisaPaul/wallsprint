@@ -284,7 +284,7 @@ class PortalViewSet(CustomModelViewSet):
     def get_queryset(self):
         prefetch_array = [
             'contents__customer_groups__customers__user', 'contents__customers__user',
-            'contents__catalogs',
+            'contents__catalogs', 'cart_set__items',
             'customers__user', 'customer_groups__customers__user'
         ]
 
