@@ -179,6 +179,7 @@ DJOSER = {
         "user": 'core.serializers.UserSerializer',
         'token_create': 'core.serializers.CustomTokenCreateSerializer',
         'user_delete': 'core.serializers.CustomUserDeleteSerializer',
+        'password_reset': 'core.serializers.SendEmailResetSerializer',
     },
     'EMAIL': {
         'password_reset': 'core.email.CustomPasswordResetEmail',

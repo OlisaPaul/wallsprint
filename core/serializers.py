@@ -14,7 +14,7 @@ from django.contrib.auth.models import Permission, Group
 from djoser.serializers import UserSerializer as BaseUserSerializer, UserCreateSerializer as BaseUserCreateSerializer, UserDeleteSerializer
 from rest_framework.exceptions import AuthenticationFailed
 from djoser.conf import settings
-from djoser.serializers import TokenCreateSerializer
+from djoser.serializers import TokenCreateSerializer, SendEmailResetSerializer
 from djoser.compat import get_user_email, get_user_email_field_name
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
@@ -141,7 +141,6 @@ class UserSerializer(BaseUserSerializer):
     def get_is_superuser(self, obj: User):
         return obj.is_superuser or obj.groups.filter(extendedgroup__for_superuser=True).exists()
 
-
     def get_permissions(self, obj):
         """
         Return a list of all permissions assigned to the user, either
@@ -192,10 +191,11 @@ class GroupSerializer(ModelSerializer):
         source='extendedgroup.date_created', read_only=True)
     for_superuser = serializers.BooleanField(
         source='extendedgroup.for_superuser', read_only=True)
-    
+
     class Meta:
         model = Group
-        fields = ['id', 'name', 'permissions', 'users', 'date_created', 'for_superuser']
+        fields = ['id', 'name', 'permissions',
+                  'users', 'date_created', 'for_superuser']
 
     def get_users(self, obj):
         users = obj.user_set.all()
@@ -355,12 +355,12 @@ class CreateGroupSerializer(ModelSerializer):
         name = attrs.lower()
 
         cleaned_name = re.sub(r'[^a-z0-9]', '', name)
-    
+
         if "superuser" in cleaned_name:
             raise serializers.ValidationError(
                 {"name": "Group name cannot contain the reserved word 'superuser'."}
             )
-        
+
         if Group.objects.filter(name__iexact=name).exists():
             raise serializers.ValidationError("Group name already exists")
         return attrs
@@ -379,14 +379,15 @@ class UpdateGroupSerializer(ModelSerializer):
 
         cleaned_name = re.sub(r'[^a-z0-9]', '', name)
         superuser_group = self.instance.extendedgroup.for_superuser
-    
+
         if "superuser" in cleaned_name:
             if not superuser_group:
                 raise serializers.ValidationError(
                     {"name": "Group name cannot contain the reserved word 'superuser'."}
                 )
         elif superuser_group and name != instance.name:
-            raise serializers.ValidationError({'name': "You can not change the name of the default group"})
+            raise serializers.ValidationError(
+                {'name': "You can not change the name of the default group"})
 
         return super().validate(attrs)
 
@@ -481,12 +482,25 @@ class CustomObtainPairSerializer(TokenObtainPairSerializer):
 
         if user:
             if not user.is_active:
-                raise AuthenticationFailed("Your account is inactive. Please contact support.")
+                raise AuthenticationFailed(
+                    "Your account is inactive. Please contact support.")
 
         # Authenticate the user
-        user = authenticate(**{self.username_field: username, "password": password})
+        user = authenticate(
+            **{self.username_field: username, "password": password})
 
         if not user:
-            raise AuthenticationFailed("Invalid email or password. Please try again.")
+            raise AuthenticationFailed(
+                "Invalid email or password. Please try again.")
 
+        return super().validate(attrs)
+
+
+class SendEmailResetSerializer(SendEmailResetSerializer):
+    def validate(self, attrs):
+        email = attrs.get('email')
+        user = User.objects.filter(email__iexact=email).first()
+        if not user.is_active:
+            raise serializers.ValidationError(
+                {'email': 'This account is inactive. Please contact support.'})
         return super().validate(attrs)

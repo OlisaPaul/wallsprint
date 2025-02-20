@@ -1001,11 +1001,12 @@ class PortalSerializer(serializers.ModelSerializer):
     customer_groups = PortalCustomerGroupSerializer(many=True, read_only=True)
     customers = PortalCustomerSerializer(many=True, read_only=True)
     logo = serializers.ImageField(required=False)
+    number_of_cart_items = serializers.SerializerMethodField()
 
     class Meta:
         model = Portal
         fields = ['id', 'title', 'contents', 'can_user_access',
-                  'customers', 'customer_groups', 'created_at', 'logo']
+                  'customers', 'customer_groups', 'created_at', 'logo', 'number_of_cart_items']
 
     def get_contents(self, obj: Portal):
         customer_id = self.context.get('customer_id')
@@ -1023,6 +1024,14 @@ class PortalSerializer(serializers.ModelSerializer):
 
     def get_can_user_access(self, obj):
         return True
+    def get_number_of_cart_items(self, obj: Portal):
+        customer_id = self.context.get('customer_id')
+
+        carts = obj.cart_set.all().prefetch_related('items')
+        if customer_id:
+            carts = carts.filter(customer_id=customer_id)            
+        
+        return sum([cart.items.count() for cart in carts])
 
 
 class PatchPortalSerializer(serializers.ModelSerializer):
@@ -1441,20 +1450,16 @@ class CartSerializer(serializers.ModelSerializer):
         customer_id = attrs.get('customer_id', None)
         portal = attrs.get('portal', None)
 
-        if Cart.objects.filter(customer_id=customer_id, porter=portal).exists():
-            raise serializers.ValidationError(
-                "The customer already has an active cart for this portal")
-
-        return attrs
-
-    def validate(self, attrs):
         customer = attrs.get('customer_id', None)
         user = User.objects.get(id=self.context['user_id'])
-        is_staff = user.is_staff
-
-        if is_staff and not customer:
+       
+        if user.is_staff and not customer:
             raise serializers.ValidationError(
                 {"customer_id": "A valid integer field is required"})
+
+        if Cart.objects.filter(customer_id=customer_id, portal=portal).exists():
+            raise serializers.ValidationError(
+                "The customer already has an active cart for this portal")
 
         return attrs
 
