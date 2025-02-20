@@ -1,5 +1,29 @@
 from rest_framework import permissions
+from rest_framework.permissions import BasePermission
+from ipware import get_client_ip
+import requests
 
+ALLOWED_TIMEZONES = {"Africa/Lagos", "America/New_York"}  # Example: Allow only certain time zones
+
+class RestrictByTimezone(BasePermission):
+    def has_permission(self, request, view):
+        ip, _ = get_client_ip(request)
+        print(ip)
+        if not ip:
+            return False  # No IP found, deny access
+
+        # Get time zone using an external API
+        try:
+            response = requests.get(f"http://ip-api.com/json/{'105.115.2.134'}").json()
+            timezone = response.get("timezone")
+            print(timezone)
+            if timezone in ALLOWED_TIMEZONES:
+                return True
+        except Exception as e:
+            print(f"Timezone check failed: {e}")
+            return False  # Fail-safe: Deny access if lookup fails
+
+        return False
 
 class IsAdminOrReadOnly(permissions.BasePermission):
     def has_permission(self, request, view):
