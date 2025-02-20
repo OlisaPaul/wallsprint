@@ -872,8 +872,8 @@ class CartViewSet(CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, Gener
     @action(detail=False, methods=['get'], url_path='customer-cart-per-portal')
     def get_customer_cart(self, request):
         user = self.request.user
-        customer_id = request.query_params.get('customer_id')
-        portal_id = request.query_params.get('portal_id')
+        customer_id = request.query_params.get('customer_id', '').strip('/')
+        portal_id = request.query_params.get('portal_id', '').strip('/')
 
         if not portal_id:
             return Response(
