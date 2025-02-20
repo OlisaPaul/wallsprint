@@ -869,17 +869,17 @@ class CartViewSet(CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, Gener
                 raise NotFound(f"No Customer found with id {user_id}.")
         return {'user_id': self.request.user.id, 'customer_id': customer_id}
 
-    @action(detail=False, methods=['get'], url_path='customer-cart')
+    @action(detail=False, methods=['get'], url_path='customer-cart-per-portal')
     def get_customer_cart(self, request):
         user = self.request.user
         customer_id = request.query_params.get('customer_id')
-        # portal_id = request.query_params.get('portal_id')
+        portal_id = request.query_params.get('portal_id')
 
-        # if not portal_id:
-        #     return Response(
-        #         {"detail": "portal_id query parameter is required."},
-        #         status=status.HTTP_400_BAD_REQUEST
-        #     )
+        if not portal_id:
+            return Response(
+                {"detail": "portal_id query parameter is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         if user.is_staff and not customer_id:
             return Response(
@@ -894,7 +894,7 @@ class CartViewSet(CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, Gener
                 raise NotFound(f"No Customer found with id {user.id}.")
 
         cart = Cart.objects.prefetch_related(
-            "items__catalog_item").filter(customer_id=customer_id).first()
+            "items__catalog_item").filter(customer_id=customer_id, portal_id=portal_id).first()
         if not cart:
             raise NotFound(
                 f"No cart found for customer with id {customer_id}.")
