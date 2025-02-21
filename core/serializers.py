@@ -496,7 +496,7 @@ class CustomObtainPairSerializer(TokenObtainPairSerializer):
         return super().validate(attrs)
 
 
-class SendEmailResetSerializer(SendEmailResetSerializer):
+class CustomSendEmailResetSerializer(SendEmailResetSerializer):
     def validate(self, attrs):
         email = attrs.get('email')
         user = User.objects.filter(email__iexact=email).first()
