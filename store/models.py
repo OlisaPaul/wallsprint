@@ -945,6 +945,7 @@ class CartDetails(models.Model):
     email_address = models.EmailField()
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     office_number = models.CharField(max_length=20, blank=True, null=True)
+    extension = models.CharField(max_length=20, blank=True, null=True)
 
     def __str__(self):
         return f"Details for Cart {self.cart_item.id}"
