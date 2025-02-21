@@ -1026,7 +1026,7 @@ class OnlinePaymentViewSet(ModelViewSet):
             customer = Customer.objects.only('id').get(user=self.request.user)
         except Customer.DoesNotExist:
             if self.request.method == 'POST':
-                raise PermissionDenied(
+                return Response(
                     "You do not have permission to access this resource.")
             customer = None
 
