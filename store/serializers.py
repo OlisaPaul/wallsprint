@@ -1213,7 +1213,7 @@ class CartDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = CartDetails
         fields = ['title', 'name', 'email_address',
-                  'phone_number', 'office_number']
+                  'phone_number', 'office_number', 'extension']
 
     def create(self, validated_data):
         cart_item_id = self.context['cart_item_id']
