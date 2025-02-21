@@ -358,7 +358,7 @@ class CreateGroupSerializer(ModelSerializer):
 
         if "primaryadministrator" in cleaned_name:
             raise serializers.ValidationError(
-                {"name": "Group name cannot contain the reserved word 'superuser'."}
+                "Group name cannot contain the reserved word 'Primary Administrator'."
             )
 
         if Group.objects.filter(name__iexact=name).exists():
@@ -380,14 +380,14 @@ class UpdateGroupSerializer(ModelSerializer):
         cleaned_name = re.sub(r'[^a-z0-9]', '', name)
         superuser_group = self.instance.extendedgroup.for_superuser
 
-        if "superuser" in cleaned_name:
+        if "primaryadministrator" in cleaned_name:
             if not superuser_group:
                 raise serializers.ValidationError(
-                    {"name": "Group name cannot contain the reserved word 'superuser'."}
+                    {"name": "Group name cannot contain the reserved word 'Primary Administrator'."}
                 )
-        # elif superuser_group and name != instance.name:
-        #     raise serializers.ValidationError(
-        #         {'name': "You can not change the name of the default group"})
+        elif superuser_group and name != instance.name:
+            raise serializers.ValidationError(
+                {'name': "You can not change the name of the default group"})
 
         return super().validate(attrs)
 
