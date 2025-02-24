@@ -1479,7 +1479,6 @@ class CartSerializer(serializers.ModelSerializer):
 
 
 class AddCartItemSerializer(serializers.ModelSerializer):
-    id = serializers.IntegerField(read_only=True)
     # catalog_item = serializers.IntegerField()
 
     # def validate_catalog_item_id(self, value):
