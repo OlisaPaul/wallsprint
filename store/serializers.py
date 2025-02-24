@@ -1479,6 +1479,7 @@ class CartSerializer(serializers.ModelSerializer):
 
 
 class AddCartItemSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)
     # catalog_item = serializers.IntegerField()
 
     # def validate_catalog_item_id(self, value):
@@ -1486,10 +1487,11 @@ class AddCartItemSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         return validate_catalog(self.context, attrs, Cart, 'cart', self.instance)
-
+    
+    
     @transaction.atomic()
-    def save(self, **kwargs):
-        return save_item(self.context, self.validated_data, CartItem, 'cart_id', self.instance)
+    def create(self, validated_data):
+        return save_item(self.context, validated_data, CartItem, 'cart_id', self.instance)
 
     class Meta:
         model = CartItem
