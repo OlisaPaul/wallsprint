@@ -1,3 +1,4 @@
 .env
 test*
 media*
+__pycache__/

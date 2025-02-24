@@ -1509,7 +1509,9 @@ class OrderItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderItem
         fields = ['id', 'catalog_item', 'unit_price',
-                  'quantity', 'sub_total', 'tax', 'status']
+                  'quantity', 'sub_total', 'tax', 'status',
+                  'created_at'
+                ]
 
 
 class CreateOrderItemSerializer(serializers.ModelSerializer):

@@ -858,6 +858,7 @@ class OrderItem(models.Model):
         max_length=50, default=PENDING, choices=STATUS_CHOICES)
     unit_price = models.DecimalField(max_digits=6, decimal_places=2)
     sub_total = models.DecimalField(max_digits=12, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     @transaction.atomic()
     def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
