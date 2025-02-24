@@ -8,7 +8,7 @@ from core.tasks import send_notification_email_task
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 
-admin_group_name = 'super_user'
+admin_group_name = 'Primary Administrator'
 
 @receiver(post_migrate)
 def create_superuser_group(sender, **kwargs):

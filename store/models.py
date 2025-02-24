@@ -901,9 +901,9 @@ class OnlinePayment(models.Model):
         choices=PAYMENT_METHOD_CHOICES,
         verbose_name="Payment Method"
     )
-    invoice_number = models.CharField(max_length=100, verbose_name="Invoice #")
+    invoice_number = models.CharField(max_length=100, verbose_name="Invoice #", blank=True, null=True)
     po_number = models.CharField(
-        max_length=100, verbose_name="P.O. #", blank=True, null=True)
+        max_length=100, verbose_name="P.O. #")
     amount = models.DecimalField(
         max_digits=10, decimal_places=2, verbose_name="Amount")
     additional_instructions = models.TextField(

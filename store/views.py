@@ -1027,7 +1027,8 @@ class OnlinePaymentViewSet(ModelViewSet):
         except Customer.DoesNotExist:
             if self.request.method == 'POST':
                 return Response(
-                    "You do not have permission to access this resource.")
+                    {"detail": "You do not have permission to access this resource."},
+                    status=status.HTTP_403_FORBIDDEN)
             customer = None
 
         return {'request': self.request, 'customer': customer}
