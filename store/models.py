@@ -797,6 +797,23 @@ class Cart(models.Model):
         unique_together = [['customer', 'portal']]
 
 
+class ItemDetails(models.Model):
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey('content_type', 'object_id')
+    title = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
+    email_address = models.EmailField()
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
+    office_number = models.CharField(max_length=20, blank=True, null=True)
+    extension = models.CharField(max_length=20, blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Details for {self.content_object}"
+
+
 class CartItem(models.Model):
     cart = models.ForeignKey(
         Cart, on_delete=models.CASCADE, related_name="items")
@@ -807,6 +824,7 @@ class CartItem(models.Model):
     unit_price = models.DecimalField(max_digits=6, decimal_places=2)
     sub_total = models.DecimalField(
         max_digits=9, decimal_places=2, default=0.00)
+    details = GenericRelation(ItemDetails)
 
     # class Meta:
     #     unique_together = [["catalog_item", "cart", "quantity"]]
@@ -859,6 +877,7 @@ class OrderItem(models.Model):
     unit_price = models.DecimalField(max_digits=6, decimal_places=2)
     sub_total = models.DecimalField(max_digits=12, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)
+    details = GenericRelation(ItemDetails)
 
     @transaction.atomic()
     def save(self, force_insert=False, force_update=False, using=None, update_fields=None):

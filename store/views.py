@@ -61,8 +61,10 @@ def get_queryset_for_content_types(kwargs, model_class):
 def create_for_content_types(kwargs, serializer):
     """Create object with content type relationship"""
     content_type, object_id = get_content_type_and_id(kwargs)
+    print(content_type, object_id)
     if content_type and object_id:
         instance = get_object_or_404(content_type.model_class(), id=object_id)
+        print(instance)
         serializer.save(content_object=instance)
 
 
@@ -1135,6 +1137,15 @@ class CartDetailsViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         cart_item_id = self.kwargs['item_pk']
         return CartDetails.objects.filter(cart_item__id=cart_item_id).select_related('cart_item', 'cart_item__catalog_item')
+
+class ItemDetailsViewSet(ModelViewSet):
+    serializer_class = serializers.ItemDetailsSerializer
+
+    def get_queryset(self):
+        return get_queryset_for_content_types(self.kwargs, models.ItemDetails)
+
+    def perform_create(self, serializer):
+        return create_for_content_types(self.kwargs, serializer)
 
 
 class AttributeViewSet(ModelViewSet):

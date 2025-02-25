@@ -88,7 +88,7 @@ recent_order_url = [
 cart_items_router = routers.NestedDefaultRouter(
     carts_router, 'items', lookup='item')
 cart_items_router.register(
-    'details', views.CartDetailsViewSet, basename='cart-details')
+    'details', views.ItemDetailsViewSet, basename='cart-details')
 catalog_items_router = routers.NestedDefaultRouter(
     catalogs_router, 'items', lookup='catalog_item')
 catalog_items_router.register(
