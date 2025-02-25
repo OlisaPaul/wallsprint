@@ -1020,18 +1020,29 @@ class OnlinePaymentViewSet(ModelViewSet):
     queryset = models.OnlinePayment.objects.all()
     permission_classes = [IsAuthenticated]
 
-    def get_serializer_context(self):
-        customer = None
+    def get_customer(self):
         try:
-            customer = Customer.objects.only('id').get(user=self.request.user)
+            self.customer = Customer.objects.only('id').get(user=self.request.user)
         except Customer.DoesNotExist:
-            if self.request.method == 'POST':
-                return Response(
-                    {"detail": "You do not have permission to access this resource."},
-                    status=status.HTTP_403_FORBIDDEN)
-            customer = None
+            self.customer = None
+        
 
-        return {'request': self.request, 'customer': customer}
+    def get_serializer_context(self):
+        if not hasattr(self, 'customer'):
+            self.get_customer()
+        return {'request': self.request, 'customer': self.customer}
+
+    def create(self, request, *args, **kwargs):
+        if not hasattr(self, 'customer'):
+            self.get_customer()
+        
+        if not self.customer:
+            return Response(
+                {"detail": "You do not have permission to access this resource"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        return super().create(request, *args, **kwargs)
 
 
 class FileExchangeViewSet(ModelViewSet):
