@@ -1150,19 +1150,24 @@ class ItemDetailsViewSet(ModelViewSet):
             return models.ItemDetails.objects.filter(cart_items__id=item_id)
         elif oder_item_id:
             return models.ItemDetails.objects.filter(order_items__id=oder_item_id)
-
-    def perform_create(self, serializer):
+    
+    def get_serializer_context(self, *args, **kwargs):
         order_item_id = self.kwargs.get('order_item_pk')
         cart_item_id = self.kwargs.get('item_pk')
+        model = OrderItem if order_item_id else CartItem
+        id = order_item_id or cart_item_id
 
-        if order_item_id:
-            instance = get_object_or_404(OrderItem, id=order_item_id)
-        elif cart_item_id:
-            instance = get_object_or_404(CartItem, id=cart_item_id)
+        return {'model': model, 'id': id}
+
+    # def perform_create(self, serializer):
+    #     order_item_id = self.kwargs.get('order_item_pk')
+    #     cart_item_id = self.kwargs.get('item_pk')
+    #     model = OrderItem if order_item_id else CartItem
+    #     id = order_item_id or cart_item_id
         
-
-        instance.details = serializer.save()
-        instance.save()
+    #     instance = get_object_or_404(model, id=id)
+    #     instance.details = serializer.save()
+    #     instance.save()
     
 
 class AttributeViewSet(ModelViewSet):
