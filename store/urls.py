@@ -88,7 +88,7 @@ recent_order_url = [
 cart_items_router = routers.NestedDefaultRouter(
     carts_router, 'items', lookup='item')
 cart_items_router.register(
-    'details', views.CartDetailsViewSet, basename='cart-details')
+    'details', views.ItemDetailsViewSet, basename='cart-details')
 catalog_items_router = routers.NestedDefaultRouter(
     catalogs_router, 'items', lookup='catalog_item')
 catalog_items_router.register(
@@ -98,11 +98,19 @@ attributes_router = routers.NestedDefaultRouter(
     catalog_items_router, 'attributes', lookup='attribute')
 attributes_router.register(
     'options', views.AttributeOptionViewSet, basename='attribute-options'
-)    
+) 
+
+order_items_router = routers.NestedDefaultRouter(
+    orders_router, 'items', lookup='order_item')
+order_items_router.register(
+    'details', views.ItemDetailsViewSet, basename='order-details')
+
+
 # URLConf
 urlpatterns = router.urls + portals_router.urls + \
     catalogs_router.urls + message_centre_url + carts_router.urls +\
     contents_router.urls + recent_order_url + \
     requests_router.urls + file_transfers_router.urls + \
     cart_items_router.urls + orders_router.urls +\
-    catalog_items_router.urls + attributes_router.urls
+    catalog_items_router.urls + attributes_router.urls +\
+    order_items_router.urls

@@ -5,6 +5,7 @@ import json
 from django.conf import settings
 from django.core.validators import FileExtensionValidator
 from django.db import transaction
+from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django.core.validators import validate_email
 from django.contrib.contenttypes.models import ContentType
@@ -13,7 +14,7 @@ from rest_framework import serializers
 from rest_framework.validators import ValidationError
 from io import TextIOWrapper
 from django.core.mail import send_mail
-from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog, Note, BillingInfo, Shipment, Transaction, CartDetails
+from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog, Note, BillingInfo, Shipment, Transaction, ItemDetails
 from .utils import create_instance_with_files, validate_catalog, save_item
 from .signals import file_transferred
 from decimal import Decimal
@@ -1209,9 +1210,50 @@ class AttributeSerializer(serializers.ModelSerializer):
         return attribute
 
 
+class ItemDetailsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ItemDetails
+        fields = ['id', 'title', 'name', 'email_address',
+                  'phone_number', 'office_number', 'extension',
+                    'description', 'created_at'
+                  ]
+    
+    def validate(self, attrs):
+        id = self.context['id']
+        model = self.context['model']
+
+        item = model.objects.filter(
+            id=id,
+            catalog_item__can_be_edited=True
+        ).first()
+
+        if not item:
+            if not model.objects.filter(id=id).exists():
+                raise serializers.ValidationError(
+                    "No item with the given ID was found")
+            else:
+                raise serializers.ValidationError(
+                    "This item cannot be edited")
+
+        return attrs
+    
+    @transaction.atomic()
+    def create(self, validated_data):
+        id = self.context['id']
+        model = self.context['model']
+
+        instance = get_object_or_404(model, id=id)
+        details = super().create(validated_data)
+
+        instance.details = details
+        instance.save()
+
+        return details
+
+
 class CartDetailsSerializer(serializers.ModelSerializer):
     class Meta:
-        model = CartDetails
+        model = ItemDetails
         fields = ['id', 'title', 'name', 'email_address',
                   'phone_number', 'office_number', 'extension',
                     'description', 'created_at'
@@ -1409,7 +1451,7 @@ class SimpleCatalogItemSerializer(serializers.ModelSerializer):
 class CartItemSerializer(serializers.ModelSerializer):
     catalog_item = SimpleCatalogItemSerializer()
     sub_total = serializers.SerializerMethodField()
-    details = CartDetailsSerializer()
+    details = ItemDetailsSerializer()
 
     class Meta:
         model = CartItem
@@ -1505,12 +1547,13 @@ class UpdateCartItemSerializer(serializers.ModelSerializer):
 
 class OrderItemSerializer(serializers.ModelSerializer):
     catalog_item = SimpleCatalogItemSerializer()
+    details = ItemDetailsSerializer()
 
     class Meta:
         model = OrderItem
         fields = ['id', 'catalog_item', 'unit_price',
                   'quantity', 'sub_total', 'tax', 'status',
-                  'created_at'
+                  'details', 'created_at'
                 ]
 
 
