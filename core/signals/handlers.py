@@ -32,6 +32,16 @@ def send_notification_email(instance, model_name):
     print("Sending notification email")
     staff_notifications = StaffNotification.objects.select_related(
         'user').values_list('user__email', flat=True)
+    
+    request_type = {
+        'QuoteRequest': 'Estimate Request',
+        'Request': 'New Design Order',
+        'FileTransfer': 'Design-Ready Order',
+        'Order': 'Design-Ready Order',
+        'ContactInquiry': 'General Contact',
+        'OnlinePayment': 'Payment Proof Submission'
+    }.get(model_name, 'Service/Product Inquiry/Support')
+
 
     if model_name == 'OnlinePayment':
         # Prepare email content
@@ -51,16 +61,6 @@ def send_notification_email(instance, model_name):
             html_message=message,
             fail_silently=False,
         )
-    else:
-        # Handle other model types
-        request_type = {
-            'QuoteRequest': 'Estimate Request',
-            'Request': 'New Design Order',
-            'FileTransfer': 'Design-Ready Order',
-            'Order': 'Design-Ready Order',
-            'ContactInquiry': 'General Contact'
-        }.get(model_name, 'Service/Product Inquiry/Support')
-
     # Enqueue email tasks
     name = instance.name if hasattr(instance, 'name') else instance.customer.user.name
     send_notification_email_task(
