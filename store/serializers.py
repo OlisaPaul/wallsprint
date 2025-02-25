@@ -1251,33 +1251,33 @@ class ItemDetailsSerializer(serializers.ModelSerializer):
         return details
 
 
-class CartDetailsSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ItemDetails
-        fields = ['id', 'title', 'name', 'email_address',
-                  'phone_number', 'office_number', 'extension',
-                    'description', 'created_at'
-                  ]
+# class CartDetailsSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = ItemDetails
+#         fields = ['id', 'title', 'name', 'email_address',
+#                   'phone_number', 'office_number', 'extension',
+#                     'description', 'created_at'
+#                   ]
 
-    def create(self, validated_data):
-        cart_item_id = self.context['cart_item_id']
+#     def create(self, validated_data):
+#         cart_item_id = self.context['cart_item_id']
 
-        cart_item = CartItem.objects.filter(
-            id=cart_item_id,
-            catalog_item__can_be_edited=True
-        ).first()
+#         cart_item = CartItem.objects.filter(
+#             id=cart_item_id,
+#             catalog_item__can_be_edited=True
+#         ).first()
 
-        if not cart_item:
-            if not CartItem.objects.filter(id=cart_item_id).exists():
-                raise serializers.ValidationError(
-                    "No cart item with the given ID was found")
-            else:
-                raise serializers.ValidationError(
-                    "This item in the cart cannot be edited")
+#         if not cart_item:
+#             if not CartItem.objects.filter(id=cart_item_id).exists():
+#                 raise serializers.ValidationError(
+#                     "No cart item with the given ID was found")
+#             else:
+#                 raise serializers.ValidationError(
+#                     "This item in the cart cannot be edited")
 
-        cart_details = CartDetails.objects.create(
-            cart_item=cart_item, **validated_data)
-        return cart_details
+#         cart_details = CartDetails.objects.create(
+#             cart_item=cart_item, **validated_data)
+#         return cart_details
 
 
 class CatalogItemSerializer(serializers.ModelSerializer):
@@ -1723,7 +1723,8 @@ class CreateOrderSerializer(serializers.ModelSerializer):
                 catalog_item=item.catalog_item,
                 sub_total=sub_total,
                 unit_price=unit_price,
-                quantity=item.quantity
+                quantity=item.quantity,
+                details=item.details
             ))
 
         if catalog_items:
