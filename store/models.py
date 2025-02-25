@@ -798,9 +798,6 @@ class Cart(models.Model):
 
 
 class ItemDetails(models.Model):
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
-    object_id = models.PositiveIntegerField()
-    content_object = GenericForeignKey('content_type', 'object_id')
     title = models.CharField(max_length=255)
     name = models.CharField(max_length=255)
     email_address = models.EmailField()
@@ -824,7 +821,9 @@ class CartItem(models.Model):
     unit_price = models.DecimalField(max_digits=6, decimal_places=2)
     sub_total = models.DecimalField(
         max_digits=9, decimal_places=2, default=0.00)
-    details = GenericRelation(ItemDetails)
+    details = models.ForeignKey(
+        ItemDetails, on_delete=models.SET_NULL, related_name='cart_items', null=True, blank=True
+    )
 
     # class Meta:
     #     unique_together = [["catalog_item", "cart", "quantity"]]
@@ -877,7 +876,9 @@ class OrderItem(models.Model):
     unit_price = models.DecimalField(max_digits=6, decimal_places=2)
     sub_total = models.DecimalField(max_digits=12, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)
-    details = GenericRelation(ItemDetails)
+    details = models.ForeignKey(
+        ItemDetails, on_delete=models.SET_NULL, related_name='order_items', null=True, blank=True
+    )
 
     @transaction.atomic()
     def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
@@ -957,17 +958,17 @@ class FileExchange(models.Model):
         return f"Transfer to {self.recipient_name} from {self.name}"
 
 
-class CartDetails(models.Model):
-    cart_item = models.OneToOneField(
-        CartItem, on_delete=models.CASCADE, related_name='details')
-    title = models.CharField(max_length=255)
-    name = models.CharField(max_length=255)
-    email_address = models.EmailField()
-    phone_number = models.CharField(max_length=20, blank=True, null=True)
-    office_number = models.CharField(max_length=20, blank=True, null=True)
-    extension = models.CharField(max_length=20, blank=True, null=True)
-    description = models.TextField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+# class CartDetails(models.Model):
+#     cart_item = models.OneToOneField(
+#         CartItem, on_delete=models.CASCADE, related_name='details')
+#     title = models.CharField(max_length=255)
+#     name = models.CharField(max_length=255)
+#     email_address = models.EmailField()
+#     phone_number = models.CharField(max_length=20, blank=True, null=True)
+#     office_number = models.CharField(max_length=20, blank=True, null=True)
+#     extension = models.CharField(max_length=20, blank=True, null=True)
+#     description = models.TextField(blank=True, null=True)
+#     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return f"Details for Cart {self.cart_item.id}"
+#     def __str__(self):
+#         return f"Details for Cart {self.cart_item.id}"

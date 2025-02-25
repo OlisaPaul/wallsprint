@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny,  IsAuthenticated, IsAdminUser
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, DestroyModelMixin
-from .models import Cart, CartItem, CatalogItem, ContactInquiry, PortalContentCatalog, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, Portal, Order, OrderItem, Note, ContentType, BillingInfo, Shipment, Transaction, PortalContent, Catalog, CartDetails
+from .models import Cart, CartItem, CatalogItem, ContactInquiry, PortalContentCatalog, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, Portal, Order, OrderItem, Note, ContentType, BillingInfo, Shipment, Transaction, PortalContent, Catalog
 from .serializers import AddCartItemSerializer, CartItemSerializer, CartSerializer, CatalogItemSerializer, ContactInquirySerializer, CreateOrderSerializer, OrderSerializer, PortalContentCatalogSerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCartItemSerializer, UpdateCustomerSerializer, UpdateOrderSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, PortalSerializer, customer_fields, CreateOrUpdateCatalogItemSerializer, NoteSerializer, BillingInfoSerializer, ShipmentSerializer, TransactionSerializer, CopyCatalogSerializer, CopyCatalogItemSerializer, CopyPortalSerializer, CartDetailsSerializer
 from .permissions import FullDjangoModelPermissions, create_permission_class
 from .mixins import HandleImagesMixin
@@ -35,7 +35,8 @@ MessageCenterPermissions = create_permission_class('store.message_center')
 model_map = {
     'request_pk': Request,
     'file_transfer_pk': FileTransfer,
-    'order_pk': Order
+    'order_pk': Order,
+    'item_pk': CartItem,
 }
 
 
@@ -940,7 +941,7 @@ class CartItemViewSet(ModelViewSet):
 
     def get_queryset(self):
         cart_id = self.kwargs.get('cart_pk')
-        return CartItem.objects.filter(cart_id=cart_id).select_related("catalog_item")
+        return CartItem.objects.filter(cart_id=cart_id).select_related("catalog_item", 'details')
 
     def get_serializer_context(self):
         cart_id = self.kwargs.get('cart_pk')
@@ -1127,26 +1128,42 @@ class TransactionViewSet(ModelViewSet):
         return create_for_content_types(self.kwargs, serializer)
 
 
-class CartDetailsViewSet(viewsets.ModelViewSet):
-    serializer_class = CartDetailsSerializer
+# class CartDetailsViewSet(viewsets.ModelViewSet):
+#     serializer_class = CartDetailsSerializer
 
-    def get_serializer_context(self):
-        cart_item_id = self.kwargs['item_pk']
-        return {'cart_item_id': cart_item_id}
+#     def get_serializer_context(self):
+#         cart_item_id = self.kwargs['item_pk']
+#         return {'cart_item_id': cart_item_id}
 
-    def get_queryset(self):
-        cart_item_id = self.kwargs['item_pk']
-        return CartDetails.objects.filter(cart_item__id=cart_item_id).select_related('cart_item', 'cart_item__catalog_item')
+#     def get_queryset(self):
+#         cart_item_id = self.kwargs['item_pk']
+#         return CartDetails.objects.filter(cart_item__id=cart_item_id).select_related('cart_item', 'cart_item__catalog_item')
 
 class ItemDetailsViewSet(ModelViewSet):
     serializer_class = serializers.ItemDetailsSerializer
 
     def get_queryset(self):
-        return get_queryset_for_content_types(self.kwargs, models.ItemDetails)
+        item_id = self.kwargs.get('item_pk')
+        oder_item_id = self.kwargs.get('order_item_pk')
+
+        if item_id:
+            return models.ItemDetails.objects.filter(cart_items__id=item_id)
+        elif oder_item_id:
+            return models.ItemDetails.objects.filter(order_items__id=oder_item_id)
 
     def perform_create(self, serializer):
-        return create_for_content_types(self.kwargs, serializer)
+        order_item_id = self.kwargs.get('order_item_pk')
+        cart_item_id = self.kwargs.get('item_pk')
 
+        if order_item_id:
+            instance = get_object_or_404(OrderItem, id=order_item_id)
+        elif cart_item_id:
+            instance = get_object_or_404(CartItem, id=cart_item_id)
+        
+
+        instance.details = serializer.save()
+        instance.save()
+    
 
 class AttributeViewSet(ModelViewSet):
     def get_serializer_context(self):

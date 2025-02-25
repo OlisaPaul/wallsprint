@@ -13,7 +13,7 @@ from rest_framework import serializers
 from rest_framework.validators import ValidationError
 from io import TextIOWrapper
 from django.core.mail import send_mail
-from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog, Note, BillingInfo, Shipment, Transaction, CartDetails, ItemDetails
+from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog, Note, BillingInfo, Shipment, Transaction, ItemDetails
 from .utils import create_instance_with_files, validate_catalog, save_item
 from .signals import file_transferred
 from decimal import Decimal
@@ -1220,7 +1220,7 @@ class ItemDetailsSerializer(serializers.ModelSerializer):
 
 class CartDetailsSerializer(serializers.ModelSerializer):
     class Meta:
-        model = CartDetails
+        model = ItemDetails
         fields = ['id', 'title', 'name', 'email_address',
                   'phone_number', 'office_number', 'extension',
                     'description', 'created_at'
@@ -1418,7 +1418,7 @@ class SimpleCatalogItemSerializer(serializers.ModelSerializer):
 class CartItemSerializer(serializers.ModelSerializer):
     catalog_item = SimpleCatalogItemSerializer()
     sub_total = serializers.SerializerMethodField()
-    details = CartDetailsSerializer()
+    details = ItemDetailsSerializer()
 
     class Meta:
         model = CartItem
