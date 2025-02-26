@@ -1221,6 +1221,11 @@ class ItemDetailsSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         id = self.context['id']
         model = self.context['model']
+        title = attrs.get('title')
+        name = attrs.get('name')
+        description = attrs.get('description')
+        email_address = attrs.get('email_address')
+
 
         item = model.objects.filter(
             id=id,
@@ -1234,6 +1239,18 @@ class ItemDetailsSerializer(serializers.ModelSerializer):
             else:
                 raise serializers.ValidationError(
                     "This item cannot be edited")
+        else:
+            if item.catalog_item.item_type == CatalogItem.BUSINESS_CARD:
+                items_to_check = (("name",name), ("title",title), ("email_address",email_address))
+                for key, value in items_to_check:
+                    if not value:
+                        raise serializers.ValidationError(
+                            {key: "This field is required"})
+            elif item.catalog_item.item_type == CatalogItem.OTHERS:
+                if not description:
+                    raise serializers.ValidationError(
+                        {"description": "Description is required"})
+                
 
         return attrs
     
