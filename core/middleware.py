@@ -17,7 +17,7 @@ class RoleBasedAccessMiddleware(MiddlewareMixin):
     def process_view(self, request, view_func, view_args, view_kwargs):
         path = request.path
         view_name = resolve(path).view_name
-        if not 'auth' in request.path:
+        if not 'auth' in request.path or 'logout' in request.path:
             return None
 
         # Attempt token validation explicitly
@@ -47,7 +47,9 @@ class RoleBasedAccessMiddleware(MiddlewareMixin):
             user = request.user
 
             if not request.user.is_authenticated:
-                if not any(substring in path for substring in ['create', 'reset_password']):
+                if request.user.is_active != False:
+                    return JsonResponse({"detail": "User is inactive."}, status=403)
+                if not any(substring in path for substring in ['create', 'reset_password', 'logout']):
                     return JsonResponse({"detail": "Authentication credentials were not provided."}, status=401)
                 elif request.method == 'POST':
                     data = {}
