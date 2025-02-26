@@ -1128,17 +1128,6 @@ class TransactionViewSet(ModelViewSet):
         return create_for_content_types(self.kwargs, serializer)
 
 
-# class CartDetailsViewSet(viewsets.ModelViewSet):
-#     serializer_class = CartDetailsSerializer
-
-#     def get_serializer_context(self):
-#         cart_item_id = self.kwargs['item_pk']
-#         return {'cart_item_id': cart_item_id}
-
-#     def get_queryset(self):
-#         cart_item_id = self.kwargs['item_pk']
-#         return CartDetails.objects.filter(cart_item__id=cart_item_id).select_related('cart_item', 'cart_item__catalog_item')
-
 class ItemDetailsViewSet(ModelViewSet):
     serializer_class = serializers.ItemDetailsSerializer
 
@@ -1159,15 +1148,6 @@ class ItemDetailsViewSet(ModelViewSet):
 
         return {'model': model, 'id': id}
 
-    # def perform_create(self, serializer):
-    #     order_item_id = self.kwargs.get('order_item_pk')
-    #     cart_item_id = self.kwargs.get('item_pk')
-    #     model = OrderItem if order_item_id else CartItem
-    #     id = order_item_id or cart_item_id
-        
-    #     instance = get_object_or_404(model, id=id)
-    #     instance.details = serializer.save()
-    #     instance.save()
     
 
 class AttributeViewSet(ModelViewSet):

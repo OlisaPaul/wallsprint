@@ -3,7 +3,7 @@ import os
 from django.db.models import Count
 from rest_framework.permissions import AllowAny,  IsAuthenticated, IsAdminUser
 from django.contrib.auth.models import Group, Permission
-
+from django.utils.translation import gettext as _
 from django.shortcuts import render
 from rest_framework import viewsets, permissions, status
 from rest_framework import mixins
@@ -20,6 +20,10 @@ from .models import User, StaffNotification, BlacklistedToken
 from .utils import bulk_delete_objects, generate_jwt_for_user
 from .utils import CustomModelViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.exceptions import InvalidToken
+from django.contrib.auth import get_user_model
+
 load_dotenv()
 # Create your views here.
 
@@ -39,7 +43,7 @@ class GroupViewSet(viewsets.ModelViewSet):
         elif self.request.method == "PUT":
             return UpdateGroupSerializer
         return GroupSerializer
-    
+
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         if instance.extendedgroup.for_superuser:
@@ -354,17 +358,52 @@ class StaffNotificationViewSet(CustomModelViewSet):
             return super().create(request, *args, **kwargs)
 
 
+class AllowInactiveUser(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return bool(request.user and request.auth)
+
+
+class AllowInactiveUserAuthentication(JWTAuthentication):
+    user_id_field = 'user_id'  # Define the user_id_field attribute
+
+    def authenticate(self, request):
+        raw_token = self.get_raw_token(self.get_header(request))
+        if raw_token is None:
+            return None
+
+        validated_token = self.get_validated_token(raw_token)
+        user_model = get_user_model()
+
+        try:
+            # Directly retrieve the user without checking if they are active
+            user_id = validated_token[self.user_id_field]
+            user = user_model.objects.get(**{"id": user_id})
+        except user_model.DoesNotExist:
+            raise InvalidToken(
+                'Token contained no recognizable user identification')
+
+        return user, validated_token
+
+
 class LogoutView(APIView):
-    permission_classes = (IsAuthenticated,)
+    authentication_classes = (AllowInactiveUserAuthentication,)
+    permission_classes = (AllowInactiveUser,)
 
     def post(self, request):
         def hash_token(token):
             return hashlib.sha256(token.encode()).hexdigest()
         try:
             auth_header = request.headers.get('Authorization')
-            token = auth_header.split(' ')[1]
+            if not auth_header:
+                return Response({"detail": "Authorization header missing."}, status=400)
+
+            parts = auth_header.split(' ')
+            if len(parts) != 2 or parts[0].lower() != 'bearer':
+                return Response({"detail": "Invalid Authorization header format."}, status=400)
+
+            token = parts[1]
             hashed_token = hash_token(token)
             BlacklistedToken.objects.create(token_hash=hashed_token)
             return Response(status=204)
         except Exception as e:
-            return Response(status=400)
+            return Response({"detail": str(e)}, status=400)
