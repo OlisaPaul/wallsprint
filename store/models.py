@@ -798,9 +798,9 @@ class Cart(models.Model):
 
 
 class ItemDetails(models.Model):
-    title = models.CharField(max_length=255)
-    name = models.CharField(max_length=255)
-    email_address = models.EmailField()
+    title = models.CharField(max_length=255, null=True, blank=True)
+    name = models.CharField(max_length=255, null=True, blank=True)
+    email_address = models.EmailField(null=True, blank=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     office_number = models.CharField(max_length=20, blank=True, null=True)
     extension = models.CharField(max_length=20, blank=True, null=True)
