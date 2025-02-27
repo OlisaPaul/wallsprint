@@ -1679,6 +1679,17 @@ class CreateOrderSerializer(serializers.ModelSerializer):
                 'The cart does not belong to the customer')
 
         return cart_id
+    
+    def validate_po_number(self, value):
+        if not value:
+            return value
+        if not re.match(r'^[a-zA-Z0-9]*$', value):
+            raise serializers.ValidationError(
+                "PO number can only contain letters and numbers.")
+        if Order.objects.filter(po_number=value).exists():
+            raise serializers.ValidationError(
+                "An order with the given PO number already exists.")
+        return value
 
     def validate(self, attrs):
         cart_id = attrs.get('cart_id')
@@ -1794,8 +1805,14 @@ class OnlinePaymentSerializer(serializers.ModelSerializer):
         if not re.match(r'^[a-zA-Z0-9]*$', value):
             raise serializers.ValidationError(
                 "PO number can only contain letters and numbers.")
-        if not Order.objects.filter(customer=customer, po_number=value).exists():
+        order = Order.objects.filter(customer=customer, po_number=value).first()
+        
+        if not order:
             raise serializers.ValidationError("The PO# submitted is invalid")
+        
+        if order.status not in [Order.COMPLETED, Order.SHIPPED]:
+            raise serializers.ValidationError(
+                "The order with the given PO# is not yet completed or shipped.")
 
         return value
 

@@ -845,7 +845,7 @@ class Order(BaseTransaction):
     customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True)
     date_needed = models.DateField(default=timezone.now)
     address = models.CharField(max_length=255)
-    po_number = models.CharField(max_length=100, blank=True, null=True)
+    po_number = models.CharField(max_length=100)
     shipping_address = models.TextField(blank=True, null=True)
     project_due_date = models.DateField(default=datetime.date.today)
 
