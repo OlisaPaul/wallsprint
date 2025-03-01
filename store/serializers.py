@@ -690,6 +690,9 @@ class UpdatePortalContentSerializer(serializers.ModelSerializer):
 
 class CreatePortalSerializer(serializers.ModelSerializer):
     # content = CreatePortalContentSerializer(many=True, required=False)
+    WELCOME = 'Welcome'
+    ONLINE_PAYMENTS = 'Online payments'
+    ORDER_APPROVAL = 'Order approval'
     copy_an_existing_portal = serializers.BooleanField(default=False)
     copy_from_portal_id = serializers.IntegerField(
         required=False, allow_null=True)
@@ -775,6 +778,8 @@ class CreatePortalSerializer(serializers.ModelSerializer):
 
     @transaction.atomic()
     def create(self, validated_data):
+        allowed_titles = [self.WELCOME,
+                          self.ONLINE_PAYMENTS, self.ORDER_APPROVAL]
         catalog = validated_data.pop('catalog', None)
         copy_an_existing_portal = validated_data.pop(
             'copy_an_existing_portal', False)
@@ -1019,19 +1024,20 @@ class PortalSerializer(serializers.ModelSerializer):
             content for content in obj.contents.all()
             if content.everyone or customer_id in content.customers.values_list('id', flat=True) or
             any(customer_id in group.customers.values_list('id', flat=True)
-                for group in content.customer_groups.all())
+                for group in content.customer_groups.all()) or content.title == CreatePortalSerializer.WELCOME
         ]
         return PortalContentSerializer(filtered_content, many=True, context={'request': self.context['request']}).data
 
     def get_can_user_access(self, obj):
         return True
+
     def get_number_of_cart_items(self, obj: Portal):
         customer_id = self.context.get('customer_id')
 
         carts = obj.cart_set.all().prefetch_related('items')
         if customer_id:
-            carts = carts.filter(customer_id=customer_id)            
-        
+            carts = carts.filter(customer_id=customer_id)
+
         return sum([cart.items.count() for cart in carts])
 
 
@@ -1215,9 +1221,9 @@ class ItemDetailsSerializer(serializers.ModelSerializer):
         model = ItemDetails
         fields = ['id', 'title', 'name', 'email_address',
                   'phone_number', 'office_number', 'extension',
-                    'description', 'created_at'
+                  'description', 'created_at'
                   ]
-    
+
     def validate(self, attrs):
         id = self.context['id']
         model = self.context['model']
@@ -1225,7 +1231,6 @@ class ItemDetailsSerializer(serializers.ModelSerializer):
         name = attrs.get('name')
         description = attrs.get('description')
         email_address = attrs.get('email_address')
-
 
         item = model.objects.filter(
             id=id,
@@ -1241,7 +1246,8 @@ class ItemDetailsSerializer(serializers.ModelSerializer):
                     "This item cannot be edited")
         else:
             if item.catalog_item.item_type == CatalogItem.BUSINESS_CARD:
-                items_to_check = (("name",name), ("title",title), ("email_address",email_address))
+                items_to_check = (("name", name), ("title", title),
+                                  ("email_address", email_address))
                 for key, value in items_to_check:
                     if not value:
                         raise serializers.ValidationError(
@@ -1250,10 +1256,9 @@ class ItemDetailsSerializer(serializers.ModelSerializer):
                 if not description:
                     raise serializers.ValidationError(
                         {"description": "Description is required"})
-                
 
         return attrs
-    
+
     @transaction.atomic()
     def create(self, validated_data):
         id = self.context['id']
@@ -1513,7 +1518,7 @@ class CartSerializer(serializers.ModelSerializer):
 
         customer = attrs.get('customer_id', None)
         user = User.objects.get(id=self.context['user_id'])
-       
+
         if user.is_staff and not customer:
             raise serializers.ValidationError(
                 {"customer_id": "A valid integer field is required"})
@@ -1545,8 +1550,7 @@ class AddCartItemSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         return validate_catalog(self.context, attrs, Cart, 'cart', self.instance)
-    
-    
+
     @transaction.atomic()
     def create(self, validated_data):
         return save_item(self.context, validated_data, CartItem, 'cart_id', self.instance)
@@ -1571,7 +1575,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
         fields = ['id', 'catalog_item', 'unit_price',
                   'quantity', 'sub_total', 'tax', 'status',
                   'details', 'created_at'
-                ]
+                  ]
 
 
 class CreateOrderItemSerializer(serializers.ModelSerializer):
@@ -1679,7 +1683,7 @@ class CreateOrderSerializer(serializers.ModelSerializer):
                 'The cart does not belong to the customer')
 
         return cart_id
-    
+
     def validate_po_number(self, value):
         if not value:
             return value
@@ -1805,11 +1809,12 @@ class OnlinePaymentSerializer(serializers.ModelSerializer):
         if not re.match(r'^[a-zA-Z0-9]*$', value):
             raise serializers.ValidationError(
                 "PO number can only contain letters and numbers.")
-        order = Order.objects.filter(customer=customer, po_number=value).first()
-        
+        order = Order.objects.filter(
+            customer=customer, po_number=value).first()
+
         if not order:
             raise serializers.ValidationError("The PO# submitted is invalid")
-        
+
         if order.status not in [Order.COMPLETED, Order.SHIPPED]:
             raise serializers.ValidationError(
                 "The order with the given PO# is not yet completed or shipped.")
