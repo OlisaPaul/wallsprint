@@ -44,6 +44,8 @@ ALLOWED_HOSTS = ['wallsprint.onrender.com', '127.0.0.1',
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
+    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -95,7 +97,15 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'wallsprint.wsgi.application'
+# WSGI_APPLICATION = 'wallsprint.wsgi.application'
+
+ASGI_APPLICATION = 'wallsprint.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+    }
+}
 
 
 # Database

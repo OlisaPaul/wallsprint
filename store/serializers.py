@@ -1443,7 +1443,7 @@ class SimpleCatalogItemSerializer(serializers.ModelSerializer):
             'id', 'title', 'item_sku',
             'description', 'short_description', 'default_quantity',
             'thumbnail', 'preview_image', 'catalog',
-            'preview_file', 'pricing_grid'
+            'preview_file', 'pricing_grid', 'item_type'
         ]
 
     def get_url(self, field):
