@@ -31,8 +31,9 @@ flower = "*"
 django-celery-beat = "*"
 django-silk = "*"
 pillow = "*"
-channels = {extras = ["daphne"], version = "*"}
 django-ipware = "*"
+daphne = "*"
+channels = "*"
 
 [dev-packages]
 
