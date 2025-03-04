@@ -8,3 +8,6 @@ router.register("groups", views.GroupViewSet, basename="groups")
 router.register("permissions", views.PermissionViewSet, basename="permissions")
 
 urlpatterns = router.urls
+
+urlpatterns.append(path('test-websocket/',
+                   views.TestWebSocketView.as_view(), name='test_websocket'))

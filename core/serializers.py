@@ -23,6 +23,9 @@ from dotenv import load_dotenv
 from .signals import group_created
 from .models import User, StaffNotification, BlacklistedToken
 from .utils import generate_jwt_for_user, blacklist_token
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+
 
 load_dotenv()
 
@@ -119,6 +122,26 @@ class AcceptInvitationSerializer(BaseUserSerializer):
         return user
 
 
+def _notify_permission_change(users):
+    """Helper function to send permission updates for users"""
+    channel_layer = get_channel_layer()
+    permissions_updates = [
+        {
+            "user_id": user.id,
+            "permissions": [perm.name for perm in Permission.objects.filter(codename__in=[perm.split('.')[1] for perm in user.get_all_permissions()])]
+        }
+        for user in users
+    ]
+
+    async_to_sync(channel_layer.group_send)(
+        "staff_permissions",
+        {
+            "type": "bulk_permissions_update",
+            "updates": permissions_updates
+        }
+    )
+
+
 class UserSerializer(BaseUserSerializer):
     groups_count = serializers.SerializerMethodField()
     group_ids = serializers.ListField(
@@ -171,6 +194,8 @@ class UserSerializer(BaseUserSerializer):
         if hasattr(self, 'group_ids') and not user.is_superuser:
             groups = Group.objects.filter(id__in=self.group_ids)
             user.groups.set(groups)
+            # Send WebSocket notification when groups are updated
+            _notify_permission_change([user])
 
         return user
 

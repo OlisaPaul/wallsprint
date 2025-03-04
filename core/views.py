@@ -23,6 +23,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken
 from django.contrib.auth import get_user_model
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+from django.db.models.signals import m2m_changed
+from django.dispatch import receiver
+from django.views.generic import TemplateView
 
 load_dotenv()
 # Create your views here.
@@ -160,6 +165,34 @@ class GroupViewSet(viewsets.ModelViewSet):
         # Use 207 status if some users were not found; otherwise, 200
         status_code = status.HTTP_200_OK if not missing_user_ids else status.HTTP_207_MULTI_STATUS
         return Response(response_data, status=status_code)
+
+    def _notify_permission_change(self, group):
+        channel_layer = get_channel_layer()
+        # Get all users in the group
+        users = group.user_set.all()
+        print(f"Sending permission update for group: {group.name}")
+
+        permissions_updates = [
+            {
+                "user_id": user.id,
+                "permissions": [perm.name for perm in Permission.objects.filter(codename__in=[perm.split('.')[1] for perm in user.get_all_permissions()])]
+            }
+            for user in users
+        ]
+
+        # Send a single bulk message
+        async_to_sync(channel_layer.group_send)(
+            "staff_permissions",
+            {
+                "type": "bulk_permissions_update",
+                "updates": permissions_updates
+            }
+        )
+
+    def update(self, request, *args, **kwargs):
+        response = super().update(request, *args, **kwargs)
+        self._notify_permission_change(self.get_object())
+        return response
 
 
 class PermissionViewSet(viewsets.ReadOnlyModelViewSet):
@@ -407,3 +440,39 @@ class LogoutView(APIView):
             return Response(status=204)
         except Exception as e:
             return Response({"detail": str(e)}, status=400)
+
+# Add signal handler for group membership changes
+
+
+@receiver(m2m_changed, sender=Group.user_set.through)
+def handle_group_membership_change(sender, instance, action, reverse, model, pk_set, **kwargs):
+    if action in ["post_add", "post_remove", "post_clear"]:
+        channel_layer = get_channel_layer()
+        if reverse:
+            # If users were changed on a group
+            users = model.objects.filter(pk__in=pk_set)
+        else:
+            # If groups were changed on a user
+            users = [instance]
+
+        # Create a list of all user permissions in one go
+        permissions_updates = [
+            {
+            "user_id": user.id,
+            "permissions": [perm.name for perm in Permission.objects.filter(codename__in=[perm.split('.')[1] for perm in user.get_all_permissions()])]
+            }
+            for user in users
+        ]
+
+        # Send a single bulk message
+        async_to_sync(channel_layer.group_send)(
+            "staff_permissions",
+            {
+                "type": "bulk_permissions_update",
+                "updates": permissions_updates
+            }
+        )
+
+
+class TestWebSocketView(TemplateView):
+    template_name = 'test_permissions.html'
