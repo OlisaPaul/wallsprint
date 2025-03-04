@@ -1,3 +1,3 @@
 release: python manage.py migrate
-web: gunicorn wallsprint.wsgi
+web: daphne wallsprint.asgi:application
 worker: celery -A wallsprint worker

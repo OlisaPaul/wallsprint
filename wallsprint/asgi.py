@@ -18,7 +18,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'wallsprint.settings')
 
 django_asgi_app = get_asgi_application()
 
-from store import routing
+from core import routing
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
