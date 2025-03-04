@@ -475,4 +475,4 @@ def handle_group_membership_change(sender, instance, action, reverse, model, pk_
 
 
 class TestWebSocketView(TemplateView):
-    template_name = 'test_permissions.html'
+    template_name = 'websocket_permissions.html'

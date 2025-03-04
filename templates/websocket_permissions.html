@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Staff Permissions WebSocket Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 0 20px;
+      }
+      #status {
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+      }
+      .connected {
+        background-color: #dff0d8;
+        color: #3c763d;
+      }
+      .disconnected {
+        background-color: #f2dede;
+        color: #a94442;
+      }
+      #messages {
+        border: 1px solid #ddd;
+        padding: 10px;
+        height: 300px;
+        overflow-y: auto;
+        margin: 10px 0;
+        border-radius: 4px;
+      }
+      .message {
+        margin: 5px 0;
+        padding: 5px;
+        border-bottom: 1px solid #eee;
+      }
+      .timestamp {
+        color: #666;
+        font-size: 0.8em;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Staff Permissions WebSocket Test</h1>
+    <div id="status" class="disconnected">Disconnected</div>
+    <div id="messages"></div>
+
+    <script>
+      class PermissionSocket {
+        constructor() {
+          this.connect();
+          this.messageContainer = document.getElementById("messages");
+          this.statusElement = document.getElementById("status");
+        }
+
+        connect() {
+          const protocol =
+            window.location.protocol === "https:" ? "wss:" : "ws:";
+          const wsUrl = `${protocol}//${window.location.host}/ws/staff/permissions/`;
+          console.log("Attempting to connect to:", wsUrl); // Debug log
+          this.ws = new WebSocket(wsUrl);
+
+          this.ws.onopen = () => {
+            this.updateStatus(true);
+            this.addMessage("Connected to WebSocket");
+          };
+
+          this.ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            this.addMessage("Received update:", data);
+          };
+
+          this.ws.onclose = () => {
+            this.updateStatus(false);
+            this.addMessage("Disconnected from WebSocket");
+            // Attempt to reconnect after a delay
+            setTimeout(() => {
+              this.addMessage("Attempting to reconnect...");
+              this.connect();
+            }, 3000);
+          };
+
+          this.ws.onerror = (error) => {
+            this.addMessage("WebSocket Error:", error);
+          };
+        }
+
+        updateStatus(connected) {
+          this.statusElement.className = connected
+            ? "connected"
+            : "disconnected";
+          this.statusElement.textContent = connected
+            ? "Connected"
+            : "Disconnected";
+        }
+
+        addMessage(message, data = null) {
+          const messageDiv = document.createElement("div");
+          messageDiv.className = "message";
+
+          const timestamp = new Date().toLocaleTimeString();
+          const timestampSpan = document.createElement("span");
+          timestampSpan.className = "timestamp";
+          timestampSpan.textContent = `[${timestamp}] `;
+
+          messageDiv.appendChild(timestampSpan);
+          messageDiv.appendChild(document.createTextNode(message));
+
+          if (data) {
+            const pre = document.createElement("pre");
+            pre.textContent = JSON.stringify(data, null, 2);
+            messageDiv.appendChild(pre);
+          }
+
+          this.messageContainer.appendChild(messageDiv);
+          this.messageContainer.scrollTop = this.messageContainer.scrollHeight;
+        }
+      }
+
+      // Initialize the WebSocket connection
+      const permissionSocket = new PermissionSocket();
+    </script>
+  </body>
+</html>
