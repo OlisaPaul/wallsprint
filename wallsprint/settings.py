@@ -39,7 +39,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['wallsprint.onrender.com', '127.0.0.1',
                 'wallsprinting-prod-4d5f463b9011.herokuapp.com',
-                'wallsprint-b1r6.onrender.com', 'localhost'
+                'wallsprint-b1r6.onrender.com', 'localhost',
                 'wallsprint.netlify.app']
 
 
