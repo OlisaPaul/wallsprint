@@ -1245,7 +1245,11 @@ class ItemDetailsSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     "This item cannot be edited")
         else:
-            if item.catalog_item.item_type == CatalogItem.BUSINESS_CARD:
+            if item.catalog_item.item_type == CatalogItem.NON_EDITABLE:
+                raise serializers.ValidationError(
+                    "This item cannot be edited")
+
+            elif item.catalog_item.item_type == CatalogItem.BUSINESS_CARD:
                 items_to_check = (("name", name), ("title", title),
                                   ("email_address", email_address))
                 for key, value in items_to_check:
@@ -1579,16 +1583,51 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 
 class CreateOrderItemSerializer(serializers.ModelSerializer):
+    details = ItemDetailsSerializer(required=False)
+
     class Meta:
         model = OrderItem
-        fields = ['id', 'catalog_item', 'quantity']
+        fields = ['id', 'catalog_item', 'quantity', 'details']
 
     def validate(self, attrs):
-        return validate_catalog(self.context, attrs, Order, 'order', self.instance)
+        validated_data = validate_catalog(
+            self.context, attrs, Order, 'order', self.instance)
 
+        # If details are provided, validate them
+        if 'details' in attrs:
+            details_serializer = ItemDetailsSerializer(
+                data=attrs['details'],
+                context={
+                    'id': self.context.get('order_id'),
+                    'model': OrderItem
+                }
+            )
+            details_serializer.is_valid(raise_exception=True)
+
+        return validated_data
+
+    @transaction.atomic
     def create(self, validated_data):
+        details_data = validated_data.pop('details', None)
         validated_data['order_id'] = self.context['order_id']
-        return super().create(validated_data)
+
+        order_item = super().create(validated_data)
+
+        # Create ItemDetails if provided
+        if details_data:
+            details_serializer = ItemDetailsSerializer(
+                data=details_data,
+                context={
+                    'id': order_item.id,
+                    'model': OrderItem
+                }
+            )
+            details_serializer.is_valid(raise_exception=True)
+            details = details_serializer.save()
+            order_item.details = details
+            order_item.save()
+
+        return order_item
 
 
 class UpdateOrderItemSerializer(serializers.ModelSerializer):
