@@ -1225,6 +1225,7 @@ class ItemDetailsSerializer(serializers.ModelSerializer):
                   ]
 
     def validate(self, attrs):
+        is_new = self.context.get('is_new', False)
         id = self.context['id']
         model = self.context['model']
         title = attrs.get('title')
@@ -1237,29 +1238,31 @@ class ItemDetailsSerializer(serializers.ModelSerializer):
             catalog_item__can_be_edited=True
         ).first()
 
-        if not item:
-            if not model.objects.filter(id=id).exists():
-                raise serializers.ValidationError(
-                    "No item with the given ID was found")
-            else:
-                raise serializers.ValidationError(
-                    "This item cannot be edited")
-        else:
-            if item.catalog_item.item_type == CatalogItem.NON_EDITABLE:
-                raise serializers.ValidationError(
-                    "This item cannot be edited")
 
-            elif item.catalog_item.item_type == CatalogItem.BUSINESS_CARD:
-                items_to_check = (("name", name), ("title", title),
-                                  ("email_address", email_address))
-                for key, value in items_to_check:
-                    if not value:
-                        raise serializers.ValidationError(
-                            {key: "This field is required"})
-            elif item.catalog_item.item_type == CatalogItem.OTHERS:
-                if not description:
+        if not is_new:
+            if not item:
+                if not model.objects.filter(id=id).exists():
                     raise serializers.ValidationError(
-                        {"description": "Description is required"})
+                        "No item with the given ID was found")
+                else:
+                    raise serializers.ValidationError(
+                        "This item cannot be edited")
+            else:
+                if item.catalog_item.item_type == CatalogItem.NON_EDITABLE:
+                    raise serializers.ValidationError(
+                        "This item cannot be edited")
+
+                elif item.catalog_item.item_type == CatalogItem.BUSINESS_CARD:
+                    items_to_check = (("name", name), ("title", title),
+                                    ("email_address", email_address))
+                    for key, value in items_to_check:
+                        if not value:
+                            raise serializers.ValidationError(
+                                {key: "This field is required"})
+                elif item.catalog_item.item_type == CatalogItem.OTHERS:
+                    if not description:
+                        raise serializers.ValidationError(
+                            {"description": "Description is required"})
 
         return attrs
 
@@ -1594,15 +1597,15 @@ class CreateOrderItemSerializer(serializers.ModelSerializer):
             self.context, attrs, Order, 'order', self.instance)
 
         # If details are provided, validate them
-        if 'details' in attrs:
-            details_serializer = ItemDetailsSerializer(
-                data=attrs['details'],
-                context={
-                    'id': self.context.get('order_id'),
-                    'model': OrderItem
-                }
-            )
-            details_serializer.is_valid(raise_exception=True)
+        # if 'details' in attrs:
+        #     details_serializer = ItemDetailsSerializer(
+        #         data=attrs['details'],
+        #         context={
+        #             'id': self.context.get('order_id'),
+        #             'model': OrderItem
+        #         }
+        #     )
+        #     details_serializer.is_valid(raise_exception=True)
 
         return validated_data
 
@@ -1619,7 +1622,8 @@ class CreateOrderItemSerializer(serializers.ModelSerializer):
                 data=details_data,
                 context={
                     'id': order_item.id,
-                    'model': OrderItem
+                    'model': OrderItem,
+                    'is_new': False
                 }
             )
             details_serializer.is_valid(raise_exception=True)

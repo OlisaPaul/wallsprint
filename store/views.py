@@ -1013,7 +1013,7 @@ class OrderItemViewSet(ModelViewSet):
 
     def get_serializer_context(self):
         order_id = self.kwargs.get('order_pk')
-        return {"order_id": order_id, 'id': order_id, 'model': OrderItem}
+        return {"order_id": order_id, 'id': order_id, 'model': OrderItem, 'is_new': True}
 
 
 class OnlinePaymentViewSet(ModelViewSet):
