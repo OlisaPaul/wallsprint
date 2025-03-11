@@ -57,7 +57,7 @@
         connect() {
           const protocol =
             window.location.protocol === "https:" ? "wss:" : "ws:";
-          const wsUrl = `${protocol}//${window.location.host}/ws/staff/permissions/`;
+          const wsUrl = `${protocol}//${window.location.host}/ws/customer/permissions/`;
           console.log("Attempting to connect to:", wsUrl); // Debug log
           this.ws = new WebSocket(wsUrl);
 
