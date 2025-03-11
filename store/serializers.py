@@ -14,6 +14,8 @@ from rest_framework import serializers
 from rest_framework.validators import ValidationError
 from io import TextIOWrapper
 from django.core.mail import send_mail
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog, Note, BillingInfo, Shipment, Transaction, ItemDetails
 from .utils import create_instance_with_files, validate_catalog, save_item
 from .signals import file_transferred
@@ -87,6 +89,36 @@ def create_file_fields(num_files, allowed_extensions):
         for i in range(num_files)
     }
 
+
+def _notify_customer_permission_change(customers):
+    """Helper function to send permission updates for users"""
+    channel_layer = get_channel_layer()
+    permissions_updates = [
+        {
+            "user_id": customer.id,
+        }
+        for customer in customers
+    ]
+
+    async_to_sync(channel_layer.group_send)(
+        "customer_permissions",
+        {
+            "type": "bulk_customer_permissions_update",
+            "updates": permissions_updates
+        }
+    )
+
+
+def _implement_permission_change(validated_data, instance):
+     if 'customers' in validated_data or 'customer_groups' in validated_data:
+            affected_customers = set()
+            affected_customers.update(instance.customers.all())
+            for group in instance.customer_groups.all():
+                affected_customers.update(group.customers.all())
+            
+            if affected_customers:
+                _notify_customer_permission_change(list(affected_customers))
+       
 
 class ContactInquirySerializer(serializers.ModelSerializer):
     class Meta:
@@ -443,6 +475,7 @@ class UpdateCustomerSerializer(serializers.ModelSerializer):
 
         if groups:
             customer.groups.set(groups)
+            _notify_customer_permission_change([customer])
 
         if name is not None or isinstance(is_active, bool):
             user = instance.user
@@ -550,6 +583,11 @@ class UpdateCustomerGroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomerGroup
         fields = ['id', 'title', 'customers']
+
+    def update(self, instance, validated_data):
+        customer_group = super().update(instance, validated_data)
+        _notify_customer_permission_change(customer_group.customers.all())
+        return customer_group
 
 
 class BulkCreateCustomerSerializer(serializers.ModelSerializer):
@@ -686,6 +724,13 @@ class UpdatePortalContentSerializer(serializers.ModelSerializer):
             portal_content.customers.set(customer_data)
 
         return portal_content
+    
+    def update(self, instance, validated_data):
+        content = super().update(instance, validated_data)
+
+        _implement_permission_change(validated_data, content)
+
+        return content
 
 
 class CreatePortalSerializer(serializers.ModelSerializer):
@@ -1045,6 +1090,13 @@ class PatchPortalSerializer(serializers.ModelSerializer):
     class Meta:
         model = Portal
         fields = ['title', 'customers', 'customer_groups', 'logo']
+
+    def update(self, instance, validated_data):
+        portal = super().update(instance, validated_data)
+        
+        _implement_permission_change(validated_data, portal)
+        
+        return portal
 
 
 class BulkPortalContentCatalogSerializer(serializers.ListSerializer):
