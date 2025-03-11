@@ -110,15 +110,16 @@ def _notify_customer_permission_change(customers):
 
 
 def _implement_permission_change(validated_data, instance, old_customers):
-     if 'customers' in validated_data or 'customer_groups' in validated_data:
-            affected_customers = set()
-            affected_customers.update(instance.customers.all())
-            affected_customers.update(old_customers)
-            for group in instance.customer_groups.all():
-                affected_customers.update(group.customers.all())
-            
-            if affected_customers:
-                _notify_customer_permission_change(list(affected_customers))
+    if 'customers' in validated_data or 'customer_groups' in validated_data:
+        affected_customers = set()
+        affected_customers.update(instance.customers.all())
+        affected_customers.update(old_customers)
+        for group in instance.customer_groups.all():
+            affected_customers.update(group.customers.all())
+
+        if affected_customers:
+            _notify_customer_permission_change(list(affected_customers))
+
 
 def get_old_customers(instance):
     old_customers = set()
@@ -127,7 +128,7 @@ def get_old_customers(instance):
         old_customers.update(group.customers.only('id'))
 
     return old_customers
-       
+
 
 class ContactInquirySerializer(serializers.ModelSerializer):
     class Meta:
@@ -484,7 +485,7 @@ class UpdateCustomerSerializer(serializers.ModelSerializer):
 
         if type(groups) is list:
             _notify_customer_permission_change([customer])
-            
+
         if groups:
             customer.groups.set(groups)
 
@@ -599,9 +600,9 @@ class UpdateCustomerGroupSerializer(serializers.ModelSerializer):
         old_customers = [*instance.customers.only('id')]
         customer_group = super().update(instance, validated_data)
         customers = set([*customer_group.customers.only("id"), *old_customers])
-        
+
         _notify_customer_permission_change(customers)
-        
+
         return customer_group
 
 
@@ -739,7 +740,7 @@ class UpdatePortalContentSerializer(serializers.ModelSerializer):
             portal_content.customers.set(customer_data)
 
         return portal_content
-    
+
     def update(self, instance, validated_data):
         customers = get_old_customers(instance)
         content = super().update(instance, validated_data)
@@ -1022,7 +1023,7 @@ class ViewPortalContentCatalogSerializer(serializers.ModelSerializer):
 
 class PortalContentSerializer(serializers.ModelSerializer):
     customer_groups = PortalCustomerGroupSerializer(many=True, read_only=True)
-    customers = PortalCustomerSerializer(many=True, read_only=True)
+    customers = serializers.SerializerMethodField()
     can_user_access = serializers.SerializerMethodField()
     groups_count = serializers.SerializerMethodField()
     user_count = serializers.SerializerMethodField()
@@ -1039,27 +1040,22 @@ class PortalContentSerializer(serializers.ModelSerializer):
 
     def get_can_user_access(self, obj):
         return True
-        request = self.context['request']
-        user = request.user
-        # user = User.objects.get(id=request.user.id)
-
-        if user.is_staff:
-            return True
-
-        try:
-            customer = Customer.objects.get(user=user)
-            customer_id = customer.id
-            customer_ids = obj.get_accessible_customers()
-
-            return customer_id in customer_ids
-        except Customer.DoesNotExist:
-            return False
 
     def get_groups_count(self, portal_content: PortalContent):
         return portal_content.customer_groups.count()
 
     def get_user_count(self, portal_content: PortalContent):
         return portal_content.customers.count()
+
+    def get_customers(self, portal_content: PortalContent):
+        customers = portal_content.customers.all()
+        portal = Portal.objects.get(contents=portal_content)
+        portal_customers = portal.customers.all()
+        portal_group_customers = Customer.objects.filter(
+            groups__in=portal.customer_groups.all())
+
+        filtered_customers = customers.intersection(portal_customers).union(customers.intersection(portal_group_customers))
+        return PortalCustomerSerializer(filtered_customers, many=True).data
 
 
 class PortalSerializer(serializers.ModelSerializer):
@@ -1111,7 +1107,7 @@ class PatchPortalSerializer(serializers.ModelSerializer):
         customers = get_old_customers(instance)
         portal = super().update(instance, validated_data)
         _implement_permission_change(validated_data, portal, customers)
-        
+
         return portal
 
 
@@ -1306,7 +1302,6 @@ class ItemDetailsSerializer(serializers.ModelSerializer):
             catalog_item__can_be_edited=True
         ).first()
 
-
         if not is_new:
             if not item:
                 if not model.objects.filter(id=id).exists():
@@ -1322,7 +1317,7 @@ class ItemDetailsSerializer(serializers.ModelSerializer):
 
                 elif item.catalog_item.item_type == CatalogItem.BUSINESS_CARD:
                     items_to_check = (("name", name), ("title", title),
-                                    ("email_address", email_address))
+                                      ("email_address", email_address))
                     for key, value in items_to_check:
                         if not value:
                             raise serializers.ValidationError(
