@@ -109,15 +109,24 @@ def _notify_customer_permission_change(customers):
     )
 
 
-def _implement_permission_change(validated_data, instance):
+def _implement_permission_change(validated_data, instance, old_customers):
      if 'customers' in validated_data or 'customer_groups' in validated_data:
             affected_customers = set()
             affected_customers.update(instance.customers.all())
+            affected_customers.update(old_customers)
             for group in instance.customer_groups.all():
                 affected_customers.update(group.customers.all())
             
             if affected_customers:
                 _notify_customer_permission_change(list(affected_customers))
+
+def get_old_customers(instance):
+    old_customers = set()
+    old_customers.update(instance.customers.only('id'))
+    for group in instance.customer_groups.all():
+        old_customers.update(group.customers.only('id'))
+
+    return old_customers
        
 
 class ContactInquirySerializer(serializers.ModelSerializer):
@@ -473,9 +482,11 @@ class UpdateCustomerSerializer(serializers.ModelSerializer):
 
         customer = super().update(instance, validated_data)
 
+        if type(groups) is list:
+            _notify_customer_permission_change([customer])
+            
         if groups:
             customer.groups.set(groups)
-            _notify_customer_permission_change([customer])
 
         if name is not None or isinstance(is_active, bool):
             user = instance.user
@@ -585,8 +596,12 @@ class UpdateCustomerGroupSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'customers']
 
     def update(self, instance, validated_data):
+        old_customers = [*instance.customers.only('id')]
         customer_group = super().update(instance, validated_data)
-        _notify_customer_permission_change(customer_group.customers.all())
+        customers = set([*customer_group.customers.only("id"), *old_customers])
+        
+        _notify_customer_permission_change(customers)
+        
         return customer_group
 
 
@@ -726,9 +741,10 @@ class UpdatePortalContentSerializer(serializers.ModelSerializer):
         return portal_content
     
     def update(self, instance, validated_data):
+        customers = get_old_customers(instance)
         content = super().update(instance, validated_data)
 
-        _implement_permission_change(validated_data, content)
+        _implement_permission_change(validated_data, content, customers)
 
         return content
 
@@ -1092,9 +1108,9 @@ class PatchPortalSerializer(serializers.ModelSerializer):
         fields = ['title', 'customers', 'customer_groups', 'logo']
 
     def update(self, instance, validated_data):
+        customers = get_old_customers(instance)
         portal = super().update(instance, validated_data)
-        
-        _implement_permission_change(validated_data, portal)
+        _implement_permission_change(validated_data, portal, customers)
         
         return portal
 
