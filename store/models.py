@@ -672,7 +672,13 @@ class CatalogItem(models.Model):
     is_favorite = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     can_be_edited = models.BooleanField(default=False)
-    item_type = models.CharField(max_length=50, default=NON_EDITABLE, choices=ITEM_TYPE_CHOICES)
+    item_type = models.CharField(
+        max_length=50, default=NON_EDITABLE, choices=ITEM_TYPE_CHOICES)
+    width = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0, blank=True, null=True)
+    height = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0, blank=True, null=True)
+    empty_image = CloudinaryField(blank=True, null=True)
 
     def __str__(self):
         return self.title
@@ -842,7 +848,8 @@ class Order(BaseTransaction):
     placed_at = models.DateTimeField(auto_now_add=True)
     payment_status = models.CharField(
         max_length=1, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_STATUS_PENDING)
-    customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True)
+    customer = models.ForeignKey(
+        Customer, on_delete=models.SET_NULL, null=True)
     date_needed = models.DateField(default=timezone.now)
     address = models.CharField(max_length=255)
     po_number = models.CharField(max_length=100)
@@ -870,7 +877,8 @@ class OrderItem(models.Model):
     catalog_item = models.ForeignKey(
         CatalogItem, on_delete=models.CASCADE, related_name="orderitems")
     quantity = models.PositiveSmallIntegerField()
-    tax = models.DecimalField(max_digits=6, decimal_places=2, default=Decimal(0))
+    tax = models.DecimalField(
+        max_digits=6, decimal_places=2, default=Decimal(0))
     status = models.CharField(
         max_length=50, default=PENDING, choices=STATUS_CHOICES)
     unit_price = models.DecimalField(max_digits=6, decimal_places=2)
@@ -885,7 +893,7 @@ class OrderItem(models.Model):
         quantity_to_subtract = self.quantity
         is_new = self._state.adding
         catalog_item = self.catalog_item
-            
+
         if catalog_item and self.quantity and ((is_new and not self.unit_price) or not is_new):
             pricing_grid = catalog_item.pricing_grid
             item = next(
@@ -894,7 +902,7 @@ class OrderItem(models.Model):
             if item:
                 self.unit_price = item['unit_price']
                 self.sub_total = item['minimum_quantity'] * self.unit_price
-            
+
             if catalog_item.track_inventory_automatically:
                 if not is_new:
                     order_item = OrderItem.objects.get(pk=self.pk)
@@ -903,7 +911,7 @@ class OrderItem(models.Model):
                         catalog_item.available_inventory += new_quantity
                 else:
                     catalog_item.available_inventory -= quantity_to_subtract
-            
+
                 catalog_item.save()
 
         return super().save(force_insert, force_update, using, update_fields)
@@ -922,7 +930,8 @@ class OnlinePayment(models.Model):
         choices=PAYMENT_METHOD_CHOICES,
         verbose_name="Payment Method"
     )
-    invoice_number = models.CharField(max_length=100, verbose_name="Invoice #", blank=True, null=True)
+    invoice_number = models.CharField(
+        max_length=100, verbose_name="Invoice #", blank=True, null=True)
     po_number = models.CharField(
         max_length=100, verbose_name="P.O. #")
     amount = models.DecimalField(
@@ -958,17 +967,63 @@ class FileExchange(models.Model):
         return f"Transfer to {self.recipient_name} from {self.name}"
 
 
-# class CartDetails(models.Model):
-#     cart_item = models.OneToOneField(
-#         CartItem, on_delete=models.CASCADE, related_name='details')
-#     title = models.CharField(max_length=255)
-#     name = models.CharField(max_length=255)
-#     email_address = models.EmailField()
-#     phone_number = models.CharField(max_length=20, blank=True, null=True)
-#     office_number = models.CharField(max_length=20, blank=True, null=True)
-#     extension = models.CharField(max_length=20, blank=True, null=True)
-#     description = models.TextField(blank=True, null=True)
-#     created_at = models.DateTimeField(auto_now_add=True)
+class TemplateField(models.Model):
+    """
+    Model for template fields with positioning and styling information.
+    Used for customizable templates like business cards.
+    """
+    field_name = models.CharField(max_length=100)
+    field_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('text', 'Text'),
+            ('image', 'Image'),
+            ('date', 'Date'),
+            ('email', 'Email'),
+            ('phone', 'Phone'),
+        ],
+        default='text'
+    )
+    default_value = models.CharField(max_length=255, blank=True, null=True)
 
-#     def __str__(self):
-#         return f"Details for Cart {self.cart_item.id}"
+    # Position coordinates
+    position_x = models.IntegerField(default=0)
+    position_y = models.IntegerField(default=0)
+
+    # Styling properties
+    font_size = models.IntegerField(default=12)
+    font_color = models.CharField(max_length=20, default="#000000")
+    font_family = models.CharField(max_length=50, default="Arial")
+    bold = models.BooleanField(default=False)
+    italic = models.BooleanField(default=False)
+
+    # Dimensions
+    width = models.IntegerField(default=100)
+    height = models.IntegerField(default=30)
+
+    # Constraints
+    max_length = models.IntegerField(default=255)
+
+    # Relationships
+    catalog_item = models.ForeignKey(
+        CatalogItem,
+        on_delete=models.CASCADE,
+        related_name='template_fields',
+        null=True
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.field_name} - {self.catalog_item}"
+
+    def get_position(self):
+        """Returns the position as a dictionary"""
+        return {"x": self.position_x, "y": self.position_y}
+
+    def set_position(self, position_dict):
+        """Sets the position from a dictionary"""
+        if isinstance(position_dict, dict):
+            self.position_x = position_dict.get('x', 0)
+            self.position_y = position_dict.get('y', 0)

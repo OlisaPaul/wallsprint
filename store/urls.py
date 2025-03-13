@@ -15,7 +15,8 @@ router.register('online-proofs', views.OnlineProofViewSet,
                 basename='online-proofs'),
 router.register('images', views.ImageViewSet, basename='images'),
 router.register('catalogs', views.CatalogViewSet, basename='catalogs'),
-router.register('catalog-items', views.CatalogItemViewSet, basename='catalog-items'),
+router.register('catalog-items', views.CatalogItemViewSet,
+                basename='catalog-items'),
 router.register("orders", views.OrderViewSet, basename='orders')
 # router.register(r'catalog-items', views.CatalogItemViewSet, basename='catalog-item')
 router.register('portals', views.PortalViewSet, basename='portals'),
@@ -60,8 +61,10 @@ file_transfers_router.register(
 )
 orders_router = routers.NestedDefaultRouter(router, 'orders', lookup='order')
 orders_router.register('notes', views.NoteViewSet, basename='order-notes')
-orders_router.register('shipments', views.ShipmentViewSet, basename='order-shipments')
-orders_router.register('transactions', views.TransactionViewSet, basename='order-transactions')
+orders_router.register('shipments', views.ShipmentViewSet,
+                       basename='order-shipments')
+orders_router.register(
+    'transactions', views.TransactionViewSet, basename='order-transactions')
 orders_router.register('items', views.OrderItemViewSet, basename='order-items')
 requests_router.register(
     'shipments', views.ShipmentViewSet, basename='request-shipments'
@@ -94,17 +97,19 @@ catalog_items_router = routers.NestedDefaultRouter(
 catalog_items_router.register(
     'attributes', views.AttributeViewSet, basename='attributes'
 )
+catalog_items_router.register(
+    'template-fields', views.TemplateFieldViewSet, basename='template-fields')
+
 attributes_router = routers.NestedDefaultRouter(
     catalog_items_router, 'attributes', lookup='attribute')
 attributes_router.register(
     'options', views.AttributeOptionViewSet, basename='attribute-options'
-) 
+)
 
 order_items_router = routers.NestedDefaultRouter(
     orders_router, 'items', lookup='order_item')
 order_items_router.register(
     'details', views.ItemDetailsViewSet, basename='order-details')
-
 
 # URLConf
 urlpatterns = router.urls + portals_router.urls + \
