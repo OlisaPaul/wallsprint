@@ -16,7 +16,7 @@ from io import TextIOWrapper
 from django.core.mail import send_mail
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog, Note, BillingInfo, Shipment, Transaction, ItemDetails
+from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog, Note, BillingInfo, Shipment, Transaction, ItemDetails, TemplateField
 from .utils import create_instance_with_files, validate_catalog, save_item
 from .signals import file_transferred
 from decimal import Decimal
@@ -1054,7 +1054,8 @@ class PortalContentSerializer(serializers.ModelSerializer):
         portal_group_customers = Customer.objects.filter(
             groups__in=portal.customer_groups.all())
 
-        filtered_customers = customers.intersection(portal_customers).union(customers.intersection(portal_group_customers))
+        filtered_customers = customers.intersection(portal_customers).union(
+            customers.intersection(portal_group_customers))
         return PortalCustomerSerializer(filtered_customers, many=True).data
 
 
@@ -1371,9 +1372,43 @@ class ItemDetailsSerializer(serializers.ModelSerializer):
 #             cart_item=cart_item, **validated_data)
 #         return cart_details
 
+class TemplateFieldSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TemplateField
+        fields = ['id', 'field_name', 'field_type', 'default_value',
+                  'position_x', 'position_y', 'font_size', 'font_color',
+                  'font_family', 'bold', 'italic', 'width', 'height',
+                  'max_length', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
+
+    def validate(self, attrs):
+        # Get the catalog item from context
+        catalog_item_id = self.context.get('catalog_item_id')
+        if catalog_item_id:
+            try:
+                catalog_item = CatalogItem.objects.get(id=catalog_item_id)
+                if catalog_item.item_type != CatalogItem.BUSINESS_CARD:
+                    raise serializers.ValidationError(
+                        "Template fields can only be associated with Business Card catalog items."
+                    )
+            except CatalogItem.DoesNotExist:
+                raise serializers.ValidationError(
+                    "Catalog item does not exist.")
+
+        return attrs
+
+    @transaction.atomic()
+    def create(self, validated_data):
+        catalog_item_id = self.context.get('catalog_item_id')
+        if catalog_item_id:
+            validated_data['catalog_item_id'] = catalog_item_id
+
+        return super().create(validated_data)
+
 
 class CatalogItemSerializer(serializers.ModelSerializer):
     attributes = AttributeSerializer(many=True, read_only=True)
+    template_fields = TemplateFieldSerializer(many=True, read_only=True)
     preview_image = serializers.SerializerMethodField()
     preview_file = serializers.SerializerMethodField()
     thumbnail = serializers.SerializerMethodField()
@@ -1382,7 +1417,8 @@ class CatalogItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = CatalogItem
         fields = catalog_item_fields + \
-            ['created_at', 'can_be_edited', 'catalog']
+            ['created_at', 'can_be_edited', 'catalog', 'width',
+                'height', 'empty_image', 'template_fields']
 
     def get_url(self, field):
         cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
@@ -1406,19 +1442,75 @@ class CatalogItemSerializer(serializers.ModelSerializer):
 
     def get_thumbnail(self, catalog_item: CatalogItem):
         return self.get_url(catalog_item.thumbnail)
+    
+
+
+class CreateTemplateFieldSerializer(serializers.ModelSerializer):
+    position = serializers.JSONField(write_only=True, required=False)
+
+    class Meta:
+        model = TemplateField
+        fields = ['id', 'field_name', 'field_type', 'default_value',
+                  'position', 'font_size', 'font_color',
+                  'font_family', 'bold', 'italic', 'width', 'height',
+                  'max_length']
+
+    def validate(self, attrs):
+        # Get the catalog item from context
+        catalog_item_id = self.context.get('catalog_item_id')
+        if catalog_item_id:
+            try:
+                catalog_item = CatalogItem.objects.get(id=catalog_item_id)
+                if catalog_item.item_type != CatalogItem.BUSINESS_CARD:
+                    raise serializers.ValidationError(
+                        "Template fields can only be associated with Business Card catalog items."
+                    )
+            except CatalogItem.DoesNotExist:
+                raise serializers.ValidationError(
+                    "Catalog item does not exist.")
+
+        # Handle position JSON field
+        position = attrs.pop('position', None)
+        if position:
+            if not isinstance(position, dict):
+                raise serializers.ValidationError(
+                    {"position": "Position must be a dictionary with x and y coordinates."})
+
+            attrs['position_x'] = position.get('x', 0)
+            attrs['position_y'] = position.get('y', 0)
+
+        return attrs
+
+    @transaction.atomic()
+    def create(self, validated_data):
+        catalog_item_id = self.context.get('catalog_item_id')
+        if catalog_item_id:
+            validated_data['catalog_item_id'] = catalog_item_id
+
+        return super().create(validated_data)
 
 
 class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
     preview_image = serializers.ImageField()
     thumbnail = serializers.ImageField()
     preview_file = serializers.FileField()
+    empty_image = serializers.ImageField(required=False)
     attributes = AttributeSerializer(many=True, read_only=True)
     attribute_data = serializers.JSONField(write_only=True, required=False)
+    template_fields = serializers.JSONField(required=False, write_only=True)
 
     class Meta:
         model = CatalogItem
         fields = catalog_item_fields + \
-            ['attribute_data', 'can_be_edited', 'item_type']
+            ['attribute_data', 'can_be_edited', 'item_type',
+                'height', 'width', 'empty_image', 'template_fields']
+        
+    def validate_template_fields(self, template_fields):
+        if template_fields:
+            for template_field in template_fields:
+                serializer = CreateTemplateFieldSerializer(data=template_field)
+                serializer.is_valid(raise_exception=True)
+            return template_fields
 
     def validate_attribute_data(self, attributes_data):
         if attributes_data and self.instance:
@@ -1437,11 +1529,27 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
         if not Catalog.objects.filter(pk=catalog_id).exists():
             raise serializers.ValidationError(
                 "No catalog with the given catalog_id was found")
+
+        item_type = attrs.get('item_type', getattr(self.instance, 'item_type', None))
+        height = attrs.get('height', getattr(self.instance, 'height', None))
+        width = attrs.get('width', getattr(self.instance, 'width', None)) 
+        empty_image = attrs.get('empty_image', getattr(self.instance, 'empty_image', None))
+
+        if item_type != CatalogItem.BUSINESS_CARD:
+            if any([height, width, empty_image]):
+                raise serializers.ValidationError(
+                    "Height, width and empty_image can only be set for business card items")
+        # else:
+        #     if not all([height, width, empty_image]):
+        #         raise serializers.ValidationError(
+        #             "Height, width and empty_image are required for business card items")
+
         return attrs
 
     @transaction.atomic()
     def create(self, validated_data):
         attributes_data = validated_data.pop('attribute_data', [])
+        template_fields = validated_data.pop('template_fields', [])
         self.validate_attribute_data(attributes_data)
         catalog_id = self.context['catalog_id']
         catalog_item = CatalogItem.objects.create(
@@ -1449,6 +1557,17 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
 
         options_to_bulk_create = []
 
+        if template_fields:
+            template_fields = CreateTemplateFieldSerializer(
+                data=template_fields,
+                context={
+                    'catalog_item_id': catalog_item.id,
+                },
+                many=True
+            )
+            template_fields.is_valid(raise_exception=True)
+            template_fields.save()
+           
         for attribute_data in attributes_data:
             options_data = attribute_data.pop('options', [])
             attribute = Attribute.objects.create(

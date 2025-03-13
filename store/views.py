@@ -15,8 +15,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny,  IsAuthenticated, IsAdminUser
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, DestroyModelMixin
-from .models import Cart, CartItem, CatalogItem, ContactInquiry, PortalContentCatalog, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, Portal, Order, OrderItem, Note, ContentType, BillingInfo, Shipment, Transaction, PortalContent, Catalog
-from .serializers import AddCartItemSerializer, CartItemSerializer, CartSerializer, CatalogItemSerializer, ContactInquirySerializer, CreateOrderSerializer, OrderSerializer, PortalContentCatalogSerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCartItemSerializer, UpdateCustomerSerializer, UpdateOrderSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, PortalSerializer, customer_fields, CreateOrUpdateCatalogItemSerializer, NoteSerializer, BillingInfoSerializer, ShipmentSerializer, TransactionSerializer, CopyCatalogSerializer, CopyCatalogItemSerializer, CopyPortalSerializer
+from .models import Cart, CartItem, CatalogItem, ContactInquiry, PortalContentCatalog, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, Portal, Order, OrderItem, Note, ContentType, BillingInfo, Shipment, Transaction, PortalContent, Catalog, TemplateField
+from .serializers import AddCartItemSerializer, CartItemSerializer, CartSerializer, CatalogItemSerializer, ContactInquirySerializer, CreateOrderSerializer, OrderSerializer, PortalContentCatalogSerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCartItemSerializer, UpdateCustomerSerializer, UpdateOrderSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, PortalSerializer, customer_fields, CreateOrUpdateCatalogItemSerializer, NoteSerializer, BillingInfoSerializer, ShipmentSerializer, TransactionSerializer, CopyCatalogSerializer, CopyCatalogItemSerializer, CopyPortalSerializer, TemplateFieldSerializer, CreateTemplateFieldSerializer
 from .permissions import FullDjangoModelPermissions, create_permission_class
 from .mixins import HandleImagesMixin
 from .utils import get_queryset_for_models_with_files, get_base_url
@@ -804,14 +804,14 @@ class CatalogItemViewSet(ModelViewSet):
         portal_id = self.request.query_params.get('portal_id')
         if not portal_id:
             return Response({'detail': 'Portal ID query parameter is required.'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         queryset = CatalogItem.objects.filter(
             catalog__portal_contents__portal_id=portal_id
         ).prefetch_related('attributes__options').select_related('catalog')
 
         serializer = CatalogItemSerializer(queryset, many=True)
         return Response(serializer.data)
-    
+
     @transaction.atomic()
     @action(detail=True, methods=['post'])
     def copy(self, request, pk=None, catalog_pk=None):
@@ -904,7 +904,7 @@ class CartViewSet(CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, Gener
 
         serializer = self.get_serializer(cart)
         return Response(serializer.data)
-    
+
     @action(detail=False, methods=['get'], url_path='customer-carts')
     def get_customer_carts(self, request):
         user = self.request.user
@@ -1025,10 +1025,10 @@ class OnlinePaymentViewSet(ModelViewSet):
 
     def get_customer(self):
         try:
-            self.customer = Customer.objects.only('id').get(user=self.request.user)
+            self.customer = Customer.objects.only(
+                'id').get(user=self.request.user)
         except Customer.DoesNotExist:
             self.customer = None
-        
 
     def get_serializer_context(self):
         if not hasattr(self, 'customer'):
@@ -1038,13 +1038,13 @@ class OnlinePaymentViewSet(ModelViewSet):
     def create(self, request, *args, **kwargs):
         if not hasattr(self, 'customer'):
             self.get_customer()
-        
+
         if not self.customer:
             return Response(
                 {"detail": "You do not have permission to access this resource"},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         return super().create(request, *args, **kwargs)
 
 
@@ -1139,7 +1139,7 @@ class ItemDetailsViewSet(ModelViewSet):
             return models.ItemDetails.objects.filter(cart_items__id=item_id)
         elif oder_item_id:
             return models.ItemDetails.objects.filter(order_items__id=oder_item_id)
-    
+
     def get_serializer_context(self, *args, **kwargs):
         order_item_id = self.kwargs.get('order_item_pk')
         cart_item_id = self.kwargs.get('item_pk')
@@ -1148,7 +1148,6 @@ class ItemDetailsViewSet(ModelViewSet):
 
         return {'model': model, 'id': id}
 
-    
 
 class AttributeViewSet(ModelViewSet):
     def get_serializer_context(self):
@@ -1175,3 +1174,27 @@ class AttributeOptionViewSet(ModelViewSet):
         return models.AttributeOption.objects.filter(item_attribute_id=attribute_id)
 
     serializer_class = serializers.AttributeOptionSerializer
+
+
+class TemplateFieldViewSet(ModelViewSet):
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CreateTemplateFieldSerializer
+        return TemplateFieldSerializer
+
+    def get_queryset(self):
+        catalog_item_id = self.kwargs.get('catalog_item_pk')
+        return TemplateField.objects.filter(catalog_item_id=catalog_item_id)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['catalog_item_id'] = self.kwargs.get('catalog_item_pk')
+        return context
+
+    def create(self, request, *args, **kwargs):
+        # Check if the input data is a list for bulk creation
+        is_many = isinstance(request.data, list)
+        serializer = self.get_serializer(data=request.data, many=is_many)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
