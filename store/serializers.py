@@ -16,7 +16,7 @@ from io import TextIOWrapper
 from django.core.mail import send_mail
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog, Note, BillingInfo, Shipment, Transaction, ItemDetails, TemplateField
+from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog, Note, BillingInfo, Shipment, Transaction, ItemDetails, TemplateField, EditableCatalogItemFile
 from .utils import create_instance_with_files, validate_catalog, save_item
 from .signals import file_transferred
 from decimal import Decimal
@@ -1484,8 +1484,11 @@ class CreateTemplateFieldSerializer(serializers.ModelSerializer):
     @transaction.atomic()
     def create(self, validated_data):
         catalog_item_id = self.context.get('catalog_item_id')
+        editable_item_id = self.context.get('editable_item_id')
         if catalog_item_id:
             validated_data['catalog_item_id'] = catalog_item_id
+        if editable_item_id:
+            validated_data['editable_item_id'] = editable_item_id
 
         return super().create(validated_data)
 
@@ -2171,3 +2174,66 @@ class CopyPortalSerializer(serializers.Serializer):
                 "You cannot provide 'customers' or 'customer_groups' when 'same_permissions' is true.")
 
         return data
+
+class BusinessCardSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100, default="John Doe")
+    phone = serializers.CharField(max_length=20, default="+123-456-7890")
+    email = serializers.EmailField(default="john@example.com")
+    business_name = serializers.CharField(max_length=150, default="GreenTech Solutions")
+    format = serializers.ChoiceField(choices=["svg", "png"], default="svg")
+
+class CreateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
+    file = serializers.FileField(
+        validators=[FileExtensionValidator(allowed_extensions=['cdr', 'psd'])]
+    )
+    template_fields = serializers.JSONField(required=False, write_only=True)
+    file_name = serializers.CharField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+
+    class Meta:
+        model = EditableCatalogItemFile
+        fields = ['id', 'file', 'description', 'sides', 'catalog', 'file_name', 'created_at', "template_fields"]
+    
+    def validate_file(self, value):
+        if value.size > 10 * 1024 * 1024:  # 10MB in bytes
+            raise serializers.ValidationError("File size cannot exceed 10MB")
+        return value
+    
+    @transaction.atomic()
+    def create(self, validated_data):
+        file = validated_data.get('file')
+        file_name = file.name
+        validated_data['file_name'] = file_name
+        template_fields = validated_data.pop('template_fields', None)
+        editable_item_file = super().create(validated_data)
+
+        if template_fields:
+            template_fields = CreateTemplateFieldSerializer(
+                context={
+                    'editable_item_id': editable_item_file.id
+                },
+                data=template_fields,
+                many=True
+            )
+            template_fields.is_valid(raise_exception=True)
+            template_fields.save()
+
+        return editable_item_file
+    
+class TemplateFieldSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TemplateField
+        fields = ['id', 'field_name', 'field_type', 'default_value',
+                  'position_x', 'position_y']
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class EditableCatalogItemFileSerializer(serializers.ModelSerializer):
+    template_fields = TemplateFieldSerializer(many=True, read_only=True)
+    catalog = SimpleCatalogSerializer()
+
+    class Meta:
+        model = EditableCatalogItemFile
+        fields = ['id', 'file', 'description', 'sides', 'catalog', 'file_name', 'created_at', "template_fields"]
+    
+    

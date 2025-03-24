@@ -30,10 +30,10 @@ celery = "*"
 flower = "*"
 django-celery-beat = "*"
 django-silk = "*"
-pillow = "*"
 django-ipware = "*"
 daphne = "*"
 channels = "*"
+pillow = "*"
 
 [dev-packages]
 

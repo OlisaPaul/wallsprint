@@ -1,11 +1,16 @@
 import csv
 import os
+import subprocess
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import render
 from django.db import models
 from django.shortcuts import get_object_or_404
 from django.utils.dateparse import parse_datetime
+from django.http import HttpResponse
+from django.template import Template, Context
+from django.views.decorators.csrf import csrf_exempt
+import io
 from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.views import APIView
@@ -16,7 +21,7 @@ from rest_framework.permissions import AllowAny,  IsAuthenticated, IsAdminUser
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, DestroyModelMixin
 from .models import Cart, CartItem, CatalogItem, ContactInquiry, PortalContentCatalog, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, Portal, Order, OrderItem, Note, ContentType, BillingInfo, Shipment, Transaction, PortalContent, Catalog, TemplateField
-from .serializers import AddCartItemSerializer, CartItemSerializer, CartSerializer, CatalogItemSerializer, ContactInquirySerializer, CreateOrderSerializer, OrderSerializer, PortalContentCatalogSerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCartItemSerializer, UpdateCustomerSerializer, UpdateOrderSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, PortalSerializer, customer_fields, CreateOrUpdateCatalogItemSerializer, NoteSerializer, BillingInfoSerializer, ShipmentSerializer, TransactionSerializer, CopyCatalogSerializer, CopyCatalogItemSerializer, CopyPortalSerializer, TemplateFieldSerializer, CreateTemplateFieldSerializer
+from .serializers import AddCartItemSerializer, CartItemSerializer, CartSerializer, CatalogItemSerializer, ContactInquirySerializer, CreateOrderSerializer, OrderSerializer, PortalContentCatalogSerializer, QuoteRequestSerializer, CreateQuoteRequestSerializer, FileSerializer, CreateCustomerSerializer, CustomerSerializer, CreateRequestSerializer, RequestSerializer, FileTransferSerializer, CreateFileTransferSerializer, UpdateCartItemSerializer, UpdateCustomerSerializer, UpdateOrderSerializer, User, CSVUploadSerializer, CustomerGroupSerializer, CreateCustomerGroupSerializer, PortalSerializer, customer_fields, CreateOrUpdateCatalogItemSerializer, NoteSerializer, BillingInfoSerializer, ShipmentSerializer, TransactionSerializer, CopyCatalogSerializer, CopyCatalogItemSerializer, CopyPortalSerializer, TemplateFieldSerializer, CreateTemplateFieldSerializer, BusinessCardSerializer
 from .permissions import FullDjangoModelPermissions, create_permission_class
 from .mixins import HandleImagesMixin
 from .utils import get_queryset_for_models_with_files, get_base_url
@@ -30,6 +35,166 @@ CustomerServicePermissions = create_permission_class('store.customers')
 WebsiteUsersPermissions = create_permission_class('store.website_users')
 OrderPermissions = create_permission_class('store.order')
 MessageCenterPermissions = create_permission_class('store.message_center')
+
+SVG_TEMPLATE = """
+<svg width="1050" height="600" viewBox="0 0 1050 600" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background Colors -->
+    <rect width="1050" height="600" fill="#ffffff"/>
+    <rect x="0" width="15" height="600" fill="#2ca67a"/>
+    <rect x="575" width="475" height="600" fill="#2ca67a"/>
+    <rect x="525" width="50" height="600" fill="#322785"/>
+
+
+  <g transform="translate(140, 150) scale(0.4, 0.4)"><linearGradient id="SVGID_1_" gradientUnits="userSpaceOnUse" x1="-55.5913" y1="612.7208" x2="57.5217" y2="601.5848" gradientTransform="matrix(7.8769 0 0 -7.8769 364.0571 4969.665)">
+	<stop  offset="0" style="stop-color:#2ca67a"/>
+	<stop  offset="0.7" style="stop-color:#2ca67a"/>
+	<stop  offset="1" style="stop-color:#322785"/>
+</linearGradient>
+<path style="fill:url(#SVGID_1_);" d="M496.23,164.848C469.464,97.988,422.565,40.014,360.936,0.055
+	C202.893-2.757,58.06,103.234,18.109,263.12c-6.215,24.836-9.444,49.735-10.201,74.295
+	c64.307-157.113,235.89-247.375,405.465-205.028C442.982,139.807,470.693,150.85,496.23,164.848z"/>
+<linearGradient id="SVGID_2_" gradientUnits="userSpaceOnUse" x1="18.6217" y1="619.6128" x2="-0.1313" y2="621.1128" gradientTransform="matrix(7.8769 0 0 -7.8769 364.0571 4969.665)">
+	<stop  offset="0" style="stop-color:#2ca67a"/>
+	<stop  offset="1" style="stop-color:#322785"/>
+</linearGradient>
+<path style="fill:url(#SVGID_2_);" d="M413.373,132.387c29.617,7.42,57.32,18.471,82.865,32.461
+	C469.464,97.988,422.565,40.014,360.936,0.055"/>
+<linearGradient id="SVGID_3_" gradientUnits="userSpaceOnUse" x1="45.5114" y1="599.6661" x2="-67.7786" y2="573.0361" gradientTransform="matrix(7.8769 0 0 -7.8769 364.0571 4969.665)">
+	<stop  offset="0.012" style="stop-color:#2ca67a"/>
+	<stop  offset="0.6" style="stop-color:#2ca67a"/>
+	<stop  offset="1" style="stop-color:#322785"/>
+</linearGradient>
+<path style="fill:url(#SVGID_3_);" d="M7.892,339.29c26.766,66.859,73.689,124.841,135.294,164.777
+	c158.043,2.812,302.876-103.164,342.827-263.058c6.246-24.82,9.476-49.719,10.201-74.311
+	C431.923,323.843,260.34,414.097,90.75,371.719C61.156,364.347,33.429,353.295,7.892,339.29z"/>
+<linearGradient id="SVGID_4_" gradientUnits="userSpaceOnUse" x1="-53.4781" y1="579.2757" x2="-31.2281" y2="576.7737" gradientTransform="matrix(7.8769 0 0 -7.8769 364.0571 4969.665)">
+	<stop  offset="0" style="stop-color:#2ca67a"/>
+	<stop  offset="1" style="stop-color:#322785"/>
+</linearGradient>
+<path style="fill:url(#SVGID_4_);" d="M90.75,371.727c-29.601-7.389-57.32-18.44-82.865-32.437
+	c26.766,66.859,73.689,124.841,135.294,164.777"/>
+
+</g>
+
+    <!-- Icons Section -->
+    <g transform="translate(517.2, 125) scale(0.9, 1)">
+        <path fill="white" d="M49.6 56c0-3.2-.4-4-3.9-4.3c-.6 0-1-.5-1-1.1V49c0-.4.2-.8.6-1c4.3-2.9 7.1-7.8 7.1-13.3l.1-.7c.1-.5.5-.9 1-1c1.4-.3 2.6-1.4 2.9-2.8c.4-2.1-1-3.9-2.9-4.3c-.3-.1-.5-.4-.5-.7l.4-6.4c.2-24.5-35.3-24.8-35.5-.4l.6 7c0 .3-.1.5-.4.6c-1.6.6-2.7 2.4-2.2 4.3c.3 1.3 1.6 2.2 3 2.6c.6.1 1 .6 1 1.2v.6c0 5.6 2.9 10.6 7.3 13.5c.2.1.3.3.3.5v2c0 .5-.4 1-1 1c-3.6.2-4 1.1-4.1 4.2c-.1.1-.2.3-.3.4c-6 2.5-10.4 6.1-10.2 14.8c0 .5.4.9 1 .9h46.2c.5 0 1-.4 1-.9c.1-8.7-4.1-12-10.1-14.6c-.1-.2-.2-.3-.4-.5z"/>
+    </g>
+
+    <g transform="translate(525, 235) scale(2, 2)">
+        <path fill="white" d="M20.19,13a10,10,0,0,1-3.43-.91,2,2,0,0,0-2.56.83l-.51.85a12.69,12.69,0,0,1-3.44-3.45l.86-.49a2,2,0,0,0,.83-2.56A10,10,0,0,1,11,3.81,2,2,0,0,0,9,2H5.13A3,3,0,0,0,2.86,3a3.13,3.13,0,0,0-.71,2.43A19,19,0,0,0,18.58,21.85a3,3,0,0,0,.42, 0,3,3,0,0,0,2-.73,3,3,0,0,0,1-2.26V15A2,2,0,0,0,20.19,13Z"/>
+    </g>
+
+    <g transform="translate(525, 330) scale(0.1, 0.1)">
+        <path fill="white" d="M64 128Q64 113 73 105 81 96 96 96L416 96Q431 96 440 105 448 113 448 128L448 144 256 272 64 144 64 128ZM256 328L448 200 448 384Q448 416 416 416L96 416Q64 416 64 384L64 200 256 328Z"/>
+    </g>
+
+    <g transform="translate(525, 434) scale(2, 2.1)">
+        <path d="M12 21C15.5 17.4 19 14.1764 19 10.2C19 6.2235 15.866 3 12 3C8.13401 3 5 6.22355 5 10.2C5 14.1764 8.5 17.4 12 21Z" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </g>
+
+    <!-- Dynamic Text Section -->
+    <text x="100" y="400" font-family="Arial" font-size="40" fill="#322785" font-weight="bold">{{business_name}}</text>
+    <text x="625" y="150" font-family="Arial" font-size="40" fill="white" font-weight="bold">{{name}}</text>
+    <text x="625" y="190" font-family="Arial" font-size="25" fill="white">{{job_title}}</text>
+    
+    <text x="625" y="250" font-family="Arial" font-size="25" fill="white">{{phone_1}}</text>
+    <text x="625" y="280" font-family="Arial" font-size="25" fill="white">{{phone_2}}</text>
+    
+    <text x="625" y="350" font-family="Arial" font-size="25" fill="white">{{website}}</text>
+    <text x="625" y="380" font-family="Arial" font-size="25" fill="white">{{email}}</text>
+    
+    <text x="625" y="450" font-family="Arial" font-size="25" fill="white">{{address}}</text>
+</svg>
+"""
+
+
+class BusinessCardViewSet(viewsets.ViewSet):
+    def create(self, request):
+        """
+        Handle POST request to generate a business card as an SVG or PNG.
+        """
+        serializer = BusinessCardSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        validated_data = serializer.validated_data
+        name = validated_data["name"]
+        phone = validated_data["phone"]
+        email = validated_data["email"]
+        business_name = validated_data["business_name"]
+        output_format = validated_data["format"]
+
+        # Render the SVG template
+        template = Template(SVG_TEMPLATE)
+        context = Context({
+            "name": name,
+            "phone": phone,
+            "email": email,
+            "business_name": business_name,
+        })
+        svg_output = template.render(context)
+
+        if output_format == "png":
+            # Convert SVG to PNG using rsvg-convert (Alternative: Inkscape)
+            process = subprocess.run(
+                ["rsvg-convert", "-f", "png"],
+                input=svg_output.encode("utf-8"),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            if process.returncode != 0:
+                return Response({"error": "Failed to convert SVG to PNG"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            return HttpResponse(process.stdout, content_type="image/png")
+
+        print(svg_output)
+        return HttpResponse(svg_output, content_type="image/svg+xml")
+
+
+@csrf_exempt  # Remove this if using CSRF tokens properly
+def generate_business_card(request):
+    # if request.method != "POST":
+    #     return HttpResponse("Invalid request method. Use POST.", status=405)
+
+    # Get data from POST request
+    name = request.GET.get("name", "John Doe")
+    phone_1 = request.GET.get("phone_1", "+123-456-7890")
+    phone_2 = request.GET.get("phone_2", "+123-496-7890")
+    email = request.GET.get("email", "john@example.com")
+    business_name = request.GET.get("business_name", "GreenTech Solutions")
+    job_title = request.GET.get('job_title', "HR.")
+    address = request.GET.get('address_line1', "HR.")
+    output_format = request.GET.get("format", "svg")
+
+    # Render the SVG template
+    template = Template(SVG_TEMPLATE)
+    context = Context({
+        "name": name,
+        "email": email,
+        "phone_1": phone_1,
+        "phone_2": phone_2,
+        "business_name": business_name,
+        "job_title": job_title,
+        "address": address
+    })
+    svg_output = template.render(context)
+    print(template)
+
+    if output_format == "png":
+        # Convert SVG to PNG using rsvg-convert
+        process = subprocess.run(
+            ["rsvg-convert", "-f", "png"],
+            input=svg_output.encode("utf-8"),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        if process.returncode != 0:
+            return HttpResponse("Error converting SVG to PNG", status=500)
+
+        return HttpResponse(process.stdout, content_type="image/png")
+
+    return HttpResponse(svg_output, content_type="image/svg+xml")
 
 
 model_map = {
@@ -1198,3 +1363,15 @@ class TemplateFieldViewSet(ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class EditableCatalogItemViewSet(ModelViewSet):
+    queryset = models.EditableCatalogItemFile.objects.all().prefetch_related(
+        'template_fields').select_related('catalog')
+    serializer_class = serializers.CreateEditableCatalogItemFileSerializer
+    permission_classes = [IsAdminUser]
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return serializers.CreateEditableCatalogItemFileSerializer
+        return serializers.EditableCatalogItemFileSerializer
