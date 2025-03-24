@@ -31,6 +31,7 @@ router.register('online-payments', views.OnlinePaymentViewSet,
                 basename='online-payments'),
 router.register('contact-us', views.ContactInquiryViewSet,
                 basename='contact-us'),
+router.register('editable-files', views.EditableCatalogItemViewSet, basename='editable-files')
 portals_router = routers.NestedDefaultRouter(
     router, 'portals', lookup='portal',)
 portals_router.register(
@@ -81,11 +82,14 @@ file_transfers_router.register(
 
 message_centre_url = [
     path('message-center/', views.MessageCenterView.as_view(), name='message-center'),
+    path('business_card/', views.generate_business_card, name='business_card'),
 ]
 
 recent_order_url = [
     path('recent-orders/', views.OrderView.as_view(), name='recent-orders'),
 ]
+
+router.register(r'business-cards', views.BusinessCardViewSet, basename="business-card")
 
 # Create a nested router for CartDetails under CartItems
 cart_items_router = routers.NestedDefaultRouter(

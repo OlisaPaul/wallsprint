@@ -967,6 +967,46 @@ class FileExchange(models.Model):
         return f"Transfer to {self.recipient_name} from {self.name}"
 
 
+class EditableCatalogItemFile(models.Model):
+    FRONT_ONLY = 'Front Only'
+    FRONT_AND_BACK = 'Front and Back'
+    PENDING = 'Pending'
+    CONFIRMING = 'Confirming'
+
+    status_choices = [
+        (PENDING, PENDING),
+        (CONFIRMING, CONFIRMING)
+    ]
+
+    sides_type = [
+        (FRONT_ONLY, FRONT_ONLY),
+        (FRONT_AND_BACK, FRONT_AND_BACK)
+    ]
+    catalog = models.ForeignKey(
+        Catalog, on_delete=models.CASCADE, related_name='editable_files')
+    sides = models.CharField(
+        max_length=20, choices=sides_type, default=FRONT_ONLY)
+    created_at = models.DateTimeField(auto_now_add=True)
+    description = models.TextField(blank=True, null=True)
+    file = CloudinaryField(
+        "business_card",
+        allowed_formats=["psd", "cdr"],
+        resource_type="raw"
+    )
+    file_name = models.CharField(max_length=255, blank=True, null=True)
+    status = models.CharField(
+        max_length=20, choices=status_choices, default=PENDING)
+    front_svg_code = models.TextField(blank=True, null=True)
+    back_svg_code = models.TextField(blank=True, null=True)
+    def __str__(self):
+        return f"Business Card for {self.name}"
+    
+    class Meta:
+        permissions = [
+            ('editable_files', "Editable Files")
+        ]
+
+
 class TemplateField(models.Model):
     """
     Model for template fields with positioning and styling information.
@@ -1007,6 +1047,12 @@ class TemplateField(models.Model):
     # Relationships
     catalog_item = models.ForeignKey(
         CatalogItem,
+        on_delete=models.CASCADE,
+        related_name='template_fields',
+        null=True
+    )
+    editable_item = models.ForeignKey(
+        EditableCatalogItemFile,
         on_delete=models.CASCADE,
         related_name='template_fields',
         null=True
