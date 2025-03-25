@@ -21,6 +21,7 @@ from .utils import create_instance_with_files, validate_catalog, save_item
 from .signals import file_transferred
 from decimal import Decimal
 from django.template.loader import render_to_string
+import xml.etree.ElementTree as ET
 
 User = get_user_model()
 
@@ -2192,49 +2193,80 @@ class CreateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
     )
     file_name = serializers.CharField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
+    file_size = serializers.SerializerMethodField()
 
     class Meta:
         model = EditableCatalogItemFile
-        fields = ['id', 'file', 'description', 'sides', 'catalog',
-                  'file_name', 'created_at']
+        fields = ['id', 'file', 'description', 'sides', 'catalog', 'catalog_item_name',
+                  'file_name', 'file_size', 'created_at']
 
     def validate_file(self, value):
         if value.size > 10 * 1024 * 1024:  # 10MB in bytes
             raise serializers.ValidationError("File size cannot exceed 10MB")
         return value
+
+    def validate(self, attrs):
+        catalog_item_name = attrs.get('catalog_item_name')
+        catalog = attrs.get('catalog')
+
+        if CatalogItem.objects.filter(title__iexact=catalog_item_name, catalog_id=catalog).exists():
+            raise serializers.ValidationError(
+                {"catalog_item_name": "A catalog item with this title already exists."})
+        return attrs
+
     @transaction.atomic()
     def create(self, validated_data):
         file = validated_data.get('file')
         file_name = file.name
+        file_size = file.size
         validated_data['file_name'] = file_name
+        validated_data['file_size'] = file_size
         return super().create(validated_data)
+    
+    def get_file_size(self, obj:EditableCatalogItemFile):
+        file_size_in_bytes = obj.file_size
+        if not file_size_in_bytes:
+            return '0KB'
+        if file_size_in_bytes >= 1024 * 1024:
+            return f"{file_size_in_bytes / (1024 * 1024):.2f} MB"
+        return f"{file_size_in_bytes / 1024:.2f} KB"
+
+
 
 class UpdateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
     template_fields = serializers.JSONField(required=False, write_only=True)
-    
+
     class Meta:
         model = EditableCatalogItemFile
-        fields = ['id', 'back_svg_code', 'front_svg_code', 'template_fields']
-
+        fields = ['id', 'back_svg_code', 'front_svg_code', 'template_fields',
+                  'catalog_item_name', 'description', 'sides', 'catalog']
 
     def validate_svg_code(self, value, field):
         if value:
             # Check if string starts with SVG tag
             if not value.strip().startswith('<svg'):
-                raise serializers.ValidationError({field: "Invalid SVG code - must start with <svg> tag"})
-            
+                raise serializers.ValidationError(
+                    {field: "Invalid SVG code - must start with <svg> tag"})
+
             # Check if string ends with closing SVG tag
             if not value.strip().endswith('</svg>'):
-                raise serializers.ValidationError({field: "Invalid SVG code - must end with </svg> tag"})
+                raise serializers.ValidationError(
+                    {field: "Invalid SVG code - must end with </svg> tag"})
 
             # Basic XML validation
             try:
                 ET.fromstring(value)
             except ET.ParseError:
-                raise serializers.ValidationError({field: "Invalid SVG code - malformed XML"})
+                raise serializers.ValidationError(
+                    {field: "Invalid SVG code - malformed XML"})
 
         return value
 
+    def validate_front_svg_code(self, value):
+        return self.validate_svg_code(value, 'front_svg_code')
+
+    def validate_back_svg_code(self, value):
+        return self.validate_svg_code(value, 'back_svg_code')
 
     def update(self, instance, validated_data):
         template_fields = validated_data.pop('template_fields', None)
@@ -2248,11 +2280,12 @@ class UpdateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
             )
             template_fields.is_valid(raise_exception=True)
             template_fields.save()
-        
+
         validated_data['status'] = EditableCatalogItemFile.CONFIRMING
 
         return super().update(instance, validated_data)
-    
+
+
 class TemplateFieldSerializer(serializers.ModelSerializer):
     class Meta:
         model = TemplateField
@@ -2264,8 +2297,12 @@ class TemplateFieldSerializer(serializers.ModelSerializer):
 class EditableCatalogItemFileSerializer(serializers.ModelSerializer):
     template_fields = TemplateFieldSerializer(many=True, read_only=True)
     catalog = SimpleCatalogSerializer()
+    file_size = serializers.SerializerMethodField()
 
     class Meta:
         model = EditableCatalogItemFile
-        fields = ['id', 'file', 'description', 'sides', 'catalog',
-                  'file_name', 'created_at', "template_fields"]
+        fields = ['id', 'file', 'description', 'sides', 'catalog', 'file_size',
+                  'catalog_item_name', 'file_name', 'created_at', "template_fields"]
+    
+    def get_file_size(self, obj:EditableCatalogItemFile):
+        return CreateEditableCatalogItemFileSerializer.get_file_size(self, obj)

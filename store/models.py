@@ -993,7 +993,9 @@ class EditableCatalogItemFile(models.Model):
         allowed_formats=["psd", "cdr"],
         resource_type="raw"
     )
+    catalog_item_name = models.CharField(max_length=255, blank=True, null=True)
     file_name = models.CharField(max_length=255, blank=True, null=True)
+    file_size = models.PositiveIntegerField(blank=True, null=True)
     status = models.CharField(
         max_length=20, choices=status_choices, default=PENDING)
     front_svg_code = models.TextField(blank=True, null=True)
