@@ -2222,8 +2222,8 @@ class CreateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
         validated_data['file_name'] = file_name
         validated_data['file_size'] = file_size
         return super().create(validated_data)
-    
-    def get_file_size(self, obj:EditableCatalogItemFile):
+
+    def get_file_size(self, obj: EditableCatalogItemFile):
         file_size_in_bytes = obj.file_size
         if not file_size_in_bytes:
             return '0KB'
@@ -2232,43 +2232,70 @@ class CreateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
         return f"{file_size_in_bytes / 1024:.2f} KB"
 
 
-
 class UpdateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
     template_fields = serializers.JSONField(required=False, write_only=True)
+    catalog = serializers.PrimaryKeyRelatedField(
+        queryset=Catalog.objects.all(), required=False)
 
     class Meta:
         model = EditableCatalogItemFile
         fields = ['id', 'back_svg_code', 'front_svg_code', 'template_fields',
-                  'catalog_item_name', 'description', 'sides', 'catalog']
+                  'catalog_item_name', 'description', 'sides', 'catalog', 'status']
 
-    def validate_svg_code(self, value, field):
+    def validate_svg_code(self, value):
         if value:
             # Check if string starts with SVG tag
             if not value.strip().startswith('<svg'):
                 raise serializers.ValidationError(
-                    {field: "Invalid SVG code - must start with <svg> tag"})
+                    "Invalid SVG code - must start with <svg> tag")
 
             # Check if string ends with closing SVG tag
             if not value.strip().endswith('</svg>'):
                 raise serializers.ValidationError(
-                    {field: "Invalid SVG code - must end with </svg> tag"})
+                    "Invalid SVG code - must end with </svg> tag")
 
             # Basic XML validation
             try:
                 ET.fromstring(value)
             except ET.ParseError:
                 raise serializers.ValidationError(
-                    {field: "Invalid SVG code - malformed XML"})
+                    "Invalid SVG code - malformed XML")
 
         return value
 
     def validate_front_svg_code(self, value):
-        return self.validate_svg_code(value, 'front_svg_code')
+        return self.validate_svg_code(value)
 
     def validate_back_svg_code(self, value):
-        return self.validate_svg_code(value, 'back_svg_code')
+        return self.validate_svg_code(value)
+
+    def validate(self, attrs):
+        back_svg_code = attrs.get('back_svg_code')
+        front_svg_code = attrs.get('front_svg_code')
+        sides = attrs.get('sides')
+        catalog = attrs.get('catalog')
+        catalog_item_name = attrs.get('catalog_item_name')
+        template_fields = attrs.get('template_fields')
+
+        if back_svg_code and not front_svg_code:
+            raise serializers.ValidationError(
+                {"front_svg_code": "Front SVG code is required"})
+
+        if front_svg_code:
+            fields_to_check = {
+                "template_fields": "You can't update template fields now",
+                "sides": "You can't update sides now",
+                "catalog_item_name": "You can't update catalog item name now",
+                "catalog": "You can't update catalog now"
+            }
+            for field, error_message in fields_to_check.items():
+                if locals().get(field):
+                    raise serializers.ValidationError({field: error_message})
+
+        return attrs
 
     def update(self, instance, validated_data):
+        front_svg_code = validated_data.get('front_svg_code', None)
         template_fields = validated_data.pop('template_fields', None)
         if template_fields:
             template_fields = CreateTemplateFieldSerializer(
@@ -2281,7 +2308,8 @@ class UpdateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
             template_fields.is_valid(raise_exception=True)
             template_fields.save()
 
-        validated_data['status'] = EditableCatalogItemFile.CONFIRMING
+        if front_svg_code:
+            validated_data['status'] = EditableCatalogItemFile.CONFIRMING
 
         return super().update(instance, validated_data)
 
@@ -2302,7 +2330,7 @@ class EditableCatalogItemFileSerializer(serializers.ModelSerializer):
     class Meta:
         model = EditableCatalogItemFile
         fields = ['id', 'file', 'description', 'sides', 'catalog', 'file_size',
-                  'catalog_item_name', 'file_name', 'created_at', "template_fields"]
-    
-    def get_file_size(self, obj:EditableCatalogItemFile):
+                  'catalog_item_name', 'file_name', 'created_at', "template_fields", 'status']
+
+    def get_file_size(self, obj: EditableCatalogItemFile):
         return CreateEditableCatalogItemFileSerializer.get_file_size(self, obj)
