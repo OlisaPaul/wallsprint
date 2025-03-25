@@ -1375,7 +1375,7 @@ class ItemDetailsSerializer(serializers.ModelSerializer):
 class TemplateFieldSerializer(serializers.ModelSerializer):
     class Meta:
         model = TemplateField
-        fields = ['id', 'field_name', 'field_type', 'default_value',
+        fields = ['id', 'label', 'field_type', 'placeholder',
                   'position_x', 'position_y', 'font_size', 'font_color',
                   'font_family', 'bold', 'italic', 'width', 'height',
                   'max_length', 'created_at', 'updated_at']
@@ -1442,7 +1442,6 @@ class CatalogItemSerializer(serializers.ModelSerializer):
 
     def get_thumbnail(self, catalog_item: CatalogItem):
         return self.get_url(catalog_item.thumbnail)
-    
 
 
 class CreateTemplateFieldSerializer(serializers.ModelSerializer):
@@ -1450,7 +1449,7 @@ class CreateTemplateFieldSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TemplateField
-        fields = ['id', 'field_name', 'field_type', 'default_value',
+        fields = ['id', 'label', 'field_type', 'placeholder',
                   'position', 'font_size', 'font_color',
                   'font_family', 'bold', 'italic', 'width', 'height',
                   'max_length']
@@ -1507,7 +1506,7 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
         fields = catalog_item_fields + \
             ['attribute_data', 'can_be_edited', 'item_type',
                 'height', 'width', 'empty_image', 'template_fields']
-        
+
     def validate_template_fields(self, template_fields):
         if template_fields:
             for template_field in template_fields:
@@ -1533,10 +1532,12 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "No catalog with the given catalog_id was found")
 
-        item_type = attrs.get('item_type', getattr(self.instance, 'item_type', None))
+        item_type = attrs.get('item_type', getattr(
+            self.instance, 'item_type', None))
         height = attrs.get('height', getattr(self.instance, 'height', None))
-        width = attrs.get('width', getattr(self.instance, 'width', None)) 
-        empty_image = attrs.get('empty_image', getattr(self.instance, 'empty_image', None))
+        width = attrs.get('width', getattr(self.instance, 'width', None))
+        empty_image = attrs.get('empty_image', getattr(
+            self.instance, 'empty_image', None))
 
         if item_type != CatalogItem.BUSINESS_CARD:
             if any([height, width, empty_image]):
@@ -1570,7 +1571,7 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
             )
             template_fields.is_valid(raise_exception=True)
             template_fields.save()
-           
+
         for attribute_data in attributes_data:
             options_data = attribute_data.pop('options', [])
             attribute = Attribute.objects.create(
@@ -2175,55 +2176,87 @@ class CopyPortalSerializer(serializers.Serializer):
 
         return data
 
+
 class BusinessCardSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=100, default="John Doe")
     phone = serializers.CharField(max_length=20, default="+123-456-7890")
     email = serializers.EmailField(default="john@example.com")
-    business_name = serializers.CharField(max_length=150, default="GreenTech Solutions")
+    business_name = serializers.CharField(
+        max_length=150, default="GreenTech Solutions")
     format = serializers.ChoiceField(choices=["svg", "png"], default="svg")
+
 
 class CreateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
     file = serializers.FileField(
         validators=[FileExtensionValidator(allowed_extensions=['cdr', 'psd'])]
     )
-    template_fields = serializers.JSONField(required=False, write_only=True)
     file_name = serializers.CharField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = EditableCatalogItemFile
-        fields = ['id', 'file', 'description', 'sides', 'catalog', 'file_name', 'created_at', "template_fields"]
-    
+        fields = ['id', 'file', 'description', 'sides', 'catalog',
+                  'file_name', 'created_at']
+
     def validate_file(self, value):
         if value.size > 10 * 1024 * 1024:  # 10MB in bytes
             raise serializers.ValidationError("File size cannot exceed 10MB")
         return value
-    
     @transaction.atomic()
     def create(self, validated_data):
         file = validated_data.get('file')
         file_name = file.name
         validated_data['file_name'] = file_name
-        template_fields = validated_data.pop('template_fields', None)
-        editable_item_file = super().create(validated_data)
+        return super().create(validated_data)
 
+class UpdateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
+    template_fields = serializers.JSONField(required=False, write_only=True)
+    
+    class Meta:
+        model = EditableCatalogItemFile
+        fields = ['id', 'back_svg_code', 'front_svg_code', 'template_fields']
+
+
+    def validate_svg_code(self, value, field):
+        if value:
+            # Check if string starts with SVG tag
+            if not value.strip().startswith('<svg'):
+                raise serializers.ValidationError({field: "Invalid SVG code - must start with <svg> tag"})
+            
+            # Check if string ends with closing SVG tag
+            if not value.strip().endswith('</svg>'):
+                raise serializers.ValidationError({field: "Invalid SVG code - must end with </svg> tag"})
+
+            # Basic XML validation
+            try:
+                ET.fromstring(value)
+            except ET.ParseError:
+                raise serializers.ValidationError({field: "Invalid SVG code - malformed XML"})
+
+        return value
+
+
+    def update(self, instance, validated_data):
+        template_fields = validated_data.pop('template_fields', None)
         if template_fields:
             template_fields = CreateTemplateFieldSerializer(
                 context={
-                    'editable_item_id': editable_item_file.id
+                    'editable_item_id': instance.id
                 },
                 data=template_fields,
                 many=True
             )
             template_fields.is_valid(raise_exception=True)
             template_fields.save()
+        
+        validated_data['status'] = EditableCatalogItemFile.CONFIRMING
 
-        return editable_item_file
+        return super().update(instance, validated_data)
     
 class TemplateFieldSerializer(serializers.ModelSerializer):
     class Meta:
         model = TemplateField
-        fields = ['id', 'field_name', 'field_type', 'default_value',
+        fields = ['id', 'label', 'field_type', 'placeholder',
                   'position_x', 'position_y']
         read_only_fields = ['created_at', 'updated_at']
 
@@ -2234,6 +2267,5 @@ class EditableCatalogItemFileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = EditableCatalogItemFile
-        fields = ['id', 'file', 'description', 'sides', 'catalog', 'file_name', 'created_at', "template_fields"]
-    
-    
+        fields = ['id', 'file', 'description', 'sides', 'catalog',
+                  'file_name', 'created_at', "template_fields"]

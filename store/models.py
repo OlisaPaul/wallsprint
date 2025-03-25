@@ -998,6 +998,7 @@ class EditableCatalogItemFile(models.Model):
         max_length=20, choices=status_choices, default=PENDING)
     front_svg_code = models.TextField(blank=True, null=True)
     back_svg_code = models.TextField(blank=True, null=True)
+    
     def __str__(self):
         return f"Business Card for {self.name}"
     
@@ -1012,7 +1013,7 @@ class TemplateField(models.Model):
     Model for template fields with positioning and styling information.
     Used for customizable templates like business cards.
     """
-    field_name = models.CharField(max_length=100)
+    label = models.CharField(max_length=100)
     field_type = models.CharField(
         max_length=20,
         choices=[
@@ -1024,7 +1025,7 @@ class TemplateField(models.Model):
         ],
         default='text'
     )
-    default_value = models.CharField(max_length=255, blank=True, null=True)
+    placeholder = models.CharField(max_length=255, blank=True, null=True)
 
     # Position coordinates
     position_x = models.IntegerField(default=0)
