@@ -2243,14 +2243,15 @@ class CreateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
 
 
 class UpdateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
-    template_fields = serializers.JSONField(required=False, write_only=True)
     catalog = serializers.PrimaryKeyRelatedField(
         queryset=Catalog.objects.all(), required=False)
+    file = serializers.FileField(required=False)
+    front_svg_code = serializers.CharField(required=False)
 
     class Meta:
         model = EditableCatalogItemFile
-        fields = ['id', 'back_svg_code', 'front_svg_code', 'template_fields',
-                  'catalog_item_name', 'description', 'sides', 'catalog', 'status', 'file']
+        fields = ['id', 'back_svg_code', 'front_svg_code', 'catalog_item_name',
+                   'description', 'sides', 'catalog', 'status', 'file']
 
     def validate_svg_code(self, value):
         if value:
@@ -2295,7 +2296,7 @@ class UpdateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
                 'file': "You can't update file now"
             }
             for field, error_message in fields_to_check.items():
-                if locals().get(field):
+                if attrs.get(field):
                     raise serializers.ValidationError({field: error_message})
 
         return attrs
@@ -2303,9 +2304,9 @@ class UpdateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         file = validated_data.get('file', None)
         front_svg_code = validated_data.get('front_svg_code', None)
-        template_fields = validated_data.pop('template_fields', None)
+        catalog = validated_data.get('catalog', None)
 
-        if file:
+        if file or catalog:
             validated_data['status'] = EditableCatalogItemFile.UPDATED
         elif front_svg_code:
             validated_data['status'] = EditableCatalogItemFile.CONFIRMING
@@ -2325,6 +2326,7 @@ class EditableCatalogItemFileSerializer(serializers.ModelSerializer):
     template_fields = TemplateFieldSerializer(many=True, read_only=True)
     catalog = SimpleCatalogSerializer()
     file_size = serializers.SerializerMethodField()
+    file = serializers.SerializerMethodField()
 
     class Meta:
         model = EditableCatalogItemFile
@@ -2333,3 +2335,7 @@ class EditableCatalogItemFileSerializer(serializers.ModelSerializer):
 
     def get_file_size(self, obj: EditableCatalogItemFile):
         return CreateEditableCatalogItemFileSerializer.get_file_size(self, obj)
+
+    def get_file(self, obj:EditableCatalogItemFile):
+        cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
+        return f"https://res.cloudinary.com/{cloud_name}/{obj.file}"        
