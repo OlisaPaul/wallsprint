@@ -1458,6 +1458,11 @@ class CreateTemplateFieldSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         # Get the catalog item from context
         catalog_item_id = self.context.get('catalog_item_id')
+        editable_item_id = self.context.get('editable_item_id')
+        if editable_item_id and not EditableCatalogItemFile.objects.filter(id=editable_item_id).exists():
+            raise serializers.ValidationError(
+                "Editable item does not exist.")
+            
         if catalog_item_id:
             try:
                 catalog_item = CatalogItem.objects.get(id=catalog_item_id)
@@ -1488,6 +1493,11 @@ class CreateTemplateFieldSerializer(serializers.ModelSerializer):
         if catalog_item_id:
             validated_data['catalog_item_id'] = catalog_item_id
         if editable_item_id:
+            editable_item = EditableCatalogItemFile.objects.get(id=editable_item_id)
+            if editable_item.status != EditableCatalogItemFile.APPROVING:
+                editable_item.status = EditableCatalogItemFile.APPROVING
+                editable_item.save()
+
             validated_data['editable_item_id'] = editable_item_id
 
         return super().create(validated_data)
@@ -2272,10 +2282,6 @@ class UpdateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         back_svg_code = attrs.get('back_svg_code')
         front_svg_code = attrs.get('front_svg_code')
-        sides = attrs.get('sides')
-        catalog = attrs.get('catalog')
-        catalog_item_name = attrs.get('catalog_item_name')
-        template_fields = attrs.get('template_fields')
 
         if back_svg_code and not front_svg_code:
             raise serializers.ValidationError(
@@ -2283,7 +2289,6 @@ class UpdateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
 
         if front_svg_code:
             fields_to_check = {
-                "template_fields": "You can't update template fields now",
                 "sides": "You can't update sides now",
                 "catalog_item_name": "You can't update catalog item name now",
                 "catalog": "You can't update catalog now",
@@ -2299,16 +2304,6 @@ class UpdateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
         file = validated_data.get('file', None)
         front_svg_code = validated_data.get('front_svg_code', None)
         template_fields = validated_data.pop('template_fields', None)
-        if template_fields:
-            template_fields = CreateTemplateFieldSerializer(
-                context={
-                    'editable_item_id': instance.id
-                },
-                data=template_fields,
-                many=True
-            )
-            template_fields.is_valid(raise_exception=True)
-            template_fields.save()
 
         if file:
             validated_data['status'] = EditableCatalogItemFile.UPDATED
