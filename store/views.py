@@ -1262,7 +1262,7 @@ class AttributeOptionViewSet(ModelViewSet):
     serializer_class = serializers.AttributeOptionSerializer
 
 
-class TemplateFieldViewSet(ModelViewSet):
+class TemplateFieldViewSet(CustomModelViewSet):
     def get_serializer_class(self):
         if self.action == 'create':
             return CreateTemplateFieldSerializer
