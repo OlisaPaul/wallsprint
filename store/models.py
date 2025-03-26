@@ -973,11 +973,13 @@ class EditableCatalogItemFile(models.Model):
     PENDING = 'Pending'
     CONFIRMING = 'Confirming'
     PROCESSING = 'Processing'
+    UPDATED = 'Updated'
 
     status_choices = [
         (PENDING, PENDING),
         (CONFIRMING, CONFIRMING),
-        (PROCESSING, PROCESSING)
+        (PROCESSING, PROCESSING),
+        (UPDATED, UPDATED)
     ]
 
     sides_type = [

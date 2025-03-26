@@ -2240,7 +2240,7 @@ class UpdateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
     class Meta:
         model = EditableCatalogItemFile
         fields = ['id', 'back_svg_code', 'front_svg_code', 'template_fields',
-                  'catalog_item_name', 'description', 'sides', 'catalog', 'status']
+                  'catalog_item_name', 'description', 'sides', 'catalog', 'status', 'file']
 
     def validate_svg_code(self, value):
         if value:
@@ -2286,7 +2286,8 @@ class UpdateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
                 "template_fields": "You can't update template fields now",
                 "sides": "You can't update sides now",
                 "catalog_item_name": "You can't update catalog item name now",
-                "catalog": "You can't update catalog now"
+                "catalog": "You can't update catalog now",
+                'file': "You can't update file now"
             }
             for field, error_message in fields_to_check.items():
                 if locals().get(field):
@@ -2295,6 +2296,7 @@ class UpdateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
         return attrs
 
     def update(self, instance, validated_data):
+        file = validated_data.get('file', None)
         front_svg_code = validated_data.get('front_svg_code', None)
         template_fields = validated_data.pop('template_fields', None)
         if template_fields:
@@ -2308,7 +2310,9 @@ class UpdateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
             template_fields.is_valid(raise_exception=True)
             template_fields.save()
 
-        if front_svg_code:
+        if file:
+            validated_data['status'] = EditableCatalogItemFile.UPDATED
+        elif front_svg_code:
             validated_data['status'] = EditableCatalogItemFile.CONFIRMING
 
         return super().update(instance, validated_data)
