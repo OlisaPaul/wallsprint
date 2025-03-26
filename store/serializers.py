@@ -2305,8 +2305,9 @@ class UpdateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
         file = validated_data.get('file', None)
         front_svg_code = validated_data.get('front_svg_code', None)
         catalog = validated_data.get('catalog', None)
+        status = validated_data.get('status', None)
 
-        if file or catalog:
+        if file or (catalog and status != EditableCatalogItemFile.PROCESSING):
             validated_data['status'] = EditableCatalogItemFile.UPDATED
         elif front_svg_code:
             validated_data['status'] = EditableCatalogItemFile.CONFIRMING
