@@ -61,6 +61,10 @@ file_transfers_router.register(
     'billing-info', views.BillingInfoViewSet, basename='file-transfer-billing-info'
 )
 orders_router = routers.NestedDefaultRouter(router, 'orders', lookup='order')
+editable_files_router = routers.NestedDefaultRouter(router, 'editable-files', lookup='editable_item')
+editable_files_router.register(
+    'template-fields', views.TemplateFieldViewSet, basename='template-fields')
+
 orders_router.register('notes', views.NoteViewSet, basename='order-notes')
 orders_router.register('shipments', views.ShipmentViewSet,
                        basename='order-shipments')
@@ -122,4 +126,4 @@ urlpatterns = router.urls + portals_router.urls + \
     requests_router.urls + file_transfers_router.urls + \
     cart_items_router.urls + orders_router.urls +\
     catalog_items_router.urls + attributes_router.urls +\
-    order_items_router.urls
+    order_items_router.urls + editable_files_router.urls

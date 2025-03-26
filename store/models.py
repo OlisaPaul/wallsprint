@@ -972,10 +972,16 @@ class EditableCatalogItemFile(models.Model):
     FRONT_AND_BACK = 'Front and Back'
     PENDING = 'Pending'
     CONFIRMING = 'Confirming'
+    PROCESSING = 'Processing'
+    UPDATED = 'Updated'
+    APPROVING = 'Approving'
 
     status_choices = [
         (PENDING, PENDING),
-        (CONFIRMING, CONFIRMING)
+        (CONFIRMING, CONFIRMING),
+        (PROCESSING, PROCESSING),
+        (UPDATED, UPDATED),
+        (APPROVING, APPROVING)
     ]
 
     sides_type = [
@@ -993,11 +999,14 @@ class EditableCatalogItemFile(models.Model):
         allowed_formats=["psd", "cdr"],
         resource_type="raw"
     )
-    file_name = models.CharField(max_length=255, blank=True, null=True)
+    catalog_item_name = models.CharField(max_length=255)
+    file_name = models.CharField(max_length=255)
+    file_size = models.PositiveIntegerField(blank=True, null=True)
     status = models.CharField(
         max_length=20, choices=status_choices, default=PENDING)
     front_svg_code = models.TextField(blank=True, null=True)
     back_svg_code = models.TextField(blank=True, null=True)
+    
     def __str__(self):
         return f"Business Card for {self.name}"
     
@@ -1012,7 +1021,7 @@ class TemplateField(models.Model):
     Model for template fields with positioning and styling information.
     Used for customizable templates like business cards.
     """
-    field_name = models.CharField(max_length=100)
+    label = models.CharField(max_length=100)
     field_type = models.CharField(
         max_length=20,
         choices=[
@@ -1024,7 +1033,7 @@ class TemplateField(models.Model):
         ],
         default='text'
     )
-    default_value = models.CharField(max_length=255, blank=True, null=True)
+    placeholder = models.CharField(max_length=255, blank=True, null=True)
 
     # Position coordinates
     position_x = models.IntegerField(default=0)
