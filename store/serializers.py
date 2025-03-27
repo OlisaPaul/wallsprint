@@ -1544,7 +1544,6 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
         item_type = attrs.get('item_type', getattr(
             self.instance, 'item_type', None))
 
-
         return attrs
 
     @transaction.atomic()
@@ -1733,12 +1732,18 @@ class CartSerializer(serializers.ModelSerializer):
 
 
 class AddCartItemSerializer(serializers.ModelSerializer):
-    # catalog_item = serializers.IntegerField()
-
-    # def validate_catalog_item_id(self, value):
-    #     return validate_catalog_item_id(value)
-
     def validate(self, attrs):
+        catalog_item = attrs.get('catalog_item')
+        image = attrs.get('image')
+        if catalog_item.item_type != CatalogItem.BUSINESS_CARD:
+            if image:
+                raise serializers.ValidationError(
+                    {"image": "Image is not allowed for this item type"})
+        # else:
+        #     if not image:
+        #         raise serializers.ValidationError(
+        #             {"image": "Image is required for this item type"})
+
         return validate_catalog(self.context, attrs, Cart, 'cart', self.instance)
 
     @transaction.atomic()
@@ -1747,7 +1752,7 @@ class AddCartItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CartItem
-        fields = ["id", "catalog_item", "quantity"]
+        fields = ["id", "catalog_item", "quantity", 'image']
 
 
 class UpdateCartItemSerializer(serializers.ModelSerializer):
@@ -1982,7 +1987,8 @@ class CreateOrderSerializer(serializers.ModelSerializer):
                 sub_total=sub_total,
                 unit_price=unit_price,
                 quantity=item.quantity,
-                details=item.details
+                details=item.details,
+                image=item.image,
             ))
 
         if catalog_items:
@@ -2239,7 +2245,6 @@ class UpdateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
     front_svg_code = serializers.CharField(required=False)
     catalog_item_name = serializers.CharField(write_only=True)
 
-
     class Meta:
         model = CatalogItem
         fields = ['id', 'back_svg_code', 'front_svg_code', 'catalog_item_name',
@@ -2275,6 +2280,12 @@ class UpdateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         back_svg_code = attrs.get('back_svg_code')
         front_svg_code = attrs.get('front_svg_code')
+        status = attrs.get('status', None)
+
+        if self.instance:
+            if status == CatalogItem.APPROVED and self.instance.status not in [CatalogItem.APPROVING, CatalogItem.UPDATED]:
+                raise serializers.ValidationError(
+                    {"status": "You can't update status to approved"})
 
         if back_svg_code and not front_svg_code:
             raise serializers.ValidationError(
@@ -2295,17 +2306,17 @@ class UpdateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         file = validated_data.get('file', None)
-        catalog_item_name= validated_data.pop('catalog_item_name', None)
+        catalog_item_name = validated_data.pop('catalog_item_name', None)
         front_svg_code = validated_data.get('front_svg_code', None)
         catalog = validated_data.get('catalog', None)
         status = validated_data.get('status', None)
         if catalog_item_name:
             validated_data['title'] = catalog_item_name
 
-        if file or (catalog and status != EditableCatalogItemFile.PROCESSING):
-            validated_data['status'] = EditableCatalogItemFile.UPDATED
+        if file or (catalog and status != CatalogItem.PROCESSING):
+            validated_data['status'] = CatalogItem.UPDATED
         elif front_svg_code:
-            validated_data['status'] = EditableCatalogItemFile.CONFIRMING
+            validated_data['status'] = CatalogItem.CONFIRMING
 
         return super().update(instance, validated_data)
 
@@ -2324,7 +2335,6 @@ class EditableCatalogItemFileSerializer(serializers.ModelSerializer):
     file = serializers.SerializerMethodField()
     catalog_item_name = serializers.SerializerMethodField()
 
-
     class Meta:
         model = CatalogItem
         fields = ['id', 'file', 'description', 'sides', 'catalog', 'file_size',
@@ -2336,5 +2346,6 @@ class EditableCatalogItemFileSerializer(serializers.ModelSerializer):
     def get_file(self, obj: CatalogItem):
         cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
         return obj.file.url if obj.file else None
+
     def get_catalog_item_name(self, obj: CatalogItem):
         return obj.title
