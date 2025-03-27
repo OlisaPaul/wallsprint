@@ -2335,6 +2335,6 @@ class EditableCatalogItemFileSerializer(serializers.ModelSerializer):
 
     def get_file(self, obj: CatalogItem):
         cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
-        return f"https://res.cloudinary.com/{cloud_name}/{obj.file}"
+        return obj.file.url if obj.file else None
     def get_catalog_item_name(self, obj: CatalogItem):
         return obj.title
