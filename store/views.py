@@ -83,18 +83,18 @@ class BusinessCardViewSet(viewsets.ViewSet):
 @csrf_exempt  # Remove this if using CSRF tokens properly
 def generate_business_card(request):
     editable_item_id = request.GET.get("editable_item_id", 2)
-    editable_item = models.EditableCatalogItemFile.objects.filter(pk=editable_item_id).first()
-    
+    editable_item = models.EditableCatalogItemFile.objects.filter(
+        pk=editable_item_id).first()
+
     SVG_TEMPLATE = editable_item.front_svg_code
     template_fields = editable_item.template_fields.all()
-    
+
     context_data = {}
     for field in template_fields:
         # Get the value from request.GET with a default empty string
         field_value = request.GET.get(field.label, "")
         context_data[field.label] = field_value or field.placeholder
-    
-    
+
     output_format = request.GET.get("format", "svg")
 
     # Render the SVG template
@@ -851,7 +851,8 @@ class CatalogItemViewSet(ModelViewSet):
 
     def get_queryset(self):
         catalog_id = self.kwargs.get('catalog_pk')
-        queryset = CatalogItem.objects.all().prefetch_related('attributes__options')
+        queryset = CatalogItem.objects.filter(
+            status=CatalogItem.APPROVED).prefetch_related('attributes__options')
         if catalog_id:
             queryset = queryset.filter(catalog_id=catalog_id)
         return queryset
@@ -892,7 +893,7 @@ class CatalogItemViewSet(ModelViewSet):
             return Response({'detail': 'Portal ID query parameter is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
         queryset = CatalogItem.objects.filter(
-            catalog__portal_contents__portal_id=portal_id
+            catalog__portal_contents__portal_id=portal_id, status=CatalogItem.APPROVED
         ).prefetch_related('attributes__options').select_related('catalog')
 
         serializer = CatalogItemSerializer(queryset, many=True)
@@ -1271,7 +1272,7 @@ class TemplateFieldViewSet(CustomModelViewSet):
     def get_queryset(self):
         # catalog_item_id = self.kwargs.get('catalog_item_pk')
         editable_item_id = self.kwargs.get('editable_item_pk')
-        return TemplateField.objects.filter(editable_item_id=editable_item_id)
+        return TemplateField.objects.filter(catalog_item_id=editable_item_id)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -1289,7 +1290,7 @@ class TemplateFieldViewSet(CustomModelViewSet):
 
 
 class EditableCatalogItemViewSet(ModelViewSet):
-    queryset = models.EditableCatalogItemFile.objects.all().prefetch_related(
+    queryset = CatalogItem.objects.filter(~Q(status=CatalogItem.APPROVED)).prefetch_related(
         'template_fields').select_related('catalog')
     serializer_class = serializers.CreateEditableCatalogItemFileSerializer
     permission_classes = [IsAdminUser]
