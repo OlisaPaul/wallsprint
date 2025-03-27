@@ -636,6 +636,28 @@ class CatalogItem(models.Model):
     NON_EDITABLE = 'Non-editable'
     BUSINESS_CARD = 'Business Card'
     OTHERS = 'Others'
+    FRONT_ONLY = 'Front Only'
+    FRONT_AND_BACK = 'Front and Back'
+    PENDING = 'Pending'
+    CONFIRMING = 'Confirming'
+    PROCESSING = 'Processing'
+    UPDATED = 'Updated'
+    APPROVING = 'Approving'
+    APPROVED='Approved'
+
+    status_choices = [
+        (PENDING, PENDING),
+        (CONFIRMING, CONFIRMING),
+        (PROCESSING, PROCESSING),
+        (UPDATED, UPDATED),
+        (APPROVING, APPROVING),
+        (APPROVED, APPROVED)
+    ]
+
+    sides_type = [
+        (FRONT_ONLY, FRONT_ONLY),
+        (FRONT_AND_BACK, FRONT_AND_BACK)
+    ]
 
     ITEM_TYPE_CHOICES = [
         (NON_EDITABLE, NON_EDITABLE),
@@ -674,12 +696,28 @@ class CatalogItem(models.Model):
     can_be_edited = models.BooleanField(default=False)
     item_type = models.CharField(
         max_length=50, default=NON_EDITABLE, choices=ITEM_TYPE_CHOICES)
-    width = models.DecimalField(
-        max_digits=5, decimal_places=2, default=0, blank=True, null=True)
-    height = models.DecimalField(
-        max_digits=5, decimal_places=2, default=0, blank=True, null=True)
-    empty_image = CloudinaryField(blank=True, null=True)
-
+    file = CloudinaryField(
+        "business_card",
+        allowed_formats=["psd", "cdr"],
+        resource_type="raw",
+        null=True,
+        blank=True
+    )
+    file_name = models.CharField(max_length=255, blank=True, null=True)
+    file_size = models.PositiveIntegerField(blank=True, null=True)
+    status = models.CharField(
+        max_length=20, choices=status_choices, default=APPROVED)
+    front_svg_code = models.TextField(blank=True, null=True)
+    back_svg_code = models.TextField(blank=True, null=True)
+    sides = models.CharField(
+        max_length=20, choices=sides_type, default=FRONT_ONLY)
+    file = CloudinaryField(
+        "business_card",
+        allowed_formats=["psd", "cdr"],
+        resource_type="raw",
+        null=True,
+        blank=True
+    )
     def __str__(self):
         return self.title
 
@@ -988,18 +1026,18 @@ class EditableCatalogItemFile(models.Model):
         (FRONT_ONLY, FRONT_ONLY),
         (FRONT_AND_BACK, FRONT_AND_BACK)
     ]
-    catalog = models.ForeignKey(
-        Catalog, on_delete=models.CASCADE, related_name='editable_files')
+    # # catalog = models.ForeignKey(
+    #     Catalog, on_delete=models.CASCADE, related_name='editable_files')
     sides = models.CharField(
         max_length=20, choices=sides_type, default=FRONT_ONLY)
-    created_at = models.DateTimeField(auto_now_add=True)
-    description = models.TextField(blank=True, null=True)
+    # created_at = models.DateTimeField(auto_now_add=True)
+    # description = models.TextField(blank=True, null=True)
     file = CloudinaryField(
         "business_card",
         allowed_formats=["psd", "cdr"],
         resource_type="raw"
     )
-    catalog_item_name = models.CharField(max_length=255)
+    # catalog_item_name = models.CharField(max_length=255)
     file_name = models.CharField(max_length=255)
     file_size = models.PositiveIntegerField(blank=True, null=True)
     status = models.CharField(
