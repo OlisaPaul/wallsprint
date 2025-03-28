@@ -1179,7 +1179,7 @@ class UpdatePortalContentSerializer(serializers.ModelSerializer):
         customers = get_old_customers(instance)
         content = super().update(instance, validated_data)
 
-        _implement_permission_change(validated_data, content, customers)
+        _implement_permission_change(validated_data, content.portal, customers)
 
         return content
 
@@ -1531,6 +1531,9 @@ class PortalSerializer(serializers.ModelSerializer):
             carts = carts.filter(customer_id=customer_id)
 
         return sum([cart.items.count() for cart in carts])
+    def delete(self, instance):
+        _implement_permission_change(instance, instance, instance.customers)
+        instance.delete()
 
 
 class PatchPortalSerializer(serializers.ModelSerializer):
