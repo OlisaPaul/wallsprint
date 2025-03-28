@@ -536,7 +536,7 @@ class PortalContentViewSet(CustomModelViewSet):
     
     def destroy(self, request, *args, **kwargs):
         portal_content = self.get_object()
-        serializers._implement_permission_change({"customers": [1]}, portal_content, portal_content.customers.all())
+        serializers._implement_permission_change({"customers": [1]}, portal_content.portal, portal_content.portal.all())
         return super().destroy(request, *args, **kwargs)
 
 
