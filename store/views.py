@@ -465,7 +465,7 @@ class PortalViewSet(CustomModelViewSet):
             logo=portal.logo if copy_the_logo else logo,
             copy_from_portal_id=portal.id
         )
-
+        
         if same_permissions:
             new_portal.customers.set(portal.customers.all())
             new_portal.customer_groups.set(portal.customer_groups.all())
@@ -473,6 +473,8 @@ class PortalViewSet(CustomModelViewSet):
             new_portal.customers.set(customers)
         elif customer_groups:
             new_portal.customer_groups.set(customer_groups)
+
+        serializers._implement_permission_change(serializer, new_portal, customers)
 
         for content in portal.contents.all():
             new_content = PortalContent.objects.create(
@@ -503,6 +505,10 @@ class PortalViewSet(CustomModelViewSet):
 
         response_serializer = self.get_serializer(new_portal)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+    def destroy(self, request, *args, **kwargs):
+        portal = self.get_object()
+        serializers._implement_permission_change({"customers": [1]}, portal, portal.customers.all())
+        return super().destroy(request, *args, **kwargs)
 
 
 class PortalContentViewSet(CustomModelViewSet):
@@ -527,6 +533,12 @@ class PortalContentViewSet(CustomModelViewSet):
         if self.request.method == 'GET':
             return serializers.PortalContentSerializer
         return serializers.UpdatePortalContentSerializer
+    
+    def destroy(self, request, *args, **kwargs):
+        portal_content = self.get_object()
+        serializers._implement_permission_change({"customers": [1]}, portal_content.portal, portal_content.portal.all())
+        return super().destroy(request, *args, **kwargs)
+
 
 
 class PortalContentCatalogViewSet(ModelViewSet):
