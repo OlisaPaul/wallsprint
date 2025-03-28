@@ -1845,16 +1845,19 @@ class TemplateFieldSerializer(serializers.ModelSerializer):
 
 class CatalogItemSerializer(serializers.ModelSerializer):
     attributes = AttributeSerializer(many=True, read_only=True)
-    template_fields = TemplateFieldSerializer(many=True, read_only=True)
+    # template_fields = TemplateFieldSerializer(many=True, read_only=True)
     preview_image = serializers.SerializerMethodField()
     preview_file = serializers.SerializerMethodField()
     thumbnail = serializers.SerializerMethodField()
     catalog = SimpleCatalogSerializer()
+    template_fields = serializers.SerializerMethodField()
+    front_svg_code = serializers.SerializerMethodField()
+    back_svg_code = serializers.SerializerMethodField()
 
     class Meta:
         model = CatalogItem
         fields = catalog_item_fields + \
-            ['created_at', 'can_be_edited', 'catalog', 'template_fields']
+            ['created_at', 'can_be_edited', 'catalog', 'template_fields', 'front_svg_code', 'back_svg_code', 'sides']
 
     def get_url(self, field):
         cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
@@ -1878,6 +1881,21 @@ class CatalogItemSerializer(serializers.ModelSerializer):
 
     def get_thumbnail(self, catalog_item: CatalogItem):
         return self.get_url(catalog_item.thumbnail)
+    
+    def get_front_svg_code(self, obj: CatalogItem):
+        if obj.file_name:
+            return SVG_TEMPLATE
+        return None
+
+    def get_back_svg_code(self, obj: CatalogItem):
+        if obj.file_name:
+            return SVG_TEMPLATE
+        return None
+    def get_template_fields(self, obj: CatalogItem):
+        if obj.file_name:
+            return TEMPLATE_FIELDS
+        return None
+
 
 
 class CreateTemplateFieldSerializer(serializers.ModelSerializer):
@@ -2663,6 +2681,7 @@ class CreateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
         validated_data['file_size'] = file_size
         validated_data['title'] = catalog_item_name
         validated_data['status'] = CatalogItem.PENDING
+        validated_data['item_type'] = CatalogItem.BUSINESS_CARD
         return super().create(validated_data)
 
     def get_file_size(self, obj: EditableCatalogItemFile):
