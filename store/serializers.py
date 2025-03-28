@@ -2682,6 +2682,7 @@ class CreateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
         validated_data['title'] = catalog_item_name
         validated_data['status'] = CatalogItem.PENDING
         validated_data['item_type'] = CatalogItem.BUSINESS_CARD
+        validated_data['can_be_edited'] = True
         return super().create(validated_data)
 
     def get_file_size(self, obj: EditableCatalogItemFile):
