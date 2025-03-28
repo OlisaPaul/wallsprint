@@ -2718,10 +2718,10 @@ class UpdateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
         front_svg_code = attrs.get('front_svg_code')
         status = attrs.get('status', None)
 
-        if self.instance:
-            if status == CatalogItem.APPROVED and self.instance.status not in [CatalogItem.APPROVING, CatalogItem.UPDATED]:
-                raise serializers.ValidationError(
-                    {"status": "You can't update status to approved"})
+        # if self.instance:
+        #     if status == CatalogItem.APPROVED and self.instance.status not in [CatalogItem.APPROVING, CatalogItem.UPDATED]:
+        #         raise serializers.ValidationError(
+        #             {"status": "You can't update status to approved"})
 
         if back_svg_code and not front_svg_code:
             raise serializers.ValidationError(
