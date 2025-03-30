@@ -1853,7 +1853,7 @@ class CatalogItemSerializer(serializers.ModelSerializer):
     template_fields = serializers.SerializerMethodField()
     front_svg_code = serializers.SerializerMethodField()
     back_svg_code = serializers.SerializerMethodField()
-    can-be_edited = serializers.SerializerMethodField()
+    can_be_edited = serializers.SerializerMethodField()
 
     class Meta:
         model = CatalogItem
@@ -1897,7 +1897,7 @@ class CatalogItemSerializer(serializers.ModelSerializer):
             return TEMPLATE_FIELDS
         return None
     
-    def can_be_edited(self, obj: CatalogItem):
+    def get_can_be_edited(self, obj: CatalogItem):
         return obj.item_type in [CatalogItem.BUSINESS_CARD, CatalogItem.OTHERS]
 
 
