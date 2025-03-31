@@ -1117,7 +1117,7 @@ class UpdatePortalContentSerializer(serializers.ModelSerializer):
                 "All selected customer groups must be part of the parent portal."
             )
 
-        if not self.instance.can_have_catalogs and catalogs:
+        if self.instance.title != CreatePortalSerializer.ONLINE_ORDERS and catalogs:
             raise ValidationError(
                 {"catalogs": "You can't assign catalogs for this page."})
 
@@ -1189,6 +1189,7 @@ class CreatePortalSerializer(serializers.ModelSerializer):
     WELCOME = 'Welcome'
     ONLINE_PAYMENTS = 'Online payments'
     ORDER_APPROVAL = 'Order approval'
+    ONLINE_ORDERS = 'Online orders'
     copy_an_existing_portal = serializers.BooleanField(default=False)
     copy_from_portal_id = serializers.IntegerField(
         required=False, allow_null=True)
@@ -1341,7 +1342,7 @@ class CreatePortalSerializer(serializers.ModelSerializer):
                 portal=portal).values_list('title', flat=True)
 
             online_orders_content = [
-                PortalContent(portal=portal, title='Online orders',
+                PortalContent(portal=portal, title=self.ONLINE_ORDERS,
                               url='online-orders.html', can_have_catalogs=True)
             ]
             order_history_content = [
@@ -1491,6 +1492,9 @@ class PortalContentSerializer(serializers.ModelSerializer):
         filtered_customers = customers.intersection(portal_customers).union(
             customers.intersection(portal_group_customers))
         return PortalCustomerSerializer(filtered_customers, many=True).data
+
+    def get_can_have_catalogs(self, obj):
+        return obj.title == CreatePortalSerializer.ONLINE_ORDERS
 
 
 class PortalSerializer(serializers.ModelSerializer):
