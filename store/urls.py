@@ -31,7 +31,8 @@ router.register('online-payments', views.OnlinePaymentViewSet,
                 basename='online-payments'),
 router.register('contact-us', views.ContactInquiryViewSet,
                 basename='contact-us'),
-router.register('editable-files', views.EditableCatalogItemViewSet, basename='editable-files')
+router.register('editable-files', views.EditableCatalogItemViewSet,
+                basename='editable-files')
 portals_router = routers.NestedDefaultRouter(
     router, 'portals', lookup='portal',)
 portals_router.register(
@@ -61,7 +62,8 @@ file_transfers_router.register(
     'billing-info', views.BillingInfoViewSet, basename='file-transfer-billing-info'
 )
 orders_router = routers.NestedDefaultRouter(router, 'orders', lookup='order')
-editable_files_router = routers.NestedDefaultRouter(router, 'editable-files', lookup='editable_item')
+editable_files_router = routers.NestedDefaultRouter(
+    router, 'editable-files', lookup='editable_item')
 editable_files_router.register(
     'template-fields', views.TemplateFieldViewSet, basename='template-fields')
 
@@ -93,7 +95,8 @@ recent_order_url = [
     path('recent-orders/', views.OrderView.as_view(), name='recent-orders'),
 ]
 
-router.register(r'business-cards', views.BusinessCardViewSet, basename="business-card")
+router.register(r'business-cards', views.BusinessCardViewSet,
+                basename="business-card")
 
 # Create a nested router for CartDetails under CartItems
 cart_items_router = routers.NestedDefaultRouter(
@@ -127,3 +130,9 @@ urlpatterns = router.urls + portals_router.urls + \
     cart_items_router.urls + orders_router.urls +\
     catalog_items_router.urls + attributes_router.urls +\
     order_items_router.urls + editable_files_router.urls
+
+# Add the nested route for generate_business_card
+urlpatterns += [
+    path('editable-files/<int:editable_item_id>/generate-business-card/',
+         views.generate_business_card, name='generate_business_card'),
+]
