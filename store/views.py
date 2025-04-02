@@ -81,13 +81,12 @@ class BusinessCardViewSet(viewsets.ViewSet):
 
 
 @csrf_exempt  # Remove this if using CSRF tokens properly
-def generate_business_card(request):
-    editable_item_id = request.GET.get("editable_item_id", 2)
-    editable_item = models.EditableCatalogItemFile.objects.filter(
+def generate_business_card(request, editable_item_id):
+    editable_item = models.CatalogItem.objects.filter(
         pk=editable_item_id).first()
 
-    SVG_TEMPLATE = editable_item.front_svg_code
-    template_fields = editable_item.template_fields.all()
+    SVG_TEMPLATE = editable_item.front_svg_code or serializers.SVG_TEMPLATE
+    template_fields = editable_item.template_fields.all() or serializers.TEMPLATE_FIELDS
 
     context_data = {}
     for field in template_fields:
@@ -1302,7 +1301,7 @@ class TemplateFieldViewSet(CustomModelViewSet):
 
 
 class EditableCatalogItemViewSet(ModelViewSet):
-    queryset = CatalogItem.objects.filter(~Q(status=CatalogItem.APPROVED)).prefetch_related(
+    queryset = CatalogItem.objects.filter(Q(file_name__isnull=False)).prefetch_related(
         'template_fields').select_related('catalog')
     serializer_class = serializers.CreateEditableCatalogItemFileSerializer
     permission_classes = [IsAdminUser]

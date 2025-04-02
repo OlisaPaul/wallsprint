@@ -1535,6 +1535,7 @@ class PortalSerializer(serializers.ModelSerializer):
             carts = carts.filter(customer_id=customer_id)
 
         return sum([cart.items.count() for cart in carts])
+
     def delete(self, instance):
         _implement_permission_change(instance, instance, instance.customers)
         instance.delete()
@@ -1861,7 +1862,8 @@ class CatalogItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = CatalogItem
         fields = catalog_item_fields + \
-            ['created_at', 'can_be_edited', 'catalog', 'template_fields', 'front_svg_code', 'back_svg_code', 'sides']
+            ['created_at', 'can_be_edited', 'catalog', 'template_fields',
+                'front_svg_code', 'back_svg_code', 'sides']
 
     def get_url(self, field):
         cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
@@ -1885,21 +1887,22 @@ class CatalogItemSerializer(serializers.ModelSerializer):
 
     def get_thumbnail(self, catalog_item: CatalogItem):
         return self.get_url(catalog_item.thumbnail)
-    
+
     def get_front_svg_code(self, obj: CatalogItem):
         if obj.file_name:
-            return SVG_TEMPLATE
+            return obj.front_svg_code or SVG_TEMPLATE
         return None
 
     def get_back_svg_code(self, obj: CatalogItem):
         if obj.file_name:
-            return SVG_TEMPLATE
-        return None
-    def get_template_fields(self, obj: CatalogItem):
-        if obj.file_name:
-            return TEMPLATE_FIELDS
+            return obj.back_svg_code or SVG_TEMPLATE
         return None
 
+    def get_template_fields(self, obj: CatalogItem):
+        if obj.file_name: 
+            return TemplateFieldSerializer(
+                obj.template_fields.all(), many=True).data or TEMPLATE_FIELDS
+        return None
 
 
 class CreateTemplateFieldSerializer(serializers.ModelSerializer):
@@ -2814,10 +2817,19 @@ class EditableCatalogItemFileSerializer(serializers.ModelSerializer):
     def get_catalog_item_name(self, obj: CatalogItem):
         return obj.title
 
+    
     def get_front_svg_code(self, obj: CatalogItem):
-        return SVG_TEMPLATE
+        if obj.file_name:
+            return obj.front_svg_code or SVG_TEMPLATE
+        return None
 
     def get_back_svg_code(self, obj: CatalogItem):
-        return SVG_TEMPLATE
+        if obj.file_name:
+            return obj.back_svg_code or SVG_TEMPLATE
+        return None
+
     def get_template_fields(self, obj: CatalogItem):
-        return TEMPLATE_FIELDS
+        if obj.file_name: 
+            return TemplateFieldSerializer(
+                obj.template_fields.all(), many=True).data or TEMPLATE_FIELDS
+        return None
