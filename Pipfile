@@ -34,6 +34,8 @@ django-ipware = "*"
 daphne = "*"
 channels = "*"
 pillow = "*"
+svglib = "*"
+reportlab = "*"
 
 [dev-packages]
 

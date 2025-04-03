@@ -28,6 +28,17 @@ from .utils import get_queryset_for_models_with_files, get_base_url
 from .utils import bulk_delete_objects, CustomModelViewSet
 from store import models
 from store import serializers
+from reportlab.graphics import renderPM
+import tempfile
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
+import tempfile
 
 CanTransferFiles = create_permission_class('store.transfer_files')
 PortalPermissions = create_permission_class('store.portals')
@@ -64,17 +75,23 @@ class BusinessCardViewSet(viewsets.ViewSet):
         svg_output = template.render(context)
 
         if output_format == "png":
-            # Convert SVG to PNG using rsvg-convert (Alternative: Inkscape)
-            process = subprocess.run(
-                ["rsvg-convert", "-f", "png"],
-                input=svg_output.encode("utf-8"),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-            if process.returncode != 0:
-                return Response({"error": "Failed to convert SVG to PNG"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-            return HttpResponse(process.stdout, content_type="image/png")
+            try:
+                # Convert SVG string to a file-like object
+                svg_file = io.StringIO(svg_output)
+                # Convert SVG to ReportLab Graphics object
+                drawing = svg2rlg(svg_file)
+                # Create a bytes buffer for the PNG
+                png_buffer = io.BytesIO()
+                # Render the drawing as PNG to the buffer
+                renderPM.drawToFile(drawing, png_buffer, fmt="PNG")
+                # Get the PNG bytes
+                png_output = png_buffer.getvalue()
+                return HttpResponse(png_output, content_type="image/png")
+            except Exception as e:
+                return Response(
+                    {"error": f"Failed to convert SVG to PNG: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
         print(svg_output)
         return HttpResponse(svg_output, content_type="image/svg+xml")
@@ -102,20 +119,104 @@ def generate_business_card(request, editable_item_id):
     svg_output = template.render(context)
 
     if output_format == "png":
-        # Convert SVG to PNG using rsvg-convert
-        process = subprocess.run(
-            ["rsvg-convert", "-f", "png"],
-            input=svg_output.encode("utf-8"),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        if process.returncode != 0:
-            return HttpResponse("Error converting SVG to PNG", status=500)
+        driver = None
+        temp_html = None
+        try:
+            # Create Chrome options
+            chrome_options = Options()
+            chrome_options.add_argument('--headless')
+            chrome_options.add_argument('--no-sandbox')
+            chrome_options.add_argument('--disable-dev-shm-usage')
+            chrome_options.add_argument('--disable-gpu')
+            chrome_options.add_argument('--disable-software-rasterizer')
+            chrome_options.add_argument('--disable-dev-tools')
+            chrome_options.add_argument('--log-level=3')  # Suppress console logs
+            chrome_options.add_argument('--silent')
 
-        return HttpResponse(process.stdout, content_type="image/png")
+            # Create a temporary HTML file with the SVG
+            with tempfile.NamedTemporaryFile(suffix='.html', delete=False, mode='w') as f:
+                html_content = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        body, html {{
+                            margin: 0;
+                            padding: 0;
+                            width: 100%;
+                            height: 100%;
+                            overflow: hidden;
+                        }}
+                        svg {{
+                            width: 100%;
+                            height: 100%;
+                            display: block;
+                        }}
+                    </style>
+                </head>
+                <body>
+                    {svg_output}
+                </body>
+                </html>
+                """
+                f.write(html_content)
+                temp_html = f.name
+
+            # Initialize Chrome driver with service
+            service = Service(ChromeDriverManager().install())
+            driver = webdriver.Chrome(service=service, options=chrome_options)
+            
+            # Set viewport size to match SVG dimensions
+            driver.set_window_size(1024, 768)  # Adjust these dimensions as needed
+            
+            # Load the HTML file
+            driver.get(f'file:///{temp_html}')
+            
+            # Wait for the page to be fully loaded
+            WebDriverWait(driver, 10).until(
+                lambda d: d.execute_script('return document.readyState') == 'complete'
+            )
+            
+            # Get the actual size of the SVG element
+            size = driver.execute_script("""
+                var svg = document.querySelector('svg');
+                return {
+                    width: svg.getBoundingClientRect().width,
+                    height: svg.getBoundingClientRect().height
+                };
+            """)
+            
+            # Update viewport to match SVG size
+            driver.set_window_size(
+                int(size['width']), 
+                int(size['height'])
+            )
+            
+            # Take screenshot of the specific element
+            png_data = driver.find_element('tag name', 'svg').screenshot_as_png
+            
+            return HttpResponse(png_data, content_type="image/png")
+            
+        except Exception as e:
+            print(f"SVG to PNG conversion error: {e}")
+            return HttpResponse(
+                {"error": f"Failed to convert SVG to PNG: {str(e)}"},
+                status=500
+            )
+        finally:
+            # Clean up
+            if driver:
+                try:
+                    driver.quit()
+                except Exception:
+                    pass
+            if temp_html and os.path.exists(temp_html):
+                try:
+                    os.unlink(temp_html)
+                except Exception:
+                    pass
 
     return HttpResponse(svg_output, content_type="image/svg+xml")
-
 
 model_map = {
     'request_pk': Request,
@@ -464,7 +565,7 @@ class PortalViewSet(CustomModelViewSet):
             logo=portal.logo if copy_the_logo else logo,
             copy_from_portal_id=portal.id
         )
-        
+
         if same_permissions:
             new_portal.customers.set(portal.customers.all())
             new_portal.customer_groups.set(portal.customer_groups.all())
@@ -473,7 +574,8 @@ class PortalViewSet(CustomModelViewSet):
         elif customer_groups:
             new_portal.customer_groups.set(customer_groups)
 
-        serializers._implement_permission_change(serializer, new_portal, customers)
+        serializers._implement_permission_change(
+            serializer, new_portal, customers)
 
         for content in portal.contents.all():
             new_content = PortalContent.objects.create(
@@ -504,9 +606,11 @@ class PortalViewSet(CustomModelViewSet):
 
         response_serializer = self.get_serializer(new_portal)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
     def destroy(self, request, *args, **kwargs):
         portal = self.get_object()
-        serializers._implement_permission_change({"customers": [1]}, portal, portal.customers.all())
+        serializers._implement_permission_change(
+            {"customers": [1]}, portal, portal.customers.all())
         return super().destroy(request, *args, **kwargs)
 
 
@@ -532,12 +636,12 @@ class PortalContentViewSet(CustomModelViewSet):
         if self.request.method == 'GET':
             return serializers.PortalContentSerializer
         return serializers.UpdatePortalContentSerializer
-    
+
     def destroy(self, request, *args, **kwargs):
         portal_content = self.get_object()
-        serializers._implement_permission_change({"customers": [1]}, portal_content.portal, portal_content.portal.all())
+        serializers._implement_permission_change(
+            {"customers": [1]}, portal_content.portal, portal_content.portal.all())
         return super().destroy(request, *args, **kwargs)
-
 
 
 class PortalContentCatalogViewSet(ModelViewSet):

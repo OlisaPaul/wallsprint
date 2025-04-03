@@ -698,7 +698,7 @@ class CatalogItem(models.Model):
         max_length=50, default=NON_EDITABLE, choices=ITEM_TYPE_CHOICES)
     file = CloudinaryField(
         "business_card",
-        allowed_formats=["psd", "cdr"],
+        allowed_formats=["psd", "cdr", "ai", "pdf"],
         resource_type="raw",
         null=True,
         blank=True
