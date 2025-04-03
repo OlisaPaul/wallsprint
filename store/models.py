@@ -713,7 +713,7 @@ class CatalogItem(models.Model):
         max_length=20, choices=sides_type, default=FRONT_ONLY)
     file = CloudinaryField(
         "business_card",
-        allowed_formats=["psd", "cdr"],
+        allowed_formats=["psd", "cdr", 'pdf'],
         resource_type="raw",
         null=True,
         blank=True
