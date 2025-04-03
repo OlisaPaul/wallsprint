@@ -2727,12 +2727,12 @@ class UpdateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     "Invalid SVG code - must end with </svg> tag")
 
-            # Basic XML validation
-            try:
-                ET.fromstring(value)
-            except ET.ParseError:
-                raise serializers.ValidationError(
-                    "Invalid SVG code - malformed XML")
+            # # Basic XML validation
+            # try:
+            #     ET.fromstring(value)
+            # except ET.ParseError:
+            #     raise serializers.ValidationError(
+            #         "Invalid SVG code - malformed XML")
 
         return value
 
