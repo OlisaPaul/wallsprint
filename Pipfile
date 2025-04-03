@@ -36,6 +36,8 @@ channels = "*"
 pillow = "*"
 svglib = "*"
 reportlab = "*"
+selenium = "*"
+webdriver-manager = "*"
 
 [dev-packages]
 

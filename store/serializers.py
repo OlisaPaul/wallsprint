@@ -2654,7 +2654,7 @@ class BusinessCardSerializer(serializers.Serializer):
 
 class CreateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
     file = serializers.FileField(
-        validators=[FileExtensionValidator(allowed_extensions=['cdr', 'psd'])]
+        validators=[FileExtensionValidator(allowed_extensions=['cdr', 'psd', 'pdf', 'ai'])]
     )
     file_name = serializers.CharField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
