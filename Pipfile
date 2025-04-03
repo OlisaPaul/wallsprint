@@ -38,6 +38,7 @@ svglib = "*"
 reportlab = "*"
 selenium = "*"
 webdriver-manager = "*"
+cffi = "*"
 
 [dev-packages]
 
