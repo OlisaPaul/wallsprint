@@ -424,7 +424,7 @@ SVG_TEMPLATE = """<svg width="336" height="192" viewBox="0 0 336 192" fill="none
 TEMPLATE_FIELDS = [
     {
         "id": 40,
-        "label": "Name",
+        "label": "name",
         "field_type": "text",
         "placeholder": "Olisa Paul"
     },
@@ -1189,6 +1189,8 @@ class CreatePortalSerializer(serializers.ModelSerializer):
     ONLINE_PAYMENTS = 'Online payments'
     ORDER_APPROVAL = 'Order approval'
     ONLINE_ORDERS = 'Online orders'
+    logo = serializers.ImageField(
+        required=True, allow_null=True, write_only=True)
     copy_an_existing_portal = serializers.BooleanField(default=False)
     copy_from_portal_id = serializers.IntegerField(
         required=False, allow_null=True)
