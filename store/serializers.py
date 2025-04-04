@@ -1974,19 +1974,19 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
     preview_file = serializers.FileField()
     attributes = AttributeSerializer(many=True, read_only=True)
     attribute_data = serializers.JSONField(write_only=True, required=False)
-    template_fields = serializers.JSONField(required=False, write_only=True)
+    # template_fields = serializers.JSONField(required=False, write_only=True)
 
     class Meta:
         model = CatalogItem
         fields = catalog_item_fields + \
-            ['attribute_data', 'can_be_edited', 'item_type', 'template_fields']
+            ['attribute_data', 'can_be_edited', 'item_type']
 
-    def validate_template_fields(self, template_fields):
-        if template_fields:
-            for template_field in template_fields:
-                serializer = CreateTemplateFieldSerializer(data=template_field)
-                serializer.is_valid(raise_exception=True)
-            return template_fields
+    # def validate_template_fields(self, template_fields):
+    #     if template_fields:
+    #         for template_field in template_fields:
+    #             serializer = CreateTemplateFieldSerializer(data=template_field)
+    #             serializer.is_valid(raise_exception=True)
+    #         return template_fields
 
     def validate_attribute_data(self, attributes_data):
         if attributes_data and self.instance:
@@ -2014,7 +2014,7 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
     @transaction.atomic()
     def create(self, validated_data):
         attributes_data = validated_data.pop('attribute_data', [])
-        template_fields = validated_data.pop('template_fields', [])
+        # template_fields = validated_data.pop('template_fields', [])
         self.validate_attribute_data(attributes_data)
         catalog_id = self.context['catalog_id']
         catalog_item = CatalogItem.objects.create(
@@ -2022,16 +2022,16 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
 
         options_to_bulk_create = []
 
-        if template_fields:
-            template_fields = CreateTemplateFieldSerializer(
-                data=template_fields,
-                context={
-                    'catalog_item_id': catalog_item.id,
-                },
-                many=True
-            )
-            template_fields.is_valid(raise_exception=True)
-            template_fields.save()
+        # if template_fields:
+        #     template_fields = CreateTemplateFieldSerializer(
+        #         data=template_fields,
+        #         context={
+        #             'catalog_item_id': catalog_item.id,
+        #         },
+        #         many=True
+        #     )
+        #     template_fields.is_valid(raise_exception=True)
+        #     template_fields.save()
 
         for attribute_data in attributes_data:
             options_data = attribute_data.pop('options', [])
@@ -2661,7 +2661,7 @@ class CreateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
     file_name = serializers.CharField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
     file_size = serializers.SerializerMethodField()
-    catalog_item_name = serializers.CharField(write_only=True)
+    catalog_item_name = serializers.CharField(source='title', write_only=True)
 
     class Meta:
         model = CatalogItem
@@ -2685,12 +2685,10 @@ class CreateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
     @transaction.atomic()
     def create(self, validated_data):
         file = validated_data.get('file')
-        catalog_item_name = validated_data.pop('catalog_item_name')
         file_name = file.name
         file_size = file.size
         validated_data['file_name'] = file_name
         validated_data['file_size'] = file_size
-        validated_data['title'] = catalog_item_name
         validated_data['status'] = CatalogItem.PENDING
         validated_data['item_type'] = CatalogItem.BUSINESS_CARD
         validated_data['can_be_edited'] = True
