@@ -1159,7 +1159,7 @@ class OrderViewSet(ModelViewSet):
         if self.request.method in ['PATCH', 'DELETE']:
             return [IsAdminUser()]
         return [IsAuthenticated()]
-
+  
     def get_customer(self):
         self.customer = None
         if self.request.user.is_staff:
