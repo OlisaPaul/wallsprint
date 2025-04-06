@@ -2200,8 +2200,9 @@ class AddCartItemSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         catalog_item = attrs.get('catalog_item')
         image = attrs.get('image')
+        back_image = attrs.get('back_image')
         if catalog_item.item_type != CatalogItem.BUSINESS_CARD:
-            if image:
+            if image or back_image:
                 raise serializers.ValidationError(
                     {"image": "Image is not allowed for this item type"})
         # else:
@@ -2217,7 +2218,7 @@ class AddCartItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CartItem
-        fields = ["id", "catalog_item", "quantity", 'image']
+        fields = ["id", "catalog_item", "quantity", 'image', 'back_image']
 
 
 class UpdateCartItemSerializer(serializers.ModelSerializer):
@@ -2454,6 +2455,7 @@ class CreateOrderSerializer(serializers.ModelSerializer):
                 quantity=item.quantity,
                 details=item.details,
                 image=item.image,
+                back_image=item.back_image,
             ))
 
         if catalog_items:

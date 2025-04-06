@@ -869,7 +869,7 @@ class CartItem(models.Model):
         ItemDetails, on_delete=models.SET_NULL, related_name='cart_items', null=True, blank=True
     )
     image = CloudinaryField('image', resource_type='image', blank=True, null=True)
-
+    back_image = CloudinaryField('image', resource_type='image', blank=True, null=True)
     # class Meta:
     #     unique_together = [["catalog_item", "cart", "quantity"]]
 
@@ -923,6 +923,7 @@ class OrderItem(models.Model):
     unit_price = models.DecimalField(max_digits=6, decimal_places=2)
     sub_total = models.DecimalField(max_digits=12, decimal_places=2)
     image = CloudinaryField('image', resource_type='image', blank=True, null=True)
+    back_image = CloudinaryField('image', resource_type='image', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     details = models.ForeignKey(
         ItemDetails, on_delete=models.SET_NULL, related_name='order_items', null=True, blank=True
