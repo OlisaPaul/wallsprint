@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "3f8f7b6333e07f35fbd3310312a9a615fcace88fab9a2da2d124110b8f53cf6f"
+            "sha256": "c7679c30ecc52ac4395747a8c10bd5a00da63e0e95ee34bb092367853cba27ac"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -79,6 +79,23 @@
             ],
             "markers": "python_version >= '3.7'",
             "version": "==4.2.1"
+        },
+        "cairocffi": {
+            "hashes": [
+                "sha256:2e48ee864884ec4a3a34bfa8c9ab9999f688286eb714a15a43ec9d068c36557b",
+                "sha256:9803a0e11f6c962f3b0ae2ec8ba6ae45e957a146a004697a1ac1bbf16b073b3f"
+            ],
+            "markers": "python_version >= '3.8'",
+            "version": "==1.7.1"
+        },
+        "cairosvg": {
+            "hashes": [
+                "sha256:432531d72347291b9a9ebfb6777026b607563fd8719c46ee742db0aef7271ba0",
+                "sha256:8a5222d4e6c3f86f1f7046b63246877a63b49923a1cd202184c3a634ef546b3b"
+            ],
+            "index": "pypi",
+            "markers": "python_version >= '3.5'",
+            "version": "==2.7.1"
         },
         "celery": {
             "hashes": [

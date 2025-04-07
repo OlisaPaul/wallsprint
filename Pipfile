@@ -39,6 +39,7 @@ reportlab = "*"
 selenium = "*"
 webdriver-manager = "*"
 cffi = "*"
+cairosvg = "*"
 
 [dev-packages]
 
