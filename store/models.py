@@ -1062,17 +1062,25 @@ class TemplateField(models.Model):
     Model for template fields with positioning and styling information.
     Used for customizable templates like business cards.
     """
+    TEL = 'tel'
+    EMAIL = 'email'
+    TEXT = 'text'
+    IMAGE = 'image'
+    DATE = 'date'
+    
+    FIELD_TYPE_CHOICES = [
+        (TEXT, TEXT),
+        (IMAGE, IMAGE),
+        (DATE, DATE),
+        (EMAIL, EMAIL),
+        (TEL, TEL)
+    ]
+
     label = models.CharField(max_length=100)
     field_type = models.CharField(
         max_length=20,
-        choices=[
-            ('text', 'Text'),
-            ('image', 'Image'),
-            ('date', 'Date'),
-            ('email', 'Email'),
-            ('phone', 'Phone'),
-        ],
-        default='text'
+        choices=FIELD_TYPE_CHOICES,
+        default=TEXT
     )
     placeholder = models.CharField(max_length=255, blank=True, null=True)
 
