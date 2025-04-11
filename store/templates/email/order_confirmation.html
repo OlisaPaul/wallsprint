@@ -1,101 +1,53 @@
+{% autoescape off %}
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Order Confirmation</title>
-  </head>
-  <body
-    style="
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Order Confirmation</title>
+  <style>
+    body {
       font-family: Arial, sans-serif;
-      background-color: #f4f4f9;
+      color: #333;
+      background-color: #ffffff;
       margin: 0;
-      padding: 0;
-    "
-  >
-    <table
-      width="100%"
-      cellpadding="0"
-      cellspacing="0"
-      border="0"
-      style="background-color: #f4f4f9; margin: 0; padding: 20px"
-    >
-      <tr>
-        <td align="center">
-          <table
-            width="600px"
-            cellpadding="0"
-            cellspacing="0"
-            border="0"
-            style="
-              background-color: #ffffff;
-              border-radius: 8px;
-              box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-              overflow: hidden;
-            "
-          >
-            <tr>
-              <td style="padding: 20px; text-align: center">
-                <img
-                  src="logo_url"
-                  alt="Walls Printing"
-                  style="max-width: 100px"
-                />
-                <h2 style="margin: 0; color: #333333">
-                  Your Walls Printing Order Confirmation - {{ invoice_number }}
-                </h2>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding: 20px">
-                <p style="font-size: 16px; margin-bottom: 20px">
-                  Dear {{ customer_name }},
-                </p>
-                <p style="font-size: 16px; margin-bottom: 20px">
-                  Thank you for your recent order with Walls Printing.
-                </p>
-                <p style="font-size: 16px; margin-bottom: 20px">
-                  Your order number is <strong>{{ po_number }}</strong> and your
-                  invoice number is <strong>{{ invoice_number }}</strong>.
-                </p>
-                <p style="font-size: 16px; margin-bottom: 20px">
-                  You can make payment for this order using any of our preferred
-                  methods.
-                </p>
-                <p style="font-size: 16px; margin-bottom: 20px">
-                  Once payment is made, please submit your proof of payment
-                  through the following link:
-                  <a href="payment_submission_link">Submit Payment</a>
-                </p>
-                <p style="font-size: 16px; margin-bottom: 20px">
-                  You will receive a confirmation email once your payment has
-                  been processed.
-                </p>
-                <p style="font-size: 16px; margin-bottom: 20px">
-                  Thank you for your business!
-                </p>
-                <p style="font-size: 16px; margin-bottom: 20px">Sincerely,</p>
-                <p style="font-size: 16px; margin-bottom: 20px">
-                  The Walls Printing Team
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td
-                style="
-                  background-color: #f4f4f9;
-                  text-align: center;
-                  padding: 10px;
-                  font-size: 12px;
-                  color: #999999;
-                "
-              >
-                © 2025 Walls Printing. All rights reserved.
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    .footer {
+      margin-top: 30px;
+      font-size: 12px;
+      color: #777;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>WallsPrinting - Order Request Received: #{{ order_number }}</h2>
+
+    <p>Dear {{ customer_name }},</p>
+
+    <p>Thank you for choosing <strong>WallsPrinting</strong>! We have successfully received your order request, reference number <strong>#{{ order_number }}</strong>.</p>
+
+    <p>Our team is now carefully reviewing the specifics of your request and preparing a detailed quotation for you. We anticipate contacting you within <strong>{{ response_days }}</strong> business days with this information, along with an estimated production and delivery timeline.</p>
+
+    <p>If you have any immediate questions or need to provide further details, please reply to this email or call us at <strong>{{ wallsprinting_phone }}</strong>.</p>
+
+    <p>We appreciate your business and look forward to fulfilling your printing needs.</p>
+
+    <p>Sincerely,<br>
+    The WallsPrinting Team</p>
+
+    <div class="footer">
+      <p><a href="{{ wallsprinting_website }}">{{ wallsprinting_website }}</a><br>
+      {{ wallsprinting_address }}</p>
+    </div>
+  </div>
+</body>
 </html>
+{% endautoescape %}

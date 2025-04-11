@@ -2570,8 +2570,8 @@ class CreateOrderSerializer(serializers.ModelSerializer):
                 'order_number': order.po_number,
                 'customer_name': order.name,
                 'response_days': 2,
-                'wallsprinting_phone': '123-456-7890',
-                'wallsprinting_website': 'https://www.wallsprinting.com',
+                'wallsprinting_phone': os.getenv('WALLSPRINTING_PHONE'),
+                'wallsprinting_website': os.getenv('WALLSPRINTING_WEBSITE'),
                 'invoice_number': order.po_number,
                 'po_number': order.po_number,
                 'payment_submission_link': 'your_payment_submission_link_here'
