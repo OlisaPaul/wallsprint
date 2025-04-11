@@ -1090,7 +1090,7 @@ class TemplateField(models.Model):
         default=TEXT
     )
     placeholder = models.CharField(max_length=255, blank=True, null=True)
-    prefix = models.CharField(max_length=50, blank=True, null=True)
+    prefix = models.CharField(max_length=50, default="", blank=True, null=True)
     # Position coordinates
     position_x = models.IntegerField(default=0)
     position_y = models.IntegerField(default=0)
