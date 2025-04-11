@@ -1,0 +1,67 @@
+{% autoescape off %}
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Order Request Received</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #ffffff;
+        color: #333;
+        padding: 20px;
+      }
+      .container {
+        max-width: 600px;
+        margin: auto;
+        border: 1px solid #ddd;
+        padding: 20px;
+        border-radius: 5px;
+      }
+      .footer {
+        margin-top: 30px;
+        font-size: 12px;
+        color: #777;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>WallsPrinting - Order Request Received: #{{ order_number }}</h2>
+
+      <p>Dear {{ customer_name }},</p>
+
+      <p>
+        Thank you for your recent order request
+        <strong>#{{ order_number }}</strong> with WallsPrinting.
+      </p>
+
+      <p>Attached is a PDF containing the details of your submitted request.</p>
+
+      <p>
+        Our team will review it and get back to you within
+        <strong>{{ response_days }}</strong> business days with a final
+        quotation and estimated timeline.
+      </p>
+
+      <p>
+        If you have any immediate questions, please reply to this email or call
+        us at <strong>{{ wallsprinting_phone }}</strong>.
+      </p>
+
+      <p>We appreciate your business.</p>
+
+      <p>
+        Sincerely,<br />
+        The WallsPrinting Team
+      </p>
+
+      <div class="footer">
+        <p>
+          <a href="{{ wallsprinting_website }}">{{ wallsprinting_website }}</a>
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
+{% endautoescape %}
