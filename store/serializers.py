@@ -2128,11 +2128,13 @@ class CartItemSerializer(serializers.ModelSerializer):
     catalog_item = SimpleCatalogItemSerializer()
     sub_total = serializers.SerializerMethodField()
     details = ItemDetailsSerializer()
+    front_pdf = serializers.SerializerMethodField()
+    back_pdf = serializers.SerializerMethodField()
 
     class Meta:
         model = CartItem
         fields = ['id', 'catalog_item', 'quantity',
-                  'sub_total', 'unit_price', 'details']
+                  'sub_total', 'unit_price', 'details', 'front_pdf', 'back_pdf', 'created_at']
 
     def get_sub_total(self, cart_item: CartItem):
         pricing_grid = cart_item.catalog_item.pricing_grid
@@ -2142,7 +2144,15 @@ class CartItemSerializer(serializers.ModelSerializer):
         total_price = (quantity * item['unit_price']
                        ) if item else cart_item.sub_total
         return total_price
-
+    
+    def get_url(self, field: CartItem):
+        return field.url if field else None
+    
+    def get_front_pdf(self, cart_item: CartItem):
+        return self.get_url(cart_item.front_pdf)
+    def get_back_pdf(self, cart_item: CartItem):
+        return self.get_url(cart_item.back_pdf)
+    
 
 class CartSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(read_only=True)
@@ -2197,14 +2207,24 @@ class CartSerializer(serializers.ModelSerializer):
 
 
 class AddCartItemSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(required=False)
+    back_image = serializers.ImageField(required=False)
+    front_pdf = serializers.FileField(required=False)
+    back_pdf = serializers.FileField(required=False)
+
     def validate(self, attrs):
         catalog_item = attrs.get('catalog_item')
         image = attrs.get('image')
         back_image = attrs.get('back_image')
+        front_pdf = attrs.get('front_pdf')
+        back_pdf = attrs.get('back_pdf')
         if catalog_item.item_type != CatalogItem.BUSINESS_CARD:
             if image or back_image:
                 raise serializers.ValidationError(
                     {"image": "Image is not allowed for this item type"})
+            if front_pdf or back_pdf:
+                raise serializers.ValidationError(
+                    {"front_pdf": "PDF is not allowed for this item type"})
         # else:
         #     if not image:
         #         raise serializers.ValidationError(
@@ -2218,7 +2238,7 @@ class AddCartItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CartItem
-        fields = ["id", "catalog_item", "quantity", 'image', 'back_image']
+        fields = ["id", "catalog_item", "quantity", 'image', 'back_image', 'front_pdf', 'back_pdf']
 
 
 class UpdateCartItemSerializer(serializers.ModelSerializer):
@@ -2230,13 +2250,22 @@ class UpdateCartItemSerializer(serializers.ModelSerializer):
 class OrderItemSerializer(serializers.ModelSerializer):
     catalog_item = SimpleCatalogItemSerializer()
     details = ItemDetailsSerializer()
+    front_pdf = serializers.SerializerMethodField()
+    back_pdf = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItem
         fields = ['id', 'catalog_item', 'unit_price',
                   'quantity', 'sub_total', 'tax', 'status',
-                  'details', 'created_at'
+                  'details', 'front_pdf', 'back_pdf', 'created_at'
                   ]
+        
+    def get_url(self, field: OrderItem):
+        return field.url if field else None
+    def get_front_pdf(self, order_item: OrderItem):
+        return self.get_url(order_item.front_pdf)
+    def get_back_pdf(self, order_item: OrderItem):
+        return self.get_url(order_item.back_pdf)
 
 
 class CreateOrderItemSerializer(serializers.ModelSerializer):
@@ -2456,6 +2485,8 @@ class CreateOrderSerializer(serializers.ModelSerializer):
                 details=item.details,
                 image=item.image,
                 back_image=item.back_image,
+                front_pdf=item.front_pdf,
+                back_pdf=item.back_pdf,
             ))
 
         if catalog_items:
