@@ -1966,7 +1966,7 @@ class CreateTemplateFieldSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TemplateField
-        fields = ['id', 'label', 'field_type', 'placeholder',
+        fields = ['id', 'label', 'field_type', 'placeholder', 'prefix', 
                   'position', 'font_size', 'font_color',
                   'font_family', 'bold', 'italic', 'width', 'height',
                   'max_length']
@@ -2908,7 +2908,7 @@ class UpdateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
 class TemplateFieldSerializer(serializers.ModelSerializer):
     class Meta:
         model = TemplateField
-        fields = ['id', 'label', 'field_type', 'placeholder']
+        fields = ['id', 'label', 'field_type', 'placeholder', 'prefix']
         read_only_fields = ['created_at', 'updated_at']
 
 
