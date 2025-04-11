@@ -872,6 +872,7 @@ class CartItem(models.Model):
     back_image = CloudinaryField('image', resource_type='image', blank=True, null=True)
     front_pdf = CloudinaryField('image', resource_type='raw', blank=True, allowed_formats=['pdf'], null=True)
     back_pdf = CloudinaryField('image', resource_type='raw', blank=True,  allowed_formats=['pdf'],null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
     # class Meta:
     #     unique_together = [["catalog_item", "cart", "quantity"]]
 
