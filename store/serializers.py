@@ -2201,10 +2201,15 @@ class AddCartItemSerializer(serializers.ModelSerializer):
         catalog_item = attrs.get('catalog_item')
         image = attrs.get('image')
         back_image = attrs.get('back_image')
+        front_pdf = attrs.get('front_pdf')
+        back_pdf = attrs.get('back_pdf')
         if catalog_item.item_type != CatalogItem.BUSINESS_CARD:
             if image or back_image:
                 raise serializers.ValidationError(
                     {"image": "Image is not allowed for this item type"})
+            if front_pdf or back_pdf:
+                raise serializers.ValidationError(
+                    {"front_pdf": "PDF is not allowed for this item type"})
         # else:
         #     if not image:
         #         raise serializers.ValidationError(
@@ -2218,7 +2223,7 @@ class AddCartItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CartItem
-        fields = ["id", "catalog_item", "quantity", 'image', 'back_image']
+        fields = ["id", "catalog_item", "quantity", 'image', 'back_image', 'front_pdf', 'back_pdf']
 
 
 class UpdateCartItemSerializer(serializers.ModelSerializer):
@@ -2456,6 +2461,8 @@ class CreateOrderSerializer(serializers.ModelSerializer):
                 details=item.details,
                 image=item.image,
                 back_image=item.back_image,
+                front_pdf=item.front_pdf,
+                back_pdf=item.back_pdf,
             ))
 
         if catalog_items:

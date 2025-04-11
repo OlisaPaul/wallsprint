@@ -870,6 +870,8 @@ class CartItem(models.Model):
     )
     image = CloudinaryField('image', resource_type='image', blank=True, null=True)
     back_image = CloudinaryField('image', resource_type='image', blank=True, null=True)
+    front_pdf = CloudinaryField('image', resource_type='raw', blank=True, allowed_formats=['pdf'], null=True)
+    back_pdf = CloudinaryField('image', resource_type='raw', blank=True,  allowed_formats=['pdf'],null=True)
     # class Meta:
     #     unique_together = [["catalog_item", "cart", "quantity"]]
 
@@ -924,6 +926,8 @@ class OrderItem(models.Model):
     sub_total = models.DecimalField(max_digits=12, decimal_places=2)
     image = CloudinaryField('image', resource_type='image', blank=True, null=True)
     back_image = CloudinaryField('image', resource_type='image', blank=True, null=True)
+    front_pdf = CloudinaryField('image', resource_type='raw', blank=True, allowed_formats=['pdf'], null=True)
+    back_pdf = CloudinaryField('image', resource_type='raw', blank=True,  allowed_formats=['pdf'],null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     details = models.ForeignKey(
         ItemDetails, on_delete=models.SET_NULL, related_name='order_items', null=True, blank=True
