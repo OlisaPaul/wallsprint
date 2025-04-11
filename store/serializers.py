@@ -2,6 +2,8 @@ import csv
 import os
 import re
 import json
+from uuid import uuid4
+import requests
 from django.conf import settings
 from django.core.validators import FileExtensionValidator
 from django.db import transaction
@@ -12,7 +14,7 @@ from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.validators import ValidationError
 from io import TextIOWrapper
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMultiAlternatives
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog, Note, BillingInfo, Shipment, Transaction, ItemDetails, TemplateField, EditableCatalogItemFile
@@ -38,6 +40,56 @@ def send_email(user, context, subject, template):
         html_message=message
     )
 
+def send_html_email_with_attachments(subject, context, template_name, from_email, recipient_list, files=[]):
+    # Render HTML and plain-text bodies
+    html_content = render_to_string(template_name, context)
+    # text_content = render_to_string(template_name, context)
+
+    # Create email with HTML + plain text
+    email = EmailMultiAlternatives(
+        subject=subject,
+        body='',
+        from_email=from_email,
+        to=recipient_list,
+    )
+    email.attach_alternative(html_content, "text/html")
+    print(len(files))
+
+    existing_filenames = set()
+
+    for file in files:
+        url = file.get("url")
+        name = file.get("name")
+
+        if not url:
+            print("Skipping file with no URL.")
+            continue
+
+        try:
+            response = requests.get(url)
+            print(f"Fetching: {url} - Status: {response.status_code}")
+
+            if response.status_code == 200:
+                filename = name or os.path.basename(url.split('?')[0])
+                
+                # Ensure unique filename
+                if filename in existing_filenames:
+                    base, ext = os.path.splitext(filename)
+                    count = 1
+                    while f"{base}_{count}{ext}" in existing_filenames:
+                        count += 1
+                    filename = f"{base}_{count}{ext}"
+                existing_filenames.add(filename)
+
+                content_type = response.headers.get("Content-Type", "application/octet-stream")
+                email.attach(filename, response.content, content_type)
+                print(f"Attached: {filename} ({len(response.content)} bytes)")
+            else:
+                print(f"Failed to download: {url}")
+        except Exception as e:
+            print(f"Error attaching {url}: {e}")
+
+    email.send()
 
 SVG_TEMPLATE = """<svg width="336" height="192" viewBox="0 0 336 192" fill="none" xmlns="http://www.w3.org/2000/svg">
  <g clip-path="url(#clip0_407_397)">
@@ -2234,6 +2286,12 @@ class AddCartItemSerializer(serializers.ModelSerializer):
 
     @transaction.atomic()
     def create(self, validated_data):
+        front_pdf = validated_data.get('front_pdf', None)
+        back_pdf = validated_data.get('back_pdf', None)
+        if front_pdf:
+            validated_data['front_pdf_name'] = front_pdf.name
+        if back_pdf:
+            validated_data['back_pdf_name'] = back_pdf.name
         return save_item(self.context, validated_data, CartItem, 'cart_id', self.instance)
 
     class Meta:
@@ -2451,10 +2509,15 @@ class CreateOrderSerializer(serializers.ModelSerializer):
 
         order_items = []
         catalog_items = []
+        contains_business_card = False
+        attached_files = []
 
         for item in cart_items:
             catalog_item = item.catalog_item
             quantity = item.quantity
+
+            if catalog_item.item_type == CatalogItem.BUSINESS_CARD:
+                contains_business_card = True
 
             if catalog_item.restrict_orders_to_inventory:
                 catalog_item.available_inventory -= quantity
@@ -2476,6 +2539,11 @@ class CreateOrderSerializer(serializers.ModelSerializer):
                 (entry['unit_price'] for entry in item.catalog_item.pricing_grid if entry['minimum_quantity'] == item.quantity), item.unit_price)
             sub_total = item.quantity * unit_price
 
+            if item.front_pdf:
+                attached_files.append({'url':item.front_pdf.url, 'name': item.front_pdf_name})
+            if item.back_pdf:
+                attached_files.append({'url':item.back_pdf.url, 'name': item.back_pdf_name})
+
             order_items.append(OrderItem(
                 order=order,
                 catalog_item=item.catalog_item,
@@ -2488,7 +2556,7 @@ class CreateOrderSerializer(serializers.ModelSerializer):
                 front_pdf=item.front_pdf,
                 back_pdf=item.back_pdf,
             ))
-
+        
         if catalog_items:
             CatalogItem.objects.bulk_update(
                 catalog_items, ['available_inventory'])
@@ -2498,20 +2566,38 @@ class CreateOrderSerializer(serializers.ModelSerializer):
         Cart.objects.filter(pk=cart_id).delete()
 
         if auto_send_proof:
-            subject = f"Your Walls Printing Order Confirmation - {order.po_number}"
-            message = render_to_string('email/order_confirmation.html', {
+            context = {
+                'order_number': order.po_number,
                 'customer_name': order.name,
+                'response_days': 2,
+                'wallsprinting_phone': '123-456-7890',
+                'wallsprinting_website': 'https://www.wallsprinting.com',
                 'invoice_number': order.po_number,
                 'po_number': order.po_number,
                 'payment_submission_link': 'your_payment_submission_link_here'
-            })
-            send_mail(
+            }
+            template = 'email/order_confirmation_editable.html' if contains_business_card else 'email/order_confirmation.html'
+            subject = f"Your Walls Printing Order Confirmation - {order.po_number}"
+            message = render_to_string(template, context=context)
+            # send_mail(
+            #     subject=subject,
+            #     message='',
+            #     from_email=settings.EMAIL_HOST_USER,
+            #     recipient_list=[order.email_address],
+            #     html_message=message,
+            #     fail_silently=False,
+            #     attachments=[
+            #         (file.name, file.read(), file.content_type) for file in attached_files if file
+            #     ]
+            # )
+
+            send_html_email_with_attachments(
                 subject=subject,
-                message='',
+                context=context,
+                template_name=template,
                 from_email=settings.EMAIL_HOST_USER,
                 recipient_list=[order.email_address],
-                html_message=message,
-                fail_silently=False,
+                files=attached_files,
             )
 
         return order
