@@ -30,15 +30,15 @@ from store import models
 from store import serializers
 from reportlab.graphics import renderPM
 import tempfile
-import cairosvg
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
+# import cairosvg
+# from selenium import webdriver
+# from selenium.webdriver.chrome.options import Options
+# from selenium import webdriver
+# from selenium.webdriver.chrome.options import Options
+# from selenium.webdriver.chrome.service import Service
+# from selenium.webdriver.support.ui import WebDriverWait
+# from selenium.webdriver.support import expected_conditions as EC
+# from webdriver_manager.chrome import ChromeDriverManager
 import tempfile
 
 CanTransferFiles = create_permission_class('store.transfer_files')
@@ -75,26 +75,26 @@ class BusinessCardViewSet(viewsets.ViewSet):
         })
         svg_output = template.render(context)
 
-        if output_format == "png":
-            try:
-                # Convert SVG string to a file-like object
-                svg_file = io.StringIO(svg_output)
-                # Convert SVG to ReportLab Graphics object
-                drawing = svg2rlg(svg_file)
-                # Create a bytes buffer for the PNG
-                png_buffer = io.BytesIO()
-                # Render the drawing as PNG to the buffer
-                renderPM.drawToFile(drawing, png_buffer, fmt="PNG")
-                # Get the PNG bytes
-                png_output = png_buffer.getvalue()
-                return HttpResponse(png_output, content_type="image/png")
-            except Exception as e:
-                return Response(
-                    {"error": f"Failed to convert SVG to PNG: {str(e)}"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+        # if output_format == "png":
+        #     try:
+        #         # Convert SVG string to a file-like object
+        #         svg_file = io.StringIO(svg_output)
+        #         # Convert SVG to ReportLab Graphics object
+        #         drawing = svg2rlg(svg_file)
+        #         # Create a bytes buffer for the PNG
+        #         png_buffer = io.BytesIO()
+        #         # Render the drawing as PNG to the buffer
+        #         renderPM.drawToFile(drawing, png_buffer, fmt="PNG")
+        #         # Get the PNG bytes
+        #         png_output = png_buffer.getvalue()
+        #         return HttpResponse(png_output, content_type="image/png")
+        #     except Exception as e:
+        #         return Response(
+        #             {"error": f"Failed to convert SVG to PNG: {str(e)}"},
+        #             status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        #         )
 
-        print(svg_output)
+        # print(svg_output)
         return HttpResponse(svg_output, content_type="image/svg+xml")
 
 

@@ -935,6 +935,8 @@ class OrderItem(models.Model):
     details = models.ForeignKey(
         ItemDetails, on_delete=models.SET_NULL, related_name='order_items', null=True, blank=True
     )
+    back_pdf_name = models.CharField(max_length=255, blank=True, null=True)
+    front_pdf_name = models.CharField(max_length=255, blank=True, null=True)
 
     @transaction.atomic()
     def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
@@ -1074,13 +1076,15 @@ class TemplateField(models.Model):
     TEXT = 'text'
     IMAGE = 'image'
     DATE = 'date'
+    NUMBER = 'number'
     
     FIELD_TYPE_CHOICES = [
         (TEXT, TEXT),
         (IMAGE, IMAGE),
         (DATE, DATE),
         (EMAIL, EMAIL),
-        (TEL, TEL)
+        (TEL, TEL),
+        (NUMBER, NUMBER)
     ]
 
     label = models.CharField(max_length=100)
