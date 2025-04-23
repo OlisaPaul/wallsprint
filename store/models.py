@@ -1070,6 +1070,7 @@ class TemplateField(models.Model):
             ('date', 'Date'),
             ('email', 'Email'),
             ('phone', 'Phone'),
+            ('number', 'Number'),
         ],
         default='text'
     )
