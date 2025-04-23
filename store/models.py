@@ -1081,7 +1081,7 @@ class TemplateField(models.Model):
         (IMAGE, IMAGE),
         (DATE, DATE),
         (EMAIL, EMAIL),
-        (TEL, TEL)
+        (TEL, TEL),
         (NUMBER, NUMBER)
     ]
 
