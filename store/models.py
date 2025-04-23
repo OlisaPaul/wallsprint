@@ -1074,6 +1074,7 @@ class TemplateField(models.Model):
     TEXT = 'text'
     IMAGE = 'image'
     DATE = 'date'
+    NUMBER = 'number'
     
     FIELD_TYPE_CHOICES = [
         (TEXT, TEXT),
@@ -1081,6 +1082,7 @@ class TemplateField(models.Model):
         (DATE, DATE),
         (EMAIL, EMAIL),
         (TEL, TEL)
+        (NUMBER, NUMBER)
     ]
 
     label = models.CharField(max_length=100)
