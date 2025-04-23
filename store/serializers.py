@@ -2555,6 +2555,8 @@ class CreateOrderSerializer(serializers.ModelSerializer):
                 back_image=item.back_image,
                 front_pdf=item.front_pdf,
                 back_pdf=item.back_pdf,
+                back_pdf_name=item.back_pdf_name,
+                front_pdf_name=item.front_pdf_name
             ))
         
         if catalog_items:

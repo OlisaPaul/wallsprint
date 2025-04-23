@@ -935,6 +935,8 @@ class OrderItem(models.Model):
     details = models.ForeignKey(
         ItemDetails, on_delete=models.SET_NULL, related_name='order_items', null=True, blank=True
     )
+    back_pdf_name = models.CharField(max_length=255, blank=True, null=True)
+    front_pdf_name = models.CharField(max_length=255, blank=True, null=True)
 
     @transaction.atomic()
     def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
