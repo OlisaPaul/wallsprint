@@ -30,6 +30,7 @@ from store import models
 from store import serializers
 from reportlab.graphics import renderPM
 import tempfile
+import cairosvg
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium import webdriver
@@ -119,102 +120,17 @@ def generate_business_card(request, editable_item_id):
     svg_output = template.render(context)
 
     if output_format == "png":
-        driver = None
-        temp_html = None
         try:
-            # Create Chrome options
-            chrome_options = Options()
-            chrome_options.add_argument('--headless')
-            chrome_options.add_argument('--no-sandbox')
-            chrome_options.add_argument('--disable-dev-shm-usage')
-            chrome_options.add_argument('--disable-gpu')
-            chrome_options.add_argument('--disable-software-rasterizer')
-            chrome_options.add_argument('--disable-dev-tools')
-            chrome_options.add_argument('--log-level=3')  # Suppress console logs
-            chrome_options.add_argument('--silent')
-
-            # Create a temporary HTML file with the SVG
-            with tempfile.NamedTemporaryFile(suffix='.html', delete=False, mode='w') as f:
-                html_content = f"""
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <style>
-                        body, html {{
-                            margin: 0;
-                            padding: 0;
-                            width: 100%;
-                            height: 100%;
-                            overflow: hidden;
-                        }}
-                        svg {{
-                            width: 100%;
-                            height: 100%;
-                            display: block;
-                        }}
-                    </style>
-                </head>
-                <body>
-                    {svg_output}
-                </body>
-                </html>
-                """
-                f.write(html_content)
-                temp_html = f.name
-
-            # Initialize Chrome driver with service
-            service = Service(ChromeDriverManager().install())
-            driver = webdriver.Chrome(service=service, options=chrome_options)
-            
-            # Set viewport size to match SVG dimensions
-            driver.set_window_size(1024, 768)  # Adjust these dimensions as needed
-            
-            # Load the HTML file
-            driver.get(f'file:///{temp_html}')
-            
-            # Wait for the page to be fully loaded
-            WebDriverWait(driver, 10).until(
-                lambda d: d.execute_script('return document.readyState') == 'complete'
-            )
-            
-            # Get the actual size of the SVG element
-            size = driver.execute_script("""
-                var svg = document.querySelector('svg');
-                return {
-                    width: svg.getBoundingClientRect().width,
-                    height: svg.getBoundingClientRect().height
-                };
-            """)
-            
-            # Update viewport to match SVG size
-            driver.set_window_size(
-                int(size['width']), 
-                int(size['height'])
-            )
-            
-            # Take screenshot of the specific element
-            png_data = driver.find_element('tag name', 'svg').screenshot_as_png
-            
-            return HttpResponse(png_data, content_type="image/png")
-            
+            # Convert SVG to PNG using CairoSVG
+            png_output = io.BytesIO()
+            cairosvg.svg2png(bytestring=svg_output.encode('utf-8'), write_to=png_output)
+            return HttpResponse(png_output.getvalue(), content_type="image/png")
         except Exception as e:
             print(f"SVG to PNG conversion error: {e}")
             return HttpResponse(
                 {"error": f"Failed to convert SVG to PNG: {str(e)}"},
                 status=500
             )
-        finally:
-            # Clean up
-            if driver:
-                try:
-                    driver.quit()
-                except Exception:
-                    pass
-            if temp_html and os.path.exists(temp_html):
-                try:
-                    os.unlink(temp_html)
-                except Exception:
-                    pass
 
     return HttpResponse(svg_output, content_type="image/svg+xml")
 
@@ -1159,7 +1075,7 @@ class OrderViewSet(ModelViewSet):
         if self.request.method in ['PATCH', 'DELETE']:
             return [IsAdminUser()]
         return [IsAuthenticated()]
-
+  
     def get_customer(self):
         self.customer = None
         if self.request.user.is_staff:

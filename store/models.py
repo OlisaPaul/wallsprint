@@ -869,7 +869,12 @@ class CartItem(models.Model):
         ItemDetails, on_delete=models.SET_NULL, related_name='cart_items', null=True, blank=True
     )
     image = CloudinaryField('image', resource_type='image', blank=True, null=True)
-
+    back_image = CloudinaryField('image', resource_type='image', blank=True, null=True)
+    front_pdf = CloudinaryField('image', resource_type='raw', blank=True, allowed_formats=['pdf'], null=True)
+    front_pdf_name = models.CharField(max_length=255, blank=True, null=True)
+    back_pdf = CloudinaryField('image', resource_type='raw', blank=True,  allowed_formats=['pdf'],null=True)
+    back_pdf_name = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
     # class Meta:
     #     unique_together = [["catalog_item", "cart", "quantity"]]
 
@@ -923,6 +928,9 @@ class OrderItem(models.Model):
     unit_price = models.DecimalField(max_digits=6, decimal_places=2)
     sub_total = models.DecimalField(max_digits=12, decimal_places=2)
     image = CloudinaryField('image', resource_type='image', blank=True, null=True)
+    back_image = CloudinaryField('image', resource_type='image', blank=True, null=True)
+    front_pdf = CloudinaryField('image', resource_type='raw', blank=True, allowed_formats=['pdf'], null=True)
+    back_pdf = CloudinaryField('image', resource_type='raw', blank=True,  allowed_formats=['pdf'],null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     details = models.ForeignKey(
         ItemDetails, on_delete=models.SET_NULL, related_name='order_items', null=True, blank=True
@@ -1061,21 +1069,28 @@ class TemplateField(models.Model):
     Model for template fields with positioning and styling information.
     Used for customizable templates like business cards.
     """
+    TEL = 'tel'
+    EMAIL = 'email'
+    TEXT = 'text'
+    IMAGE = 'image'
+    DATE = 'date'
+    
+    FIELD_TYPE_CHOICES = [
+        (TEXT, TEXT),
+        (IMAGE, IMAGE),
+        (DATE, DATE),
+        (EMAIL, EMAIL),
+        (TEL, TEL)
+    ]
+
     label = models.CharField(max_length=100)
     field_type = models.CharField(
         max_length=20,
-        choices=[
-            ('text', 'Text'),
-            ('image', 'Image'),
-            ('date', 'Date'),
-            ('email', 'Email'),
-            ('phone', 'Phone'),
-            ('number', 'Number'),
-        ],
-        default='text'
+        choices=FIELD_TYPE_CHOICES,
+        default=TEXT
     )
     placeholder = models.CharField(max_length=255, blank=True, null=True)
-
+    prefix = models.CharField(max_length=50, default="", blank=True, null=True)
     # Position coordinates
     position_x = models.IntegerField(default=0)
     position_y = models.IntegerField(default=0)

@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "edcb6f5030d99a3a8940cb424d91fcc42c7ceb8a69ee256436bd0d9e3f0ca253"
+            "sha256": "c7679c30ecc52ac4395747a8c10bd5a00da63e0e95ee34bb092367853cba27ac"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -79,6 +79,23 @@
             ],
             "markers": "python_version >= '3.7'",
             "version": "==4.2.1"
+        },
+        "cairocffi": {
+            "hashes": [
+                "sha256:2e48ee864884ec4a3a34bfa8c9ab9999f688286eb714a15a43ec9d068c36557b",
+                "sha256:9803a0e11f6c962f3b0ae2ec8ba6ae45e957a146a004697a1ac1bbf16b073b3f"
+            ],
+            "markers": "python_version >= '3.8'",
+            "version": "==1.7.1"
+        },
+        "cairosvg": {
+            "hashes": [
+                "sha256:432531d72347291b9a9ebfb6777026b607563fd8719c46ee742db0aef7271ba0",
+                "sha256:8a5222d4e6c3f86f1f7046b63246877a63b49923a1cd202184c3a634ef546b3b"
+            ],
+            "index": "pypi",
+            "markers": "python_version >= '3.5'",
+            "version": "==2.7.1"
         },
         "celery": {
             "hashes": [
@@ -167,7 +184,8 @@
                 "sha256:f7f5baafcc48261359e14bcd6d9bff6d4b28d9103847c9e136694cb0501aef87",
                 "sha256:fc48c783f9c87e60831201f2cce7f3b2e4846bf4d8728eabe54d60700b318a0b"
             ],
-            "markers": "os_name == 'nt' and implementation_name != 'pypy'",
+            "index": "pypi",
+            "markers": "python_version >= '3.8'",
             "version": "==1.17.1"
         },
         "channels": {
@@ -324,14 +342,6 @@
             "index": "pypi",
             "version": "==1.43.0"
         },
-        "colorama": {
-            "hashes": [
-                "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44",
-                "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"
-            ],
-            "markers": "platform_system == 'Windows'",
-            "version": "==0.4.6"
-        },
         "constantly": {
             "hashes": [
                 "sha256:3fd9b4d1c3dc1ec9757f3c52aef7e53ad9323dbe39f51dfd4c43853b68dfa3f9",
@@ -418,7 +428,7 @@
                 "sha256:468dff3b89520b474c0397703366b7b95eebe6303f108adf9b19da1f702be87a",
                 "sha256:81aa267dddf68cbfe8029c42ca9ec6a4ab3b22371d1c450abc54422577b4512c"
             ],
-            "markers": "python_version >= '3.11'",
+            "markers": "python_version >= '3.8'",
             "version": "==0.3.9"
         },
         "dj-database-url": {
@@ -519,11 +529,11 @@
         },
         "django-username-email": {
             "hashes": [
-                "sha256:0c35008c138c8dce9fab33f86179a87d2e3e3962ea738c5ab62fc5f7e2021187",
-                "sha256:5c7eb9eb47bad6d3246cb05993f2f8e95d41dfb852dffb63acd6d26550934079"
+                "sha256:ebebe0edb53c90bcb0fe41f5153614a3df8fe2e7fd6aca9fc100a1953fc93d87",
+                "sha256:f039bcceeb1eb08f6ebcd26087434237a31246a5997088c3bf00a13fb7a14b29"
             ],
             "index": "pypi",
-            "version": "==2.5.6"
+            "version": "==2.5.7"
         },
         "djangorestframework": {
             "hashes": [
@@ -1047,6 +1057,7 @@
                 "sha256:424c247065e46e76a37411b9ab1782541c23bb658bf003772c3405fbaa128e90",
                 "sha256:cd2cef799efa3936bb08e8ccb9433a575722b9dd986023f1cabc4ae64e9dac16"
             ],
+            "markers": "python_version >= '3.7'",
             "version": "==25.0.0"
         },
         "pysocks": {
@@ -1055,6 +1066,7 @@
                 "sha256:2725bd0a9925919b9b51739eea5f9e2bae91e83288108a9ad338b2e3a4435ee5",
                 "sha256:3f8804571ebe159c380ac6de37643bb4685970655d3bba243530d6558b799aa0"
             ],
+            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
             "version": "==1.7.1"
         },
         "python-crontab": {
@@ -1210,6 +1222,7 @@
                 "sha256:6b047fbd8a84fd0bb0d55ebce4031e400562b9196e1e0d3e0fe2b8a59f6d4a85",
                 "sha256:b8683ba13f0d39c6cd5d625d2c5f65421d6d707b013b375c355751557cbe8e09"
             ],
+            "markers": "python_version >= '3.8'",
             "version": "==24.2.0"
         },
         "setuptools": {

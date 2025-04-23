@@ -2,6 +2,8 @@ import csv
 import os
 import re
 import json
+from uuid import uuid4
+import requests
 from django.conf import settings
 from django.core.validators import FileExtensionValidator
 from django.db import transaction
@@ -12,7 +14,7 @@ from dotenv import load_dotenv
 from rest_framework import serializers
 from rest_framework.validators import ValidationError
 from io import TextIOWrapper
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMultiAlternatives
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from .models import AttributeOption, Attribute, Cart, CartItem, Catalog, CatalogItem, ContactInquiry, FileExchange, Page, OnlinePayment, OnlineProof, OrderItem, Portal, QuoteRequest, File, Customer, Request, FileTransfer, CustomerGroup, PortalContent, Order, OrderItem, PortalContentCatalog, Note, BillingInfo, Shipment, Transaction, ItemDetails, TemplateField, EditableCatalogItemFile
@@ -38,6 +40,56 @@ def send_email(user, context, subject, template):
         html_message=message
     )
 
+def send_html_email_with_attachments(subject, context, template_name, from_email, recipient_list, files=[]):
+    # Render HTML and plain-text bodies
+    html_content = render_to_string(template_name, context)
+    # text_content = render_to_string(template_name, context)
+
+    # Create email with HTML + plain text
+    email = EmailMultiAlternatives(
+        subject=subject,
+        body='',
+        from_email=from_email,
+        to=recipient_list,
+    )
+    email.attach_alternative(html_content, "text/html")
+    print(len(files))
+
+    existing_filenames = set()
+
+    for file in files:
+        url = file.get("url")
+        name = file.get("name")
+
+        if not url:
+            print("Skipping file with no URL.")
+            continue
+
+        try:
+            response = requests.get(url)
+            print(f"Fetching: {url} - Status: {response.status_code}")
+
+            if response.status_code == 200:
+                filename = name or os.path.basename(url.split('?')[0])
+                
+                # Ensure unique filename
+                if filename in existing_filenames:
+                    base, ext = os.path.splitext(filename)
+                    count = 1
+                    while f"{base}_{count}{ext}" in existing_filenames:
+                        count += 1
+                    filename = f"{base}_{count}{ext}"
+                existing_filenames.add(filename)
+
+                content_type = response.headers.get("Content-Type", "application/octet-stream")
+                email.attach(filename, response.content, content_type)
+                print(f"Attached: {filename} ({len(response.content)} bytes)")
+            else:
+                print(f"Failed to download: {url}")
+        except Exception as e:
+            print(f"Error attaching {url}: {e}")
+
+    email.send()
 
 SVG_TEMPLATE = """<svg width="336" height="192" viewBox="0 0 336 192" fill="none" xmlns="http://www.w3.org/2000/svg">
  <g clip-path="url(#clip0_407_397)">
@@ -424,7 +476,7 @@ SVG_TEMPLATE = """<svg width="336" height="192" viewBox="0 0 336 192" fill="none
 TEMPLATE_FIELDS = [
     {
         "id": 40,
-        "label": "Name",
+        "label": "name",
         "field_type": "text",
         "placeholder": "Olisa Paul"
     },
@@ -1189,6 +1241,8 @@ class CreatePortalSerializer(serializers.ModelSerializer):
     ONLINE_PAYMENTS = 'Online payments'
     ORDER_APPROVAL = 'Order approval'
     ONLINE_ORDERS = 'Online orders'
+    logo = serializers.ImageField(
+        required=True, allow_null=True, write_only=True)
     copy_an_existing_portal = serializers.BooleanField(default=False)
     copy_from_portal_id = serializers.IntegerField(
         required=False, allow_null=True)
@@ -1912,7 +1966,7 @@ class CreateTemplateFieldSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TemplateField
-        fields = ['id', 'label', 'field_type', 'placeholder',
+        fields = ['id', 'label', 'field_type', 'placeholder', 'prefix', 
                   'position', 'font_size', 'font_color',
                   'font_family', 'bold', 'italic', 'width', 'height',
                   'max_length']
@@ -1972,19 +2026,19 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
     preview_file = serializers.FileField()
     attributes = AttributeSerializer(many=True, read_only=True)
     attribute_data = serializers.JSONField(write_only=True, required=False)
-    template_fields = serializers.JSONField(required=False, write_only=True)
+    # template_fields = serializers.JSONField(required=False, write_only=True)
 
     class Meta:
         model = CatalogItem
         fields = catalog_item_fields + \
-            ['attribute_data', 'can_be_edited', 'item_type', 'template_fields']
+            ['attribute_data', 'can_be_edited', 'item_type']
 
-    def validate_template_fields(self, template_fields):
-        if template_fields:
-            for template_field in template_fields:
-                serializer = CreateTemplateFieldSerializer(data=template_field)
-                serializer.is_valid(raise_exception=True)
-            return template_fields
+    # def validate_template_fields(self, template_fields):
+    #     if template_fields:
+    #         for template_field in template_fields:
+    #             serializer = CreateTemplateFieldSerializer(data=template_field)
+    #             serializer.is_valid(raise_exception=True)
+    #         return template_fields
 
     def validate_attribute_data(self, attributes_data):
         if attributes_data and self.instance:
@@ -2012,7 +2066,7 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
     @transaction.atomic()
     def create(self, validated_data):
         attributes_data = validated_data.pop('attribute_data', [])
-        template_fields = validated_data.pop('template_fields', [])
+        # template_fields = validated_data.pop('template_fields', [])
         self.validate_attribute_data(attributes_data)
         catalog_id = self.context['catalog_id']
         catalog_item = CatalogItem.objects.create(
@@ -2020,16 +2074,16 @@ class CreateOrUpdateCatalogItemSerializer(serializers.ModelSerializer):
 
         options_to_bulk_create = []
 
-        if template_fields:
-            template_fields = CreateTemplateFieldSerializer(
-                data=template_fields,
-                context={
-                    'catalog_item_id': catalog_item.id,
-                },
-                many=True
-            )
-            template_fields.is_valid(raise_exception=True)
-            template_fields.save()
+        # if template_fields:
+        #     template_fields = CreateTemplateFieldSerializer(
+        #         data=template_fields,
+        #         context={
+        #             'catalog_item_id': catalog_item.id,
+        #         },
+        #         many=True
+        #     )
+        #     template_fields.is_valid(raise_exception=True)
+        #     template_fields.save()
 
         for attribute_data in attributes_data:
             options_data = attribute_data.pop('options', [])
@@ -2126,11 +2180,13 @@ class CartItemSerializer(serializers.ModelSerializer):
     catalog_item = SimpleCatalogItemSerializer()
     sub_total = serializers.SerializerMethodField()
     details = ItemDetailsSerializer()
+    front_pdf = serializers.SerializerMethodField()
+    back_pdf = serializers.SerializerMethodField()
 
     class Meta:
         model = CartItem
         fields = ['id', 'catalog_item', 'quantity',
-                  'sub_total', 'unit_price', 'details']
+                  'sub_total', 'unit_price', 'details', 'front_pdf', 'back_pdf', 'created_at']
 
     def get_sub_total(self, cart_item: CartItem):
         pricing_grid = cart_item.catalog_item.pricing_grid
@@ -2140,7 +2196,15 @@ class CartItemSerializer(serializers.ModelSerializer):
         total_price = (quantity * item['unit_price']
                        ) if item else cart_item.sub_total
         return total_price
-
+    
+    def get_url(self, field: CartItem):
+        return field.url if field else None
+    
+    def get_front_pdf(self, cart_item: CartItem):
+        return self.get_url(cart_item.front_pdf)
+    def get_back_pdf(self, cart_item: CartItem):
+        return self.get_url(cart_item.back_pdf)
+    
 
 class CartSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(read_only=True)
@@ -2195,13 +2259,24 @@ class CartSerializer(serializers.ModelSerializer):
 
 
 class AddCartItemSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(required=False)
+    back_image = serializers.ImageField(required=False)
+    front_pdf = serializers.FileField(required=False)
+    back_pdf = serializers.FileField(required=False)
+
     def validate(self, attrs):
         catalog_item = attrs.get('catalog_item')
         image = attrs.get('image')
+        back_image = attrs.get('back_image')
+        front_pdf = attrs.get('front_pdf')
+        back_pdf = attrs.get('back_pdf')
         if catalog_item.item_type != CatalogItem.BUSINESS_CARD:
-            if image:
+            if image or back_image:
                 raise serializers.ValidationError(
                     {"image": "Image is not allowed for this item type"})
+            if front_pdf or back_pdf:
+                raise serializers.ValidationError(
+                    {"front_pdf": "PDF is not allowed for this item type"})
         # else:
         #     if not image:
         #         raise serializers.ValidationError(
@@ -2211,11 +2286,17 @@ class AddCartItemSerializer(serializers.ModelSerializer):
 
     @transaction.atomic()
     def create(self, validated_data):
+        front_pdf = validated_data.get('front_pdf', None)
+        back_pdf = validated_data.get('back_pdf', None)
+        if front_pdf:
+            validated_data['front_pdf_name'] = front_pdf.name
+        if back_pdf:
+            validated_data['back_pdf_name'] = back_pdf.name
         return save_item(self.context, validated_data, CartItem, 'cart_id', self.instance)
 
     class Meta:
         model = CartItem
-        fields = ["id", "catalog_item", "quantity", 'image']
+        fields = ["id", "catalog_item", "quantity", 'image', 'back_image', 'front_pdf', 'back_pdf']
 
 
 class UpdateCartItemSerializer(serializers.ModelSerializer):
@@ -2227,13 +2308,22 @@ class UpdateCartItemSerializer(serializers.ModelSerializer):
 class OrderItemSerializer(serializers.ModelSerializer):
     catalog_item = SimpleCatalogItemSerializer()
     details = ItemDetailsSerializer()
+    front_pdf = serializers.SerializerMethodField()
+    back_pdf = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItem
         fields = ['id', 'catalog_item', 'unit_price',
                   'quantity', 'sub_total', 'tax', 'status',
-                  'details', 'created_at'
+                  'details', 'front_pdf', 'back_pdf', 'created_at'
                   ]
+        
+    def get_url(self, field: OrderItem):
+        return field.url if field else None
+    def get_front_pdf(self, order_item: OrderItem):
+        return self.get_url(order_item.front_pdf)
+    def get_back_pdf(self, order_item: OrderItem):
+        return self.get_url(order_item.back_pdf)
 
 
 class CreateOrderItemSerializer(serializers.ModelSerializer):
@@ -2419,10 +2509,15 @@ class CreateOrderSerializer(serializers.ModelSerializer):
 
         order_items = []
         catalog_items = []
+        contains_business_card = False
+        attached_files = []
 
         for item in cart_items:
             catalog_item = item.catalog_item
             quantity = item.quantity
+
+            if catalog_item.item_type == CatalogItem.BUSINESS_CARD:
+                contains_business_card = True
 
             if catalog_item.restrict_orders_to_inventory:
                 catalog_item.available_inventory -= quantity
@@ -2444,6 +2539,11 @@ class CreateOrderSerializer(serializers.ModelSerializer):
                 (entry['unit_price'] for entry in item.catalog_item.pricing_grid if entry['minimum_quantity'] == item.quantity), item.unit_price)
             sub_total = item.quantity * unit_price
 
+            if item.front_pdf:
+                attached_files.append({'url':item.front_pdf.url, 'name': item.front_pdf_name})
+            if item.back_pdf:
+                attached_files.append({'url':item.back_pdf.url, 'name': item.back_pdf_name})
+
             order_items.append(OrderItem(
                 order=order,
                 catalog_item=item.catalog_item,
@@ -2452,8 +2552,11 @@ class CreateOrderSerializer(serializers.ModelSerializer):
                 quantity=item.quantity,
                 details=item.details,
                 image=item.image,
+                back_image=item.back_image,
+                front_pdf=item.front_pdf,
+                back_pdf=item.back_pdf,
             ))
-
+        
         if catalog_items:
             CatalogItem.objects.bulk_update(
                 catalog_items, ['available_inventory'])
@@ -2463,20 +2566,38 @@ class CreateOrderSerializer(serializers.ModelSerializer):
         Cart.objects.filter(pk=cart_id).delete()
 
         if auto_send_proof:
-            subject = f"Your Walls Printing Order Confirmation - {order.po_number}"
-            message = render_to_string('email/order_confirmation.html', {
+            context = {
+                'order_number': order.po_number,
                 'customer_name': order.name,
+                'response_days': 2,
+                'wallsprinting_phone': os.getenv('WALLSPRINTING_PHONE'),
+                'wallsprinting_website': os.getenv('WALLSPRINTING_WEBSITE'),
                 'invoice_number': order.po_number,
                 'po_number': order.po_number,
                 'payment_submission_link': 'your_payment_submission_link_here'
-            })
-            send_mail(
+            }
+            template = 'email/order_confirmation_editable.html' if contains_business_card else 'email/order_confirmation.html'
+            subject = f"Your Walls Printing Order Confirmation - {order.po_number}"
+            message = render_to_string(template, context=context)
+            # send_mail(
+            #     subject=subject,
+            #     message='',
+            #     from_email=settings.EMAIL_HOST_USER,
+            #     recipient_list=[order.email_address],
+            #     html_message=message,
+            #     fail_silently=False,
+            #     attachments=[
+            #         (file.name, file.read(), file.content_type) for file in attached_files if file
+            #     ]
+            # )
+
+            send_html_email_with_attachments(
                 subject=subject,
-                message='',
+                context=context,
+                template_name=template,
                 from_email=settings.EMAIL_HOST_USER,
                 recipient_list=[order.email_address],
-                html_message=message,
-                fail_silently=False,
+                files=attached_files,
             )
 
         return order
@@ -2659,7 +2780,7 @@ class CreateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
     file_name = serializers.CharField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
     file_size = serializers.SerializerMethodField()
-    catalog_item_name = serializers.CharField(write_only=True)
+    catalog_item_name = serializers.CharField(source='title', write_only=True)
 
     class Meta:
         model = CatalogItem
@@ -2683,12 +2804,10 @@ class CreateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
     @transaction.atomic()
     def create(self, validated_data):
         file = validated_data.get('file')
-        catalog_item_name = validated_data.pop('catalog_item_name')
         file_name = file.name
         file_size = file.size
         validated_data['file_name'] = file_name
         validated_data['file_size'] = file_size
-        validated_data['title'] = catalog_item_name
         validated_data['status'] = CatalogItem.PENDING
         validated_data['item_type'] = CatalogItem.BUSINESS_CARD
         validated_data['can_be_edited'] = True
@@ -2789,7 +2908,7 @@ class UpdateEditableCatalogItemFileSerializer(serializers.ModelSerializer):
 class TemplateFieldSerializer(serializers.ModelSerializer):
     class Meta:
         model = TemplateField
-        fields = ['id', 'label', 'field_type', 'placeholder']
+        fields = ['id', 'label', 'field_type', 'placeholder', 'prefix']
         read_only_fields = ['created_at', 'updated_at']
 
 
