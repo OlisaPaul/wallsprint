@@ -1958,7 +1958,7 @@ class CatalogItemSerializer(serializers.ModelSerializer):
     def get_template_fields(self, obj: CatalogItem):
         if obj.file_name: 
             return TemplateFieldSerializer(
-                obj.template_fields.all(), many=True).data or TEMPLATE_FIELDS
+                obj.template_fields.all(), many=True).data
         return None
     
     def get_can_be_edited(self, obj: CatalogItem):
@@ -2964,5 +2964,5 @@ class EditableCatalogItemFileSerializer(serializers.ModelSerializer):
     def get_template_fields(self, obj: CatalogItem):
         if obj.file_name: 
             return TemplateFieldSerializer(
-                obj.template_fields.all(), many=True).data or TEMPLATE_FIELDS
+                obj.template_fields.all(), many=True).data
         return None
