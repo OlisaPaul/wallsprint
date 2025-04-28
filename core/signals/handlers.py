@@ -175,7 +175,7 @@ def notify_on_file_transfer_creation(sender, instance, created, **kwargs):
 
 
 @receiver(order_created)
-def notify_on_order_creation(sender, order, created, **kwargs):
+def notify_on_order_creation(sender, **kwargs):
     order = kwargs.get('order')
     attached_files = kwargs.get('attached_files')
     context=kwargs.get('context')

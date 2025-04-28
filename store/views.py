@@ -883,7 +883,7 @@ class CatalogItemViewSet(ModelViewSet):
     def get_queryset(self):
         catalog_id = self.kwargs.get('catalog_pk')
         queryset = CatalogItem.objects.filter(
-            status=CatalogItem.APPROVED).prefetch_related('attributes__options')
+            status=CatalogItem.COMPLETED).prefetch_related('attributes__options')
         if catalog_id:
             queryset = queryset.filter(catalog_id=catalog_id)
         return queryset
@@ -924,7 +924,7 @@ class CatalogItemViewSet(ModelViewSet):
             return Response({'detail': 'Portal ID query parameter is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
         queryset = CatalogItem.objects.filter(
-            catalog__portal_contents__portal_id=portal_id, status=CatalogItem.APPROVED
+            catalog__portal_contents__portal_id=portal_id, status=CatalogItem.COMPLETED
         ).prefetch_related('attributes__options').select_related('catalog')
 
         serializer = CatalogItemSerializer(queryset, many=True)

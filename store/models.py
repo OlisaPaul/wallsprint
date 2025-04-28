@@ -643,7 +643,7 @@ class CatalogItem(models.Model):
     PROCESSING = 'Processing'
     UPDATED = 'Updated'
     APPROVING = 'Approving'
-    APPROVED='Approved'
+    COMPLETED='Completed'
 
     status_choices = [
         (PENDING, PENDING),
@@ -651,7 +651,7 @@ class CatalogItem(models.Model):
         (PROCESSING, PROCESSING),
         (UPDATED, UPDATED),
         (APPROVING, APPROVING),
-        (APPROVED, APPROVED)
+        (COMPLETED, COMPLETED)
     ]
 
     sides_type = [
@@ -706,7 +706,7 @@ class CatalogItem(models.Model):
     file_name = models.CharField(max_length=255, blank=True, null=True)
     file_size = models.PositiveIntegerField(blank=True, null=True)
     status = models.CharField(
-        max_length=20, choices=status_choices, default=APPROVED)
+        max_length=20, choices=status_choices, default=COMPLETED)
     front_svg_code = models.TextField(blank=True, null=True)
     back_svg_code = models.TextField(blank=True, null=True)
     sides = models.CharField(
