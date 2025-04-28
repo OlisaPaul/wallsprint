@@ -10,6 +10,7 @@ from core.tasks import send_notification_email_task
 from django.core.mail import send_mail, EmailMultiAlternatives
 from django.template.loader import render_to_string
 from dotenv import load_dotenv
+from store.serializers import order_created
 
 load_dotenv()
 
@@ -173,41 +174,26 @@ def notify_on_file_transfer_creation(sender, instance, created, **kwargs):
         send_notification_email(instance, 'FileTransfer')
 
 
-@receiver(post_save, sender=Order)
-def notify_on_order_creation(sender, instance, created, **kwargs):
-    if created:
-        staff_notifications = StaffNotification.objects.select_related(
-        'user').values_list('user__email', flat=True)
+@receiver(order_created)
+def notify_on_order_creation(sender, order, created, **kwargs):
+    order = kwargs.get('order')
+    attached_files = kwargs.get('attached_files')
+    context=kwargs.get('context')
 
-        template = 'email/new_order_notification_admin.html'
-        subject = f"New Order - {instance.po_number}"
-        context =  context = {
-                'order_number': instance.po_number,
-                'customer_name': instance.name,
-                'response_days': 2,
-                'wallsprinting_phone': os.getenv('WALLSPRINTING_PHONE'),
-                'wallsprinting_website': os.getenv('WALLSPRINTING_WEBSITE'),
-                'invoice_number': instance.po_number,
-                'po_number': instance.po_number,
-                'payment_submission_link': 'your_payment_submission_link_here'
-            }
-        attached_files = []
-        order_items = instance.items.all()
-        print(order_items)
-        for item in order_items:
-            if item.front_pdf:
-                attached_files.append({'url':item.front_pdf.url, 'name': item.front_pdf_name})        
-            if item.back_pdf:
-                attached_files.append({'url':item.back_pdf.url, 'name': item.back_pdf_name})        
+    staff_notifications = StaffNotification.objects.select_related(
+    'user').values_list('user__email', flat=True)
 
-        send_html_email_with_attachments(
-            subject=subject,
-            context=context,
-            template_name=template,
-            from_email=settings.EMAIL_HOST_USER,
-            recipient_list=list(staff_notifications),
-            files=attached_files,
-        )
+    template = 'email/new_order_notification_admin.html'
+    subject = f"New Order - {order.po_number}"
+    
+    send_html_email_with_attachments(
+        subject=subject,
+        context=context,
+        template_name=template,
+        from_email=settings.EMAIL_HOST_USER,
+        recipient_list=list(staff_notifications),
+        files=attached_files,
+    )
 
 
 
