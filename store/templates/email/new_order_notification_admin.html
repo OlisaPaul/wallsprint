@@ -1,0 +1,69 @@
+{% autoescape off %}
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>New Order Request Received</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #ffffff;
+        color: #333;
+        padding: 20px;
+      }
+      .container {
+        max-width: 600px;
+        margin: auto;
+        border: 1px solid #ddd;
+        padding: 20px;
+        border-radius: 5px;
+      }
+      .footer {
+        margin-top: 30px;
+        font-size: 12px;
+        color: #777;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>New Order Request Received: #{{ order_number }}</h2>
+
+      <p>Hello Admin,</p>
+
+      <p>
+        A new order request <strong>#{{ order_number }}</strong> has been
+        submitted by <strong>{{ customer_name }}</strong>.
+      </p>
+
+      <p>
+        A PDF document with the order details has been attached to this email.
+      </p>
+
+      <p>
+        Please review the request and respond within
+        <strong>{{ response_days }}</strong> business days to provide a final
+        quotation and timeline.
+      </p>
+
+      <p>
+        If you need to contact the customer, you can reach them using the
+        details provided in the attached document.
+      </p>
+
+      <p>Thank you for your prompt attention to this request.</p>
+
+      <p>
+        Sincerely,<br />
+        WallsPrinting Website Notification System
+      </p>
+
+      <div class="footer">
+        <p>
+          <a href="{{ wallsprinting_website }}">{{ wallsprinting_website }}</a>
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
+{% endautoescape %}

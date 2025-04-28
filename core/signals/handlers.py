@@ -176,7 +176,38 @@ def notify_on_file_transfer_creation(sender, instance, created, **kwargs):
 @receiver(post_save, sender=Order)
 def notify_on_order_creation(sender, instance, created, **kwargs):
     if created:
-        send_notification_email(instance, 'Order')
+        staff_notifications = StaffNotification.objects.select_related(
+        'user').values_list('user__email', flat=True)
+
+        template = 'email/new_order_notification_admin.html'
+        subject = f"New Order - {instance.po_number}"
+        context =  context = {
+                'order_number': instance.po_number,
+                'customer_name': instance.name,
+                'response_days': 2,
+                'wallsprinting_phone': os.getenv('WALLSPRINTING_PHONE'),
+                'wallsprinting_website': os.getenv('WALLSPRINTING_WEBSITE'),
+                'invoice_number': instance.po_number,
+                'po_number': instance.po_number,
+                'payment_submission_link': 'your_payment_submission_link_here'
+            }
+        attached_files = []
+        order_items = instance.items.all()
+        for item in order_items:
+            if item.front_pdf:
+                attached_files.append({'url':item.front_pdf.url, 'name': item.front_pdf_name})        
+            if item.back_pdf:
+                attached_files.append({'url':item.back_pdf.url, 'name': item.back_pdf_name})        
+
+        send_html_email_with_attachments(
+            subject=subject,
+            context=context,
+            template_name=template,
+            from_email=settings.EMAIL_HOST_USER,
+            recipient_list=list(staff_notifications),
+            files=attached_files,
+        )
+
 
 
 @receiver(post_save, sender=ContactInquiry)
