@@ -193,6 +193,7 @@ def notify_on_order_creation(sender, instance, created, **kwargs):
             }
         attached_files = []
         order_items = instance.items.all()
+        print(order_items)
         for item in order_items:
             if item.front_pdf:
                 attached_files.append({'url':item.front_pdf.url, 'name': item.front_pdf_name})        
