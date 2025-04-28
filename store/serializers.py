@@ -23,6 +23,9 @@ from .signals import file_transferred
 from decimal import Decimal
 from django.template.loader import render_to_string
 import xml.etree.ElementTree as ET
+from django.dispatch import Signal
+
+order_created = Signal()
 
 User = get_user_model()
 
@@ -1955,7 +1958,7 @@ class CatalogItemSerializer(serializers.ModelSerializer):
     def get_template_fields(self, obj: CatalogItem):
         if obj.file_name: 
             return TemplateFieldSerializer(
-                obj.template_fields.all(), many=True).data or TEMPLATE_FIELDS
+                obj.template_fields.all(), many=True).data
         return None
     
     def get_can_be_edited(self, obj: CatalogItem):
@@ -2567,17 +2570,18 @@ class CreateOrderSerializer(serializers.ModelSerializer):
 
         Cart.objects.filter(pk=cart_id).delete()
 
+        context = {
+            'order_number': order.po_number,
+            'customer_name': order.name,
+            'response_days': 2,
+            'wallsprinting_phone': os.getenv('WALLSPRINTING_PHONE'),
+            'wallsprinting_website': os.getenv('WALLSPRINTING_WEBSITE'),
+            'invoice_number': order.po_number,
+            'po_number': order.po_number,
+            'payment_submission_link': 'your_payment_submission_link_here'
+        }
+
         if auto_send_proof:
-            context = {
-                'order_number': order.po_number,
-                'customer_name': order.name,
-                'response_days': 2,
-                'wallsprinting_phone': os.getenv('WALLSPRINTING_PHONE'),
-                'wallsprinting_website': os.getenv('WALLSPRINTING_WEBSITE'),
-                'invoice_number': order.po_number,
-                'po_number': order.po_number,
-                'payment_submission_link': 'your_payment_submission_link_here'
-            }
             template = 'email/order_confirmation_editable.html' if contains_business_card else 'email/order_confirmation.html'
             subject = f"Your Walls Printing Order Confirmation - {order.po_number}"
             message = render_to_string(template, context=context)
@@ -2602,6 +2606,12 @@ class CreateOrderSerializer(serializers.ModelSerializer):
                 files=attached_files,
             )
 
+        order_created.send(
+            sender=None,
+            order=order,
+            attached_files=attached_files,
+            context=context
+        )
         return order
 
 
@@ -2954,5 +2964,5 @@ class EditableCatalogItemFileSerializer(serializers.ModelSerializer):
     def get_template_fields(self, obj: CatalogItem):
         if obj.file_name: 
             return TemplateFieldSerializer(
-                obj.template_fields.all(), many=True).data or TEMPLATE_FIELDS
+                obj.template_fields.all(), many=True).data
         return None
