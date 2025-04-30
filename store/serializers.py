@@ -2924,7 +2924,7 @@ class TemplateFieldSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at']
     
     def update(self, instance, validated_data):
-        instance.catalog_item.status = CatalogItem.PROCESSING
+        instance.catalog_item.status = CatalogItem.APPROVING
         instance.catalog_item.save()
         
         return super().update(instance, validated_data)
