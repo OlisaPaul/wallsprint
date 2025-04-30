@@ -2922,6 +2922,12 @@ class TemplateFieldSerializer(serializers.ModelSerializer):
         model = TemplateField
         fields = ['id', 'label', 'field_type', 'placeholder', 'prefix']
         read_only_fields = ['created_at', 'updated_at']
+    
+    def update(self, instance, validated_data):
+        instance.catalog_item.status = CatalogItem.APPROVING
+        instance.catalog_item.save()
+        
+        return super().update(instance, validated_data)
 
 
 class EditableCatalogItemFileSerializer(serializers.ModelSerializer):
