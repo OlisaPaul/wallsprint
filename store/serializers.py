@@ -1030,13 +1030,13 @@ class CreateCustomerSerializer(serializers.ModelSerializer):
             email=email, password=password, name=name, username=username, is_active=is_active)
         customer = Customer.objects.create(user=user, **validated_data)
 
-        subject = "Welcome to Walls Printing!"
-        template = "email/welcome_email.html"
-        context = {
-            "user": user,
-            "temporary_password": password,
-            "login_url": os.getenv('CUSTOMER_LOGIN_URL')
-        }
+        # subject = "Welcome to Walls Printing!"
+        # template = "email/welcome_email.html"
+        # context = {
+        #     "user": user,
+        #     "temporary_password": password,
+        #     "login_url": os.getenv('CUSTOMER_LOGIN_URL')
+        # }
 
         # send_email(user=user, context=context,
         #            subject=subject, template=template)
