@@ -1038,8 +1038,8 @@ class CreateCustomerSerializer(serializers.ModelSerializer):
             "login_url": os.getenv('CUSTOMER_LOGIN_URL')
         }
 
-        send_email(user=user, context=context,
-                   subject=subject, template=template)
+        # send_email(user=user, context=context,
+        #            subject=subject, template=template)
 
         if groups:
             customer.groups.set(groups)
