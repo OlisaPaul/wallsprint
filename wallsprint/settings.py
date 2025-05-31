@@ -129,8 +129,8 @@ DATABASES = {
 DATABASE_URL = os.getenv('DATABASE_URL')
 WORK_ENV = os.getenv('WORK_ENV')
 
-if WORK_ENV != 'develop':
-    DATABASES['default'] = dj_database_url.parse(DATABASE_URL)
+# if WORK_ENV != 'develop':
+DATABASES['default'] = dj_database_url.parse(DATABASE_URL)
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
@@ -252,6 +252,18 @@ CLOUDINARY_STORAGE = {
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'x-client-timezone',
+]
 
 LOGGING = {
     'version': 1,
