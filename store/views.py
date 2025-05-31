@@ -910,7 +910,7 @@ class CatalogItemViewSet(ModelViewSet):
         if client_timezone:
             if client_timezone not in allowed_timezones:
                 from rest_framework.exceptions import ValidationError
-                raise ValidationError({'client_timezone': f"Timezone '{client_timezone}' is not allowed."})
+                raise ValidationError({'client_timezone': f"Access denied due to location."})
             context['client_timezone'] = client_timezone
         return context
 
