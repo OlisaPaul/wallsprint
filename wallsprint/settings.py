@@ -202,7 +202,7 @@ DJOSER = {
     'PERMISSIONS': {
         "user_create": ['rest_framework.permissions.IsAdminUser'],
     },
-    'DOMAIN': 'wallsprint.netlify.app',
+    'DOMAIN': os.getenv('DOMAIN', 'wallsprint.netlify.app'),
     'SITE_NAME': 'Wallsprint',
     'PASSWORD_RESET_CONFIRM_URL': 'reset-password/{uid}/{token}',
     'PASSWORD_RESET_SHOW_EMAIL_NOT_FOUND': True,
