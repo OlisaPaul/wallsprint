@@ -589,6 +589,33 @@ class HTMLFileViewSet(CustomModelViewSet):
     queryset = models.Page.objects.all()
     serializer_class = serializers.PageSerializer
 
+def validate_client_timezone(request):
+    """
+    Validates the X-Client-Timezone header in the request. Raises ValidationError if not allowed.
+    Returns the timezone if valid, else None.
+    """
+    client_timezone = request.headers.get('X-Client-Timezone')
+    allowed_timezones = [
+        'CST',
+        'America/Chicago',
+        'America/Winnipeg',
+        'America/Mexico_City',
+        'America/Belize',
+        'America/Costa_Rica',
+        'America/El_Salvador',
+        'America/Guatemala',
+        'America/Managua',
+        'America/Regina',
+        'America/Matamoros',
+        'America/Tegucigalpa',
+        'America/Monterrey',
+    ]
+    if client_timezone:
+        if client_timezone not in allowed_timezones:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({'client_timezone': f"Access denied due to location."})
+        return client_timezone
+    return None
 
 class CatalogViewSet(CustomModelViewSet):
     queryset = models.Catalog.objects.all()
@@ -599,6 +626,7 @@ class CatalogViewSet(CustomModelViewSet):
         return serializers.CatalogSerializer
 
     def get_serializer_context(self):
+        validate_client_timezone(self.request)
         return {'request': self.request}
 
     @action(detail=True, methods=['post'])
@@ -890,28 +918,9 @@ class CatalogItemViewSet(ModelViewSet):
     def get_serializer_context(self):
         catalog_id = self.kwargs.get('catalog_pk')
         # Get the X-Client-Timezone header if present
-        client_timezone = self.request.headers.get('X-Client-Timezone')
-        allowed_timezones = [
-            'CST',
-            'America/Chicago',
-            'America/Winnipeg',
-            'America/Mexico_City',
-            'America/Belize',
-            'America/Costa_Rica',
-            'America/El_Salvador',
-            'America/Guatemala',
-            'America/Managua',
-            'America/Regina',
-            'America/Matamoros',
-            'America/Tegucigalpa',
-            'America/Monterrey',
-        ]
         context = {'catalog_id': catalog_id}
-        if client_timezone:
-            if client_timezone not in allowed_timezones:
-                from rest_framework.exceptions import ValidationError
-                raise ValidationError({'client_timezone': f"Access denied due to location."})
-            context['client_timezone'] = client_timezone
+        validate_client_timezone(self.request)
+        
         return context
 
     def create(self, request, *args, **kwargs):
