@@ -238,6 +238,9 @@ class UserCreateSerializer(BaseUserCreateSerializer):
     def validate(self, attrs):
         self.group_ids = attrs.pop('group_ids', [])
         return super().validate(attrs)
+    
+    def validate_email(self, value):
+        return value.lower()
 
     def validate_username(self, value):
         if User.objects.filter(username__iexact=value).exists():
@@ -454,6 +457,9 @@ class CustomTokenCreateSerializer(TokenCreateSerializer):
         email = attrs.get('email')
         password = attrs.get('password')
 
+        if email:
+            email = attrs["email"].lower()
+
         if email and password:
             user = authenticate(request=self.context.get('request'),
                                 email=email, password=password)
@@ -501,6 +507,7 @@ class CustomObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         username = attrs.get(self.username_field)
         password = attrs.get("password")
+        attrs[self.username_field] = username.lower() if username else None
 
         # Fetch the user manually
         user = User.objects.filter(**{self.username_field: username}).first()
@@ -510,9 +517,10 @@ class CustomObtainPairSerializer(TokenObtainPairSerializer):
                 raise AuthenticationFailed(
                     "Your account is inactive. Please contact support.")
 
-        # Authenticate the user
+        # Authenticate the user (case-insensitive username)
         user = authenticate(
-            **{self.username_field: username, "password": password})
+            **{self.username_field: username.lower(), "password": password}
+        )
 
         if not user:
             raise AuthenticationFailed(
